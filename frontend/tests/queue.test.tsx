@@ -37,6 +37,16 @@ describe('invoice queue', () => {
     expect(screen.queryByText('Paid')).not.toBeInTheDocument();
     expect(screen.getByText('Payment reported', { selector: '.status' })).toBeInTheDocument();
   });
+  it('labels and filters only backend-confirmed duplicate submissions', () => {
+    const duplicate = {...items[0], run_id:'duplicate', outcome:'duplicate' as const};
+    const revision = {...items[0], run_id:'revision', outcome:'needs_review' as const};
+    const onFilter = vi.fn();
+    render(<InvoiceQueue items={[duplicate, revision]} filter="duplicate" onFilter={onFilter} openRun={vi.fn()} newInvoice={vi.fn()} trySamples={vi.fn()} connected={true} cursor={null} loadMore={vi.fn()} loading={false}/>);
+    expect(screen.getByText('Duplicate', {selector:'.status'})).toBeVisible();
+    expect(screen.getAllByRole('row')).toHaveLength(2);
+    expect(screen.getByText(/Counts cover loaded runs only/)).toBeVisible();
+    expect(inQueue(revision,'duplicate')).toBe(false);
+  });
   it('selects visible loaded runs, retains hidden selections and clears them explicitly', async () => {
     queue(); const user=userEvent.setup();
     await user.click(screen.getByRole('checkbox',{name:'Select all visible loaded runs'}));

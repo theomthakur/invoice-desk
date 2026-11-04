@@ -387,3 +387,16 @@ test('multiple loaded runs can be selected, filtered and exported', async ({page
   await page.getByRole('button',{name:'Clear selection'}).click();
   await expect(page.getByText('2 selected',{exact:true})).toHaveCount(0);
 });
+
+test('duplicate submissions are clearly marked and can be filtered', async ({page}) => {
+  await page.goto('/');
+  await expect(page.getByRole('button',{name:'Start a new invoice'})).toBeEnabled();
+  await runSample(page,'invoice_1001.txt');
+  await page.getByRole('button',{name:'Back to invoices'}).click();
+  await runSample(page,'invoice_1001.txt');
+  await page.getByRole('button',{name:'Back to invoices'}).click();
+  await page.getByRole('button',{name:/^Duplicates/}).click();
+  await expect(page.locator('tbody tr')).toHaveCount(1);
+  await expect(page.locator('tbody tr').getByText('Duplicate',{exact:true})).toBeVisible();
+  await expect(page.getByText(/Counts cover loaded runs only/)).toBeVisible();
+});

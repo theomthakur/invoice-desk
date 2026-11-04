@@ -5,16 +5,17 @@ import type { HistoryItem } from '../../types/api';
 import { InvoiceIllustration } from '../../components/InvoiceIllustration';
 import { tableCsv } from '../runs/reportCsv';
 
-export type QueueFilter = 'all' | 'attention' | 'processing' | 'completed' | 'blocked';
+export type QueueFilter = 'all' | 'attention' | 'processing' | 'completed' | 'blocked' | 'duplicate';
 const active = (item: HistoryItem) => item.lifecycle === 'queued' || item.lifecycle === 'running';
 export function inQueue(item: HistoryItem, filter: QueueFilter) {
   if (filter === 'attention') return item.outcome === 'needs_review';
   if (filter === 'processing') return active(item);
   if (filter === 'completed') return item.lifecycle === 'completed';
   if (filter === 'blocked') return item.outcome === 'rejected' || item.lifecycle === 'failed' || item.lifecycle === 'interrupted';
+  if (filter === 'duplicate') return item.outcome === 'duplicate';
   return true;
 }
-const names: Record<QueueFilter, string> = { all: 'All runs', attention: 'Needs review', processing: 'Processing', completed: 'Processing finished', blocked: 'Blocked' };
+const names: Record<QueueFilter, string> = { all: 'All runs', attention: 'Needs review', processing: 'Processing', completed: 'Processing finished', blocked: 'Blocked', duplicate: 'Duplicates' };
 
 export function InvoiceQueue({ items, filter, onFilter, openRun, newInvoice, trySamples, connected, cursor, loadMore, loading }: {
   items: HistoryItem[]; filter: QueueFilter; onFilter: (filter: QueueFilter) => void;
@@ -62,6 +63,7 @@ export function InvoiceQueue({ items, filter, onFilter, openRun, newInvoice, try
     </button>)}</div>
     <div className="queue-card">
       <div className="queue-tabs" role="group" aria-label="Filter invoices">{(Object.keys(names) as QueueFilter[]).map((key) => <button aria-pressed={filter === key} className={filter === key ? 'active' : ''} key={key} onClick={() => onFilter(key)}>{names[key]}<span>{items.filter((item) => inQueue(item, key)).length}</span></button>)}</div>
+      {filter === 'duplicate' && <p className="queue-footnote">These runs were identified as duplicate submissions. Open a run to inspect its findings and related invoice records. Counts cover loaded runs only.</p>}
       <div className="queue-toolbar"><div className="search-field"><Search size={17} /><input aria-label="Search invoices" placeholder="Search invoice, vendor or filename…" value={query} onChange={(event) => setQuery(event.target.value)} />{query && <button aria-label="Clear search" onClick={() => setQuery('')}><X size={14} /></button>}</div>
         <label className="sort-control"><ArrowDown size={14} /><select aria-label="Sort invoices" value={sort} onChange={(event) => setSort(event.target.value)}><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="vendor">Vendor A to Z</option></select></label>
       </div>
