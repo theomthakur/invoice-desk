@@ -36,7 +36,7 @@ A custom Invoice Desk lettermark is used in the app and browser icons. `public/`
 
 ## Project resources and priority
 
-System design and Presentation are available from the sidebar. The architecture view uses a single high-level diagram with local technology marks and a short explanation of the agent roles. The seven-part presentation has slide controls, keyboard navigation and a full-screen option; opening it does not start a processing or payment action.
+System design and Presentation are available from the sidebar. The architecture view covers input, parsing, extraction, inventory, versions, approval, critique, payment and follow-up in one detailed flow with local technology marks. It explains the current Render Blueprint and the distinction between its temporary storage and a future durable deployment. The seven-part presentation has slide controls, keyboard navigation and a slide-only full-screen mode with controls that fade when idle; opening it does not start a processing or payment action.
 
 Held invoices show review controls and findings before extracted details. Rejected invoices put findings first. The source remains alongside the decision content on desktop and below it on mobile. Refresh reloads history only; it does not reprocess documents or make payments.
 

@@ -57,3 +57,9 @@ Mock mode uses a deterministic simulated reader, not a model. Live mode uses Ope
 A reviewer can select Accounts payable, Procurement, Vendor management or Finance operations, choose a reason and optionally add context. The API stores the handoff and an audit event in one SQLite transaction. The invoice remains on hold. This is an internal workspace assignment, not a notification, department inbox or real payment authorization.
 
 Handoffs use the same workspace ownership and CSRF checks as other mutations. The server rejects stale invoice hashes, ineligible versions and paid invoices. A request token prevents duplicate handoffs, and reuse with different content is rejected. The latest assignment survives reload. A later approval or rejection closes its active status while preserving its audit history. The existing approval checks remain unchanged.
+
+## In-app architecture and presentation
+
+The System design page walks through input, source parsing and storage, queued work, preparation, validation, version registration, inventory evidence, approval and critique, payment revalidation, and operator follow-up. A Render/Docker boundary shows the prepared one-service deployment, and OpenRouter is drawn as an external dependency used only for live calls. The Render configuration remains mock-only and ephemeral until an operator deliberately changes it and verifies the hosted service.
+
+Presentation full screen shows the current slide without the page heading or slide navigation list. Arrow keys, Space and Page Up/Down move through the deck; F toggles full screen and Esc exits. Controls fade when idle and return on pointer or keyboard activity.
