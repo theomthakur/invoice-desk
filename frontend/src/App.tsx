@@ -261,7 +261,7 @@ function App() {
     try { await refreshHistory(cursor); } catch (err) { setError(messageOf(err)); }
     finally { setHistoryLoading(false); }
   }
-  const attentionCount = history.filter((item) => item.outcome === 'needs_review').length;
+  const attentionCount = history.filter((item) => item.outcome === 'needs_review' && !item.handoff_department).length;
   const currentTitle = screen === 'analytics' ? 'Ledger overview' : screen === 'lookup' ? 'Find invoice' : screen === 'architecture' ? 'System design' : screen === 'presentation' ? 'Presentation' : screen === 'rules' ? 'Processing rules' : screen === 'history' ? 'Run history' : runId ? 'Invoice record' : batchId ? 'Batch results' : 'Invoices';
   function openResource(value: 'architecture' | 'presentation') {
     setRunId(null); setRun(null); setBatchId(null); setBatch(null); setScreen(value); setPollError(null);

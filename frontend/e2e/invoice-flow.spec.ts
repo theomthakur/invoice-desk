@@ -427,7 +427,7 @@ test('selected review holds can be assigned without changing rejected runs', asy
   await page.getByRole('button',{name:'Back to invoices'}).click();
   await runSample(page,'invoice_1007.csv');
   await page.getByRole('button',{name:'Back to invoices'}).click();
-  await page.getByRole('button',{name:'Select all visible'}).click();
+  await page.getByRole('checkbox',{name:'Select all visible loaded runs'}).check();
   await page.getByRole('button',{name:'Assign selected'}).click();
   const panel=page.getByRole('region',{name:'Assign selected invoices'});
   await panel.getByLabel('Department').selectOption('procurement');
