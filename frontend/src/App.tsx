@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, CircleAlert, Clock3, Compass, Moon, Sun, Search, FileStack, FileText, GitBranch, Inbox, LoaderCircle, LockKeyhole, PanelLeftClose, PanelLeftOpen, Plus, Presentation as PresentationIcon, RefreshCw, Settings2, ShieldCheck, UserRound, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CircleAlert, Clock3, Compass, Moon, Sun, Search, BarChart3, FileStack, FileText, GitBranch, Inbox, LoaderCircle, LockKeyhole, PanelLeftClose, PanelLeftOpen, Plus, Presentation as PresentationIcon, RefreshCw, Settings2, ShieldCheck, UserRound, X } from 'lucide-react';
 import { ApiClient, ApiError } from './api/client';
 import { Status, formatAmount } from './components/Status';
 import { RunDetails } from './features/runs/RunDetails';
@@ -12,6 +12,7 @@ import './styles/app.css';
 import './styles/theme.css';
 import { Walkthrough } from './features/walkthrough/Walkthrough';
 import { InvoiceLookup } from './features/history/InvoiceLookup';
+import { AnalyticsPage } from './features/history/AnalyticsPage';
 import { applyTheme, readTheme } from './theme';
 
 const api = new ApiClient();
@@ -41,7 +42,7 @@ function App() {
   const [samples, setSamples] = useState<SampleInfo[]>([]);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [historyCursor, setHistoryCursor] = useState<string | null>(null);
-  const [screen, setScreen] = useState<'workspace' | 'history' | 'rules' | 'architecture' | 'presentation' | 'lookup'>('workspace');
+  const [screen, setScreen] = useState<'workspace' | 'history' | 'rules' | 'architecture' | 'presentation' | 'lookup' | 'analytics'>('workspace');
   const [lookupNumber, setLookupNumber] = useState('');
   const [initializing, setInitializing] = useState(true);
   const [accessRequired, setAccessRequired] = useState(false);
@@ -261,7 +262,7 @@ function App() {
     finally { setHistoryLoading(false); }
   }
   const attentionCount = history.filter((item) => item.outcome === 'needs_review').length;
-  const currentTitle = screen === 'lookup' ? 'Find invoice' : screen === 'architecture' ? 'System design' : screen === 'presentation' ? 'Presentation' : screen === 'rules' ? 'Processing rules' : screen === 'history' ? 'Run history' : runId ? 'Invoice record' : batchId ? 'Batch results' : 'Invoices';
+  const currentTitle = screen === 'analytics' ? 'Ledger overview' : screen === 'lookup' ? 'Find invoice' : screen === 'architecture' ? 'System design' : screen === 'presentation' ? 'Presentation' : screen === 'rules' ? 'Processing rules' : screen === 'history' ? 'Run history' : runId ? 'Invoice record' : batchId ? 'Batch results' : 'Invoices';
   function openResource(value: 'architecture' | 'presentation') {
     setRunId(null); setRun(null); setBatchId(null); setBatch(null); setScreen(value); setPollError(null);
   }
@@ -277,6 +278,7 @@ function App() {
         <button className={`nav-item ${screen === 'workspace' && queueFilter !== 'attention' ? 'active' : ''}`} aria-label="Invoices" title="Invoices" onClick={() => showInbox()}><Inbox size={18} /><span>Invoices</span><span className="nav-count">{history.length}</span></button>
         <button className={`nav-item ${screen === 'workspace' && queueFilter === 'attention' ? 'active' : ''}`} aria-label="Needs review" title="Needs review" onClick={() => showInbox('attention')}><CircleAlert size={18} /><span>Needs review</span>{attentionCount > 0 && <span className="nav-count amber">{attentionCount}</span>}</button>
         <button className={`nav-item ${screen === 'history' ? 'active' : ''}`} aria-label="Run history" title="Run history" onClick={() => { setRunId(null); setBatchId(null); setScreen('history'); }}><Clock3 size={18} /><span>Run history</span></button>
+        <button className={`nav-item ${screen === 'analytics' ? 'active' : ''}`} aria-label="Ledger overview" title="Ledger overview" onClick={() => {setRunId(null); setBatchId(null); setScreen('analytics');}}><BarChart3 size={18}/><span>Ledger overview</span></button>
         <button className={`nav-item ${screen === 'lookup' ? 'active' : ''}`} aria-label="Find invoice" title="Find invoice" onClick={() => showLookup()}><Search size={18} /><span>Find invoice</span></button>
         <button className={`nav-item ${screen === 'rules' ? 'active' : ''}`} aria-label="Processing rules" title="Processing rules" onClick={() => { setRunId(null); setBatchId(null); setScreen('rules'); }}><Settings2 size={18} /><span>Processing rules</span></button>
         <div className="sidebar-resources" data-tour="resources"><button className={`nav-item ${screen === 'architecture' ? 'active' : ''}`} aria-label="System design" title="System design" aria-current={screen === 'architecture' ? 'page' : undefined} onClick={() => openResource('architecture')}><GitBranch size={18}/><span>System design</span></button><button className={`nav-item ${screen === 'presentation' ? 'active' : ''}`} aria-label="Presentation" title="Presentation" aria-current={screen === 'presentation' ? 'page' : undefined} onClick={() => openResource('presentation')}><PresentationIcon size={18}/><span>Presentation</span></button></div>
@@ -291,7 +293,8 @@ function App() {
         {accessRequired && <form className="access-panel" onSubmit={(event) => { event.preventDefault(); void connect(passcode); }}><LockKeyhole size={19} /><label htmlFor="passcode">Workspace access code</label><input id="passcode" type="password" value={passcode} onChange={(event) => setPasscode(event.target.value)} required /><button className="button button-primary" disabled={initializing}>Connect</button></form>}
         {error && !intakeOpen && <div className="inline-error global-error" role="alert"><span>{error}</span><button aria-label="Dismiss error" onClick={() => setError(null)}><X size={17} /></button></div>}
         {pollError && <div className="inline-warning" role="status">{pollError}</div>}
-        {screen === 'lookup' ? <InvoiceLookup api={api} initialNumber={lookupNumber} openRun={openRun} />
+        {screen === 'analytics' ? <AnalyticsPage api={api} openHistory={() => {setRunId(null);setBatchId(null);setScreen('history');}} />
+        : screen === 'lookup' ? <InvoiceLookup api={api} initialNumber={lookupNumber} openRun={openRun} />
         : screen === 'architecture' ? <SystemDesign config={config} />
         : screen === 'presentation' ? <ProjectPresentation openInvoices={() => showInbox()} />
         : runId ? <><button className="back-link" onClick={() => showInbox()}><ArrowLeft size={15} />Back to invoices</button>{!run ? <div className="loading-card"><LoaderCircle size={20} className="spin" />Loading invoice record…</div> : <RunDetails key={run.run_id} run={run} events={events} source={source} pdfUrl={pdfUrl} pdfPages={pdfPages} sourceError={sourceError} onExport={() => void exportRun()} exporting={exporting} api={api} onReviewed={reviewCompleted} onFindRelated={showLookup} onOpenRelated={openRun} onRetry={() => void retryRun(run)} onCorrection={(file) => void submitCorrection(run,file)} retrying={pending} />}</>

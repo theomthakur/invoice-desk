@@ -6,6 +6,9 @@ function cell(value: unknown): string {
   if (/^[\s\uFEFF]*[=+\-@\t\r]/u.test(text)) text = `'${text}`;
   return `"${text.replaceAll('"','""')}"`;
 }
+export function rowsCsv(rows: [unknown, unknown][]): string {
+  return '\uFEFF'+[['Field','Value'],...rows].map(row=>row.map(cell).join(',')).join('\r\n')+'\r\n';
+}
 export function decisionCsv(run: RunResult): string {
   const rows: [string, unknown][] = [
     ['Report','Invoice decision report'], ['Payment system','Simulated only'], ['Run',run.run_id],
@@ -20,7 +23,7 @@ export function decisionCsv(run: RunResult): string {
   run.findings.forEach((finding,index)=>rows.push([`Finding ${index+1}`,`${finding.severity}: ${finding.message}`]));
   run.approval.forEach((decision,index)=>rows.push([`Decision ${index+1}`,`${decision.stage} · ${decision.action} · ${decision.actor}: ${decision.rationale}`]));
   rows.push(['Simulated receipt',run.receipt?.transaction_id],['Receipt amount',run.receipt?.amount],['Receipt currency',run.receipt?.currency]);
-  return '\uFEFF'+[['Field','Value'],...rows].map(row=>row.map(cell).join(',')).join('\r\n')+'\r\n';
+  return rowsCsv(rows);
 }
 export function downloadDecisionCsv(run: RunResult) {
   const url=URL.createObjectURL(new Blob([decisionCsv(run)],{type:'text/csv;charset=utf-8'}));

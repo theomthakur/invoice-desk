@@ -89,3 +89,5 @@ export interface BatchResult {
 
 export interface InvoiceLookupVersion { version_id:string; revision:string|null; status:string; identity_flag:string|null; run_id:string|null; run_outcome:Outcome|null }
 export interface InvoiceLookupResult { matches: {payable_id:string; number:string; vendor:string; paid:boolean; payment_version_id:string|null; versions:InvoiceLookupVersion[]; versions_truncated:boolean}[]; truncated:boolean }
+
+export interface AnalyticsOverview { identified_invoices:number; total_runs:number; active_runs:number; failed_runs:number; review_runs:number; flagged_active_versions:number; simulated_receipts:number; paid_by_currency:{currency:string; amount:string; receipts:number}[] }

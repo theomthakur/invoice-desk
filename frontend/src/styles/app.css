@@ -441,3 +441,26 @@ td small { display: block; color: var(--theme-muted, #646d5c); font-size: 10px; 
 .correction-upload { margin-top:18px; padding-top:16px; border-top:1px solid var(--line); }
 .correction-upload label { display:block; font-size:12px; font-weight:600; margin-bottom:10px; }
 .correction-upload input { max-width:100%; font-size:12px; }
+.analytics-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
+.analytics-card span, .analytics-card strong, .analytics-card small { display:block; }
+.analytics-card span { font-size:12px; color:var(--muted); }
+.analytics-card strong { margin:12px 0; font-size:30px; }
+.analytics-card small { font-size:10px; color:var(--muted); line-height:1.5; }
+.analytics-payments, .analytics-note { margin-top:18px; }
+.analytics-payments h2 { font-size:17px; }
+.analytics-payments p, .analytics-note p { font-size:12px; line-height:1.7; color:var(--muted); margin-top:10px; }
+.analytics-payments ul { list-style:none; padding:0; margin:15px 0 0; }
+.analytics-payments li { display:flex; justify-content:space-between; padding:12px 0; border-top:1px solid var(--line); font-size:12px; }
+.analytics-note button { margin-top:12px; }
+@media (max-width:760px) { .analytics-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (min-width:601px) and (max-height:820px) {
+  .sidebar { padding-top:18px; }
+  .sidebar .company-switch { display:none; }
+  .sidebar .brand { padding-bottom:16px; }
+  .sidebar .nav-item { min-height:36px; }
+  .sidebar-resources { padding-top:5px; margin-top:5px; }
+  .sidebar-tools { padding-top:5px; }
+  .sidebar-bottom { padding-top:10px; }
+  .sidebar-bottom > p { display:none; }
+  .sidebar-account { padding:10px 8px; margin-top:8px; }
+}

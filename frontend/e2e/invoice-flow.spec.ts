@@ -341,3 +341,20 @@ test('related versions use a workspace-scoped ledger lookup', async ({page}) => 
   await page.getByRole('button',{name:'Open original run'}).click();
   await expect(page.getByText('Rejected',{exact:true})).toBeVisible();
 });
+
+test('ledger overview counts records beyond the inbox as separate runs and receipts', async ({page}) => {
+  await page.goto('/');
+  await expect(page.getByRole('button',{name:'Start a new invoice'})).toBeEnabled();
+  await runSample(page,'invoice_1001.txt');
+  await page.getByRole('button',{name:'Ledger overview',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'Ledger overview',exact:true})).toBeVisible();
+  await expect(page.getByText('USD · 1 receipt(s)')).toBeVisible();
+  await expect(page.getByText('$5,000.00')).toBeVisible();
+  await expect(page.getByText('Includes retries, duplicates and batch extraction')).toBeVisible();
+  for (const name of ['Processing rules','System design','Presentation']) await expect(page.getByRole('button',{name,exact:true})).toBeInViewport();
+  const [download]=await Promise.all([page.waitForEvent('download'),page.getByRole('button',{name:'Download CSV'}).click()]);
+  expect(download.suggestedFilename()).toBe('ledger-overview.csv');
+  if (process.env.UPDATE_SCREENSHOTS === '1') await page.screenshot({path:'docs/screenshots/ledger-overview.png',animations:'disabled'});
+  await page.setViewportSize({width:320,height:844});
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth)).toBe(false);
+});
