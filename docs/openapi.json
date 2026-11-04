@@ -25,11 +25,52 @@
         "title": "AnalyticsAmount",
         "type": "object"
       },
+      "AnalyticsGroup": {
+        "additionalProperties": false,
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "count"
+        ],
+        "title": "AnalyticsGroup",
+        "type": "object"
+      },
       "AnalyticsOverview": {
         "additionalProperties": false,
         "properties": {
           "active_runs": {
             "title": "Active Runs",
+            "type": "integer"
+          },
+          "backlog_by_department": {
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsGroup"
+            },
+            "title": "Backlog By Department",
+            "type": "array"
+          },
+          "current_exception_count": {
+            "default": 0,
+            "title": "Current Exception Count",
+            "type": "integer"
+          },
+          "current_review_count": {
+            "default": 0,
+            "title": "Current Review Count",
             "type": "integer"
           },
           "daily_runs": {
@@ -47,6 +88,13 @@
               "type": "object"
             },
             "title": "Daily Runs",
+            "type": "array"
+          },
+          "exception_reasons": {
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsGroup"
+            },
+            "title": "Exception Reasons",
             "type": "array"
           },
           "failed_runs": {
@@ -137,6 +185,134 @@
           "identity_flags"
         ],
         "title": "AnalyticsOverview",
+        "type": "object"
+      },
+      "AnalyticsRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "department": {
+            "title": "Department",
+            "type": "string"
+          },
+          "department_label": {
+            "title": "Department Label",
+            "type": "string"
+          },
+          "filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filename"
+          },
+          "invoice_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Invoice Number"
+          },
+          "outcome": {
+            "enum": [
+              "needs_review",
+              "rejected"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Reasons",
+            "type": "array"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "started_at": {
+            "title": "Started At",
+            "type": "string"
+          },
+          "vendor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vendor"
+          },
+          "version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Id"
+          }
+        },
+        "required": [
+          "run_id",
+          "version_id",
+          "invoice_number",
+          "vendor",
+          "filename",
+          "outcome",
+          "department",
+          "department_label",
+          "reasons",
+          "started_at"
+        ],
+        "title": "AnalyticsRecord",
+        "type": "object"
+      },
+      "AnalyticsRecords": {
+        "additionalProperties": false,
+        "properties": {
+          "next_offset": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Offset"
+          },
+          "record_count": {
+            "title": "Record Count",
+            "type": "integer"
+          },
+          "records": {
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsRecord"
+            },
+            "title": "Records",
+            "type": "array"
+          }
+        },
+        "required": [
+          "records",
+          "record_count",
+          "next_offset"
+        ],
+        "title": "AnalyticsRecords",
         "type": "object"
       },
       "ApprovalAction": {
@@ -2696,6 +2872,228 @@
           }
         },
         "summary": "Analytics Overview"
+      }
+    },
+    "/api/v1/analytics/records": {
+      "get": {
+        "operationId": "analytics_records_api_v1_analytics_records_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "view",
+            "required": true,
+            "schema": {
+              "enum": [
+                "backlog",
+                "exceptions"
+              ],
+              "title": "View",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "date_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "date_to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date To"
+            }
+          },
+          {
+            "in": "query",
+            "name": "vendor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Vendor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "outcome",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "paid",
+                    "needs_review",
+                    "rejected",
+                    "duplicate",
+                    "superseded"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Outcome"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 100000,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 25,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsRecords"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No valid session, or a bad access code."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Cross-site request, or a missing or invalid CSRF token."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such record in this workspace."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict: stale decision, reused request token, or active run."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The upload is larger than the configured limit."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid input."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Rate limited, or the run queue is full. Retry later."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested mode is unavailable."
+          }
+        },
+        "summary": "Analytics Records"
       }
     },
     "/api/v1/batches": {

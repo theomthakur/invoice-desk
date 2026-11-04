@@ -26,8 +26,10 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from ..analytics import current_exceptions, exception_groups
 from ..api_models import (
     AnalyticsOverview,
+    AnalyticsRecords,
     BatchAccepted,
     BatchFileResult,
     BatchResult,
@@ -984,7 +986,11 @@ def create_app(
             for payment in conn.execute(payment_sql, payment_params):
                 amount, count = totals.get(payment["currency"], (0, 0))
                 totals[payment["currency"]] = (amount + payment["amount_minor"], count + 1)
+            current = current_exceptions(
+                conn, ws, date_from=date_from, date_to=date_to, vendor=vendor, outcome=outcome
+            )
             return {
+                **exception_groups(current),
                 "identified_invoices": invoice_count,
                 "total_runs": runs["total"],
                 "active_runs": runs["active"],
@@ -1011,6 +1017,46 @@ def create_app(
                     for currency, (amount, count) in sorted(totals.items())
                 ],
             }
+
+    @api.get(f"{API}/analytics/records", response_model=AnalyticsRecords)
+    async def analytics_records(
+        view: Literal["backlog", "exceptions"],
+        key: str = Query(..., min_length=1, max_length=128),
+        date_from: date | None = None,
+        date_to: date | None = None,
+        vendor: str | None = Query(None, max_length=128),
+        outcome: Literal["paid", "needs_review", "rejected", "duplicate", "superseded"]
+        | None = None,
+        offset: int = Query(0, ge=0, le=100000),
+        limit: int = Query(25, ge=1, le=100),
+        ws: str = Depends(workspace),
+    ):
+        if date_from and date_to and date_from > date_to:
+            raise ApiError(422, "invalid_request", "The start date must be before the end date.")
+        with ctx.db.read() as conn:
+            conn.execute("BEGIN")
+            records = current_exceptions(
+                conn,
+                ws,
+                date_from=date_from,
+                date_to=date_to,
+                vendor=vendor.strip() if vendor else None,
+                outcome=outcome,
+            )
+        if view == "backlog":
+            selected = [
+                item
+                for item in records
+                if item["outcome"] == "needs_review" and item["department"] == key
+            ]
+        else:
+            selected = [item for item in records if key in item["reasons"]]
+        end = offset + limit
+        return {
+            "records": selected[offset:end],
+            "record_count": len(selected),
+            "next_offset": end if end < len(selected) else None,
+        }
 
     @api.get(f"{API}/invoices/lookup", response_model=InvoiceLookupResult)
     async def lookup_invoice(

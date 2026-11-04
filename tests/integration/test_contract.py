@@ -38,6 +38,7 @@ EXPECTED = {
     ("get", "/api/v1/history"),
     ("get", "/api/v1/invoices/lookup"),
     ("get", "/api/v1/analytics/overview"),
+    ("get", "/api/v1/analytics/records"),
     ("post", "/api/v1/workspace/reset"),
     ("get", "/api/v1/healthz"),
 }

@@ -269,7 +269,36 @@ class AnalyticsAmount(StrictModel):
     receipts: int
 
 
+class AnalyticsGroup(StrictModel):
+    key: str
+    label: str
+    count: int
+
+
+class AnalyticsRecord(StrictModel):
+    run_id: str
+    version_id: str | None
+    invoice_number: str | None
+    vendor: str | None
+    filename: str | None
+    outcome: Literal["needs_review", "rejected"]
+    department: str
+    department_label: str
+    reasons: list[str]
+    started_at: str
+
+
+class AnalyticsRecords(StrictModel):
+    records: list[AnalyticsRecord]
+    record_count: int
+    next_offset: int | None
+
+
 class AnalyticsOverview(StrictModel):
+    current_review_count: int = 0
+    current_exception_count: int = 0
+    backlog_by_department: list[AnalyticsGroup] = Field(default_factory=list)
+    exception_reasons: list[AnalyticsGroup] = Field(default_factory=list)
     identified_invoices: int
     total_runs: int
     active_runs: int
