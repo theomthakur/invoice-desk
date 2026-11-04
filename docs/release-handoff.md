@@ -3,7 +3,7 @@
 The local application has been checked with Python 3.12.2 and Node 22.13.1. Current results:
 
 - Python: 717 passed; four paid-provider tests deselected.
-- Frontend: TypeScript, ESLint and production build passed; 43 tests passed.
+- Frontend: TypeScript, ESLint and production build passed; 46 tests passed.
 - Browser: thirteen integrated Brave tests passed against an isolated local backend in mock mode, including actual PDF page rendering.
 - Supplied data: all 20 original files retained unchanged; 20 predefined independent-ledger outcomes matched.
 - Previously measured shared-ledger batch: six paid, eight rejected, two held, three duplicate, one superseded; USD 30,375.00 in simulated receipts.
@@ -31,3 +31,7 @@ Light is the initial look regardless of the operating system. An explicit light/
 ## Sidebar resources and account visibility
 
 System design and Presentation moved from the top bar into the sidebar. A user icon and the current demo-workspace label replace the AP badges. The account card remains visible in collapsed and mobile layouts. No identity or authentication flow changed. Local checks passed: 43 frontend tests, 13 browser tests, TypeScript, ESLint and the production build. Navigation, active state, account visibility and overflow were checked across desktop and mobile widths.
+
+## Operator workflow increment
+
+Added a copyable correction draft, receipt-aware outcome wording, deterministic activity labels and a browser-printable decision report. The report does not replace the original source PDF or JSON trace. There is no automatic email. Frontend lint, build and 46 tests passed; the integrated suite passed 13 tests and the two affected browser workflows were rerun after the final layout adjustment. Remaining plan work includes linked retry/correction and related-version navigation, comprehensive activity mapping, downloadable CSV, ledger-backed analytics, and full-workspace invoice lookup.

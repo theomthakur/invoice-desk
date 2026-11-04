@@ -5,7 +5,7 @@
 | Check | Result | Scope |
 | --- | --- | --- |
 | Python tests | 717 passed, 4 live tests deselected | Deterministic rules, controlled providers, API, security, workflow, CLI, conflict persistence, legacy holds, grounding, cancellation, original PDF inspection and internal department routing. |
-| Frontend unit and interaction tests | 43 passed | Controlled HTTP responses; no live model. |
+| Frontend unit and interaction tests | 46 passed | Controlled HTTP responses; no live model. |
 | Browser tests | 13 passed | Real local backend in mock mode; valid invoice, rejection, workspace isolation, mobile intake, simulated review, optional notes, persistent department handoffs, rendered original PDF pages, manual guided onboarding and saved appearance in light/dark modes. |
 | Mutation checks | Historical baseline: 52/52 caught | Measured before the corrections; not rerun for the current source. Current safeguard regressions are included in the Python suite. |
 | Container smoke | Historical packaging check: passed on Linux amd64, 512 MB RAM / 0.1 CPU | Non-root image, custom port, access gate, browser production cookie on loopback, invoice outcomes, native PDF preview, review, export, isolation, full batch and CLI. Peak memory 213,676,032 bytes; no OOM. |
@@ -43,3 +43,9 @@ Tests marked `live` make real network calls and cost money; they are deselected 
 The positive live acceptance test now requires successful completion of the clean invoice, an inventory tool-call event, approval/critique/final decisions, and one expected mock receipt. Offline contract tests verify that provider failure and omitted tool use make that acceptance test fail. These controlled tests do not count as a live-model demonstration. Additional authored fixtures in `tests/fixtures/independent_invoices/` check manually specified fields and outcomes; they are development examples, not a blind benchmark.
 
 A meaningful next evaluation would use independent invoices with manually verified fields and expected findings, then record extraction accuracy, unsafe mock payments, unnecessary holds/rejections, retry/failure rates, latency and reported cost across repeated real-model runs. Negative examples and model/API failures should remain in the denominator. The present known examples were used during development and cannot answer that generalization question.
+
+## Operator workflow increment
+
+The invoice list labels a paid outcome as Payment reported because history does not contain a receipt. The record shows Paid (simulated) only with a stored receipt. Completed is a processing lifecycle, not a payment outcome. Rejected records provide a correction-request draft; no message is sent. Activity uses deterministic labels for known events and retains every event's type and payload under Technical details. Unknown events use a generic label and retain their original details. The print view summarizes the loaded record and can be saved as PDF through the browser; it is not the supplier's original document.
+
+Frontend lint, type check and build passed with 46 unit/interaction tests. The 13-test integrated browser suite passed, followed by targeted browser checks for print layout and the rejected-invoice draft after the final layout adjustment. Backend behavior and historic container evidence were unchanged.

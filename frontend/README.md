@@ -43,7 +43,7 @@ Held invoices show review controls and findings before extracted details. Reject
 ## Verification on 4 November 2026
 
 - Node 22; TypeScript and ESLint passed.
-- Vitest: 43 tests passed. Coverage includes error bodies and status codes, CSRF and access-code headers, cancellation, exact decimal display, receipt gating, original PDF retrieval, text/preview switching, evidence location, explicit processing, duplicate clicks, queue search/sort and status grouping.
+- Vitest: 46 tests passed. Coverage includes error bodies and status codes, CSRF and access-code headers, cancellation, exact decimal display, receipt gating, original PDF retrieval, text/preview switching, evidence location, explicit processing, duplicate clicks, queue search/sort and status grouping.
 - Production build passed.
 - Real Brave browser against the local backend in **mock mode**, using a separate temporary database: a TXT sample reached a stored mock-payment receipt; an invalid CSV sample was rejected with findings; an uploaded JSON file was processed; its JSON trace downloaded with stored events; history survived refresh; and the 20-file sample batch completed. These are workflow checks, not live-model quality measurements.
 - Desktop at 1512×1050 and mobile at 390×844 were inspected. Queue search, the rules page, Escape to close intake and page-level horizontal overflow were checked. No browser JavaScript errors were observed.
@@ -93,3 +93,7 @@ New screenshots: `dark-workspace.png`, `guided-walkthrough.png` and `guided-mobi
 System design and Presentation now sit in the main sidebar with an active-page indicator. The top bar shows the page location and demo status. The bottom account card uses a user icon and identifies Acme workspace as a Demo session. This represents the existing browser workspace, not a personal sign-in. The card remains visible as an icon when the rail is collapsed and as a bottom-left card on phones. Guide and appearance controls remain at the bottom right on phones.
 
 The sidebar and account were checked at 320, 390, 768 and 1440 pixels. The 43 frontend tests and 13 browser checks passed, along with TypeScript, ESLint and the production build. `sidebar-navigation.png` shows the updated light layout.
+
+## Outcome, activity and report
+
+History shows Payment reported for a paid outcome without claiming that the list contains a receipt. Open the record to verify the simulated receipt. Rejected invoices show a selectable correction-request draft, but no message is sent. Activity displays concise labels from stored events with expandable technical details. Print decision report opens the browser print dialog, where it can be saved as PDF. The report uses the currently loaded record and is separate from the original PDF and JSON trace.
