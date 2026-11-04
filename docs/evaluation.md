@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | Python tests | 713 passed, 4 live tests deselected | Deterministic rules, controlled providers, API, security, workflow, CLI, conflict persistence, legacy holds, grounding, cancellation and original PDF inspection. |
 | Frontend unit and interaction tests | 36 passed | Controlled HTTP responses; no live model. |
-| Browser tests | 7 passed | Real local backend in mock mode; valid invoice, rejection, workspace isolation, mobile intake, simulated review and rendered original PDF pages. |
+| Browser tests | 9 passed | Real local backend in mock mode; valid invoice, rejection, workspace isolation, mobile intake, simulated review and rendered original PDF pages. |
 | Mutation checks | Historical baseline: 52/52 caught | Measured before the corrections; not rerun for the current source. Current safeguard regressions are included in the Python suite. |
 | Container smoke | Passed on Linux amd64, 512 MB RAM / 0.1 CPU | Non-root image, custom port, access gate, browser production cookie on loopback, invoice outcomes, native PDF preview, review, export, isolation, full batch and CLI. Peak memory 213,676,032 bytes; no OOM. |
 | Supplied-file regression | 20/20 expected outcomes matched | Each file on a fresh isolated ledger, simulated reader, fixed processing date 3 Nov 2026. Known examples, not a blind set or LLM accuracy estimate. |

@@ -34,9 +34,15 @@ The UI does not edit source documents, determine payment eligibility, invent tot
 
 A custom Invoice Desk lettermark is used in the app and browser icons. `public/` contains the SVG, matching PNG favicons, Apple touch icon and web manifest. The bundled DM Sans font and its license are in `public/fonts/`; no external font request is needed. The workspace uses forest-green navigation, warm light surfaces, a first-invoice illustration, and a consistent layout for intake, review, history and rules. The desktop sidebar can collapse to icons and remembers the choice in browser storage. On narrow screens the navigation is condensed, the document review stacks, and tables scroll inside their own container.
 
-## Verification on 3 November 2026
+## Project resources and priority
 
-- Node 22.13.1; TypeScript and ESLint passed.
+System design and Presentation are available from the top bar. The architecture view describes the actual local stack, agent roles, storage, security boundaries and future scaling work. The seven-part presentation has slide controls and keyboard navigation; opening it does not start a processing or payment action.
+
+Held invoices show review controls and findings before extracted details. Rejected invoices put findings first. The source remains alongside the decision content on desktop and below it on mobile. Refresh reloads history only; it does not reprocess documents or make payments.
+
+## Verification on 4 November 2026
+
+- Node 22; TypeScript and ESLint passed.
 - Vitest: 36 tests passed. Coverage includes error bodies and status codes, CSRF and access-code headers, cancellation, exact decimal display, receipt gating, original PDF retrieval, text/preview switching, evidence location, explicit processing, duplicate clicks, queue search/sort and status grouping.
 - Production build passed.
 - Real Brave browser against the local backend in **mock mode**, using a separate temporary database: a TXT sample reached a stored mock-payment receipt; an invalid CSV sample was rejected with findings; an uploaded JSON file was processed; its JSON trace downloaded with stored events; history survived refresh; and the 20-file sample batch completed. These are workflow checks, not live-model quality measurements.
@@ -48,7 +54,7 @@ Screenshots in `docs/screenshots/` show actual local simulated runs, not interce
 - `new-invoice-upload.png`, `new-invoice.png`, `new-invoice-mobile.png`
 - `invoice-record.png`, `invoice-exception.png`, `simulated-review.png`, `batch-results.png`, `processing-rules.png`
 
-The current simulated review screen is shown in `docs/screenshots/simulated-review.png`; `pdf-review.png` shows the original PDF preview. The screenshots were refreshed for the current design using actual local mock runs. Seven Playwright tests exercise the integrated mock workflow, including review controls and original PDF inspection.
+The current simulated review screen is shown in `docs/screenshots/simulated-review.png`; `pdf-review.png` shows the original PDF preview. `system-design.png` and `presentation.png` show the project resources. The screenshots use actual local mock runs. Nine Playwright tests exercise the integrated workflow, including sidebar persistence, resource navigation, review priority, controls and original PDF inspection.
 
 ## Remaining integration boundaries
 

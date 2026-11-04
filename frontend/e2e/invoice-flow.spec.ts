@@ -34,6 +34,51 @@ test('sidebar can collapse, keep navigation usable and remember the choice', asy
   await expect(page.getByRole('button', { name: 'Collapse sidebar', exact: true })).toBeVisible();
 });
 
+test('project resources explain the real system without starting invoice work', async ({ page }) => {
+  const processingRequests: string[] = [];
+  page.on('request', request => {
+    if (request.method() === 'POST' && /\/api\/v1\/(runs|batches)(?:\/|$)/.test(new URL(request.url()).pathname)) processingRequests.push(request.url());
+  });
+  await page.goto('/');
+  await expect(page.getByRole('button', { name: 'Start a new invoice' })).toBeEnabled();
+  await page.getByRole('button', { name: 'System design', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'System design', exact: true })).toBeVisible();
+  await expect(page.getByRole('img', { name: 'Invoice Desk current system architecture' })).toBeVisible();
+  await expect(page.getByText('Different roles. One controlled decision.')).toBeVisible();
+  await page.getByRole('button', { name: 'Presentation', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'An invoice should end with a clear next step.' })).toBeVisible();
+  await page.getByRole('button', { name: 'Next slide' }).click();
+  await expect(page.getByRole('heading', { name: 'Upload. Check. Decide.' })).toBeVisible();
+  await page.getByRole('button', { name: 'Previous slide' }).click();
+  await expect(page.getByText('Slide 1 of 7')).toBeVisible();
+  await page.getByRole('button', { name: 'Open invoice workspace' }).click();
+  await page.getByRole('button', { name: 'Refresh invoices' }).click();
+  expect(processingRequests).toEqual([]);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole('button', { name: 'System design', exact: true }).click();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+});
+
+test('an invoice needing a decision puts review and blockers before extracted fields', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByRole('button', { name: 'Start a new invoice' })).toBeEnabled();
+  await runSample(page, 'invoice_1012.txt');
+  const review = page.getByRole('region', { name: 'Simulated review' });
+  await expect(review).toBeVisible();
+  const before = await page.locator('.record-pane').evaluate(pane => {
+    const reviewCard = pane.querySelector('.review-card')!;
+    const findings = pane.querySelector('.findings-card')!;
+    const details = pane.querySelector('.extracted-card')!;
+    return Boolean(reviewCard.compareDocumentPosition(findings) & Node.DOCUMENT_POSITION_FOLLOWING)
+      && Boolean(findings.compareDocumentPosition(details) & Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+  expect(before).toBe(true);
+  await page.setViewportSize({ width: 390, height: 844 });
+  const reviewBox = await review.boundingBox();
+  const sourceBox = await page.locator('.review-layout > .document-pane').boundingBox();
+  expect(reviewBox!.y).toBeLessThan(sourceBox!.y);
+});
+
 test('valid invoice is processed once, traced and isolated from another workspace', async ({ page, browser }) => {
   await page.goto('/');
   await expect(page.getByRole('button', { name: 'Start a new invoice' })).toBeEnabled();

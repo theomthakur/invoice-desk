@@ -82,7 +82,7 @@ a { color: var(--indigo); }
 .button-outline:hover:not(:disabled) { border-color: #9dae92; background: #f9faf3; }
 .icon-button { display: inline-grid; place-items: center; height: 38px; width: 38px; border-radius: 8px; color: #616f5d; }
 .icon-button:hover { background: #eaf0e1; color: #244b32; }
-.refresh-button { border: 1px solid #dce2d2; background: #fffefa; width: 42px; height: 42px; }
+.refresh-button { border: 1px solid #dce2d2; background: #fffefa; width: auto; height: 42px; }
 .queue-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 28px; }
 .stat-card { position: relative; overflow: hidden; padding: 19px 21px 17px; text-align: left; border: 1px solid #e0e5d7; background: #fffefa; border-radius: 12px; transition: border-color .15s, background .15s; }
 .stat-card:hover { border-color: #a4b99a; }
@@ -250,7 +250,7 @@ td small { display: block; color: #646d5c; font-size: 10px; margin-top: 4px; }
 .tabs button[aria-selected=true] { color: #35653e; border-color: #58804c; }
 .tabs button > span { font-size: 9px; padding: 2px 5px; color: #616f52; background: #eaf0df; border-radius: 4px; margin-left: 6px; }
 .tab-content { padding-top: 23px; }
-.review-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 22px; align-items: start; }
+.review-layout { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 22px; align-items: start; }
 .record-pane { display: grid; gap: 19px; min-width: 0; }
 .document-pane { background: #edf0e6; border: 1px solid #dce3d0; border-radius: var(--radius); overflow: hidden; min-width: 0; }
 .document-toolbar { padding: 16px 18px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 13px; background: #fffefa; border-bottom: 1px solid var(--line); }
