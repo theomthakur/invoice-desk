@@ -4,9 +4,9 @@
 
 | Check | Result | Scope |
 | --- | --- | --- |
-| Python tests | 726 passed, 4 live tests deselected | Deterministic rules, controlled providers, API, security, workflow, CLI, conflict persistence, legacy holds, grounding, cancellation, original PDF inspection and internal department routing. |
-| Frontend unit and interaction tests | 50 passed | Controlled HTTP responses; no live model. |
-| Browser tests | 15 passed | Real local backend in mock mode; valid invoice, rejection, workspace isolation, mobile intake, simulated review, optional notes, persistent department handoffs, rendered original PDF pages, manual guided onboarding and saved appearance in light/dark modes. |
+| Python tests | 729 passed, 4 live tests deselected | Deterministic rules, controlled providers, API, security, workflow, CLI, conflict persistence, legacy holds, grounding, cancellation, original PDF inspection and internal department routing. |
+| Frontend unit and interaction tests | 51 passed | Controlled HTTP responses; no live model. |
+| Browser tests | 16 passed | Real local backend in mock mode; valid invoice, rejection, workspace isolation, mobile intake, simulated review, optional notes, persistent department handoffs, rendered original PDF pages, manual guided onboarding and saved appearance in light/dark modes. |
 | Mutation checks | Historical baseline: 52/52 caught | Measured before the corrections; not rerun for the current source. Current safeguard regressions are included in the Python suite. |
 | Container smoke | Historical packaging check: passed on Linux amd64, 512 MB RAM / 0.1 CPU | Non-root image, custom port, access gate, browser production cookie on loopback, invoice outcomes, native PDF preview, review, export, isolation, full batch and CLI. Peak memory 213,676,032 bytes; no OOM. |
 | Supplied-file regression | 20/20 expected outcomes matched | Each file on a fresh isolated ledger, simulated reader, fixed processing date 3 Nov 2026. Known examples, not a blind set or LLM accuracy estimate. |
@@ -61,3 +61,9 @@ The CSV report is built from the loaded authorized run. It quotes cells and pref
 Only failed or interrupted runs can be retried. Only rejected runs can receive a corrected file. New attempts and their parent link are saved atomically with an idempotency token before the worker starts, and queued links survive worker recovery. The original source and run remain accessible. Every attempt uses the same payment gate. A correction that cannot be matched to the original payable is held with an identity flag that the demo cannot clear. Identical source bytes are rejected as unchanged. Selecting a different file does not establish that it is a valid correction.
 
 The final local checks passed 726 Python tests (four live tests deselected), 50 frontend tests and 15 browser tests; linked navigation was rerun after the final UI adjustment. These include concurrent retry submission, cross-workspace and CSRF denial, repeated requests, recovery, preservation of the original, a correction with an unrelated identity and the one-payment rule. The 20 known samples matched expected mock outcomes. No live model was tested.
+
+## Initial ledger overview
+
+The overview reads all identified payables, runs, active flagged versions and simulated receipts from one workspace-scoped database snapshot. Runs are attempts and include batch extraction, retries and duplicates; they are not a count of distinct invoices. Review-run counts reflect recorded run outcomes, not currently outstanding invoices. Receipt totals use integer minor units and remain separate by currency. Unknown identities are excluded from identified-invoice counts. The CSV has the same labels and values.
+
+This initial overview does not implement the full planned analytics: date/vendor/outcome filters, reconciliation drill-through, processing percentiles and comprehensive version-aware business metrics remain open. Tests cover empty workspaces, workspace isolation, duplicate attempts and separate currencies. Current checks: 729 Python tests with four live tests deselected, 51 frontend tests and 16 browser tests. The overview CSV and compact sidebar were also checked in a targeted browser run after the full suite. Known mock regression: 20/20. Historical container and shared-ledger batch artifacts were not rerun.

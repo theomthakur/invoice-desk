@@ -2,11 +2,11 @@
   "description": "Known supplied cases, simulated reader, fresh ledger for each file",
   "provider": "simulated; not an LLM",
   "python": "3.12.10",
-  "evaluated_at_utc": "2026-11-04T12:02:46.777624+00:00",
+  "evaluated_at_utc": "2026-11-04T12:08:56.061292+00:00",
   "calendar_assumption": "2026-11-03",
   "commit": null,
   "commit_note": "Source snapshot identified by source_tree_sha256; no Git history required.",
-  "source_tree_sha256": "ffc76c8369ef090e77511713366cf506697cf8297b2133b4f6901fbbf09ee6a9",
+  "source_tree_sha256": "239bfffebec03651c52b5c980fc735f6cb09dc19a480115e011e3be65f0e94b9",
   "cases": 20,
   "matched": 20,
   "outcome_counts": {
@@ -50,7 +50,7 @@
       "mock_payment": false,
       "model_requests": 1,
       "tool_calls": 0,
-      "elapsed_seconds": 0.012
+      "elapsed_seconds": 0.014
     },
     {
       "file": "invoice_1003.txt",
@@ -69,7 +69,7 @@
       "mock_payment": false,
       "model_requests": 1,
       "tool_calls": 0,
-      "elapsed_seconds": 0.012
+      "elapsed_seconds": 0.013
     },
     {
       "file": "invoice_1004.json",
@@ -85,7 +85,7 @@
       "mock_payment": true,
       "model_requests": 3,
       "tool_calls": 1,
-      "elapsed_seconds": 0.021
+      "elapsed_seconds": 0.022
     },
     {
       "file": "invoice_1004_revised.json",
@@ -101,7 +101,7 @@
       "mock_payment": true,
       "model_requests": 3,
       "tool_calls": 1,
-      "elapsed_seconds": 0.022
+      "elapsed_seconds": 0.024
     },
     {
       "file": "invoice_1005.json",
@@ -135,7 +135,7 @@
       "mock_payment": true,
       "model_requests": 3,
       "tool_calls": 1,
-      "elapsed_seconds": 0.021
+      "elapsed_seconds": 0.022
     },
     {
       "file": "invoice_1007.csv",
@@ -212,7 +212,7 @@
       "mock_payment": true,
       "model_requests": 4,
       "tool_calls": 1,
-      "elapsed_seconds": 0.023
+      "elapsed_seconds": 0.026
     },
     {
       "file": "invoice_1011.pdf",
@@ -229,7 +229,7 @@
       "mock_payment": true,
       "model_requests": 4,
       "tool_calls": 1,
-      "elapsed_seconds": 0.026
+      "elapsed_seconds": 0.03
     },
     {
       "file": "invoice_1011.txt",
@@ -246,7 +246,7 @@
       "mock_payment": true,
       "model_requests": 4,
       "tool_calls": 1,
-      "elapsed_seconds": 0.035
+      "elapsed_seconds": 0.038
     },
     {
       "file": "invoice_1012.pdf",
@@ -266,7 +266,7 @@
       "mock_payment": false,
       "model_requests": 1,
       "tool_calls": 0,
-      "elapsed_seconds": 0.021
+      "elapsed_seconds": 0.022
     },
     {
       "file": "invoice_1012.txt",
@@ -306,7 +306,7 @@
       "mock_payment": false,
       "model_requests": 0,
       "tool_calls": 0,
-      "elapsed_seconds": 0.009
+      "elapsed_seconds": 0.01
     },
     {
       "file": "invoice_1013.pdf",
@@ -327,7 +327,7 @@
       "mock_payment": false,
       "model_requests": 2,
       "tool_calls": 0,
-      "elapsed_seconds": 0.021
+      "elapsed_seconds": 0.022
     },
     {
       "file": "invoice_1014.xml",
@@ -344,7 +344,7 @@
       "mock_payment": false,
       "model_requests": 0,
       "tool_calls": 0,
-      "elapsed_seconds": 0.01
+      "elapsed_seconds": 0.011
     },
     {
       "file": "invoice_1015.csv",
@@ -361,7 +361,7 @@
       "mock_payment": true,
       "model_requests": 3,
       "tool_calls": 1,
-      "elapsed_seconds": 0.022
+      "elapsed_seconds": 0.023
     },
     {
       "file": "invoice_1016.json",
