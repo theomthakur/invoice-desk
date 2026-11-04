@@ -2,8 +2,8 @@ import { ArrowRight, Check, ChevronDown, FileStack, FileText, LoaderCircle, Uplo
 import { useEffect, useRef } from 'react';
 import type { ConfigInfo, Mode, SampleInfo } from '../../types/api';
 
-export function IntakePanel({ open, close, tab, setTab, samples, config, selectedSample, selectSample, selectedFile, chooseFile, mode, setMode, pending, pendingText, process, batch, connected, error }: {
-  open: boolean; close: () => void; tab: 'upload' | 'sample'; setTab: (tab: 'upload' | 'sample') => void;
+export function IntakePanel({ guideActive = false, open, close, tab, setTab, samples, config, selectedSample, selectSample, selectedFile, chooseFile, mode, setMode, pending, pendingText, process, batch, connected, error }: {
+  guideActive?: boolean; open: boolean; close: () => void; tab: 'upload' | 'sample'; setTab: (tab: 'upload' | 'sample') => void;
   samples: SampleInfo[]; config: ConfigInfo | null; selectedSample: string; selectSample: (value: string) => void;
   selectedFile: File | null; chooseFile: (file: File | null) => void; mode: Mode; setMode: (mode: Mode) => void;
   pending: boolean; pendingText: string; process: () => void; batch: () => void; connected: boolean; error: string | null;
@@ -17,14 +17,14 @@ export function IntakePanel({ open, close, tab, setTab, samples, config, selecte
     document.body.style.overflow = 'hidden';
     panel.current?.focus();
     return () => { document.body.style.overflow = oldOverflow; previous?.focus(); };
-  }, [open]);
+  }, [open, guideActive]);
   if (!open) return null;
   const disabled = pending || !connected;
   const valid = tab === 'upload' ? Boolean(selectedFile) : Boolean(selectedSample);
   return <div className="drawer-overlay" onMouseDown={(event) => { if (event.target === event.currentTarget && !pending) close(); }}>
-    <div className="intake-panel" ref={panel} role="dialog" aria-modal="true" aria-labelledby="intake-title" tabIndex={-1} onKeyDown={(event) => {
+    <div className="intake-panel" ref={panel} role="dialog" aria-modal={guideActive ? undefined : true} aria-labelledby="intake-title" tabIndex={-1} onKeyDown={(event) => {
       if (event.key === 'Escape' && !pending) close();
-      if (event.key === 'Tab') {
+      if (event.key === 'Tab' && !guideActive) {
         const nodes = [...(panel.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled), a[href]') ?? [])].filter((node) => !node.hasAttribute('hidden'));
         const first = nodes[0]; const last = nodes.at(-1);
         if (event.shiftKey && (document.activeElement === first || document.activeElement === panel.current)) { event.preventDefault(); last?.focus(); }
@@ -42,7 +42,7 @@ export function IntakePanel({ open, close, tab, setTab, samples, config, selecte
           <div className="batch-option"><FileStack size={19} /><div><strong>Process the full sample set</strong><p>Group duplicate files and revisions before any mock payment.</p><button className="text-button" disabled={disabled} onClick={batch}>Run sample batch <ArrowRight size={14} /></button></div></div></>}
         <div className="intake-setting"><div><label htmlFor="mode">Processing mode</label><p>{mode === 'live' ? 'Uses your server’s configured model. Provider charges may apply.' : 'Simulated model responses. No API credit is used.'}</p></div><select id="mode" aria-label="Processing mode" disabled={disabled} value={mode} onChange={(event) => setMode(event.target.value as Mode)}>{config?.enabled_modes.includes('mock') && <option value="mock">Simulated</option>}{config?.enabled_modes.includes('live') && <option value="live">Live model</option>}</select></div>
         <div className="intake-expectation"><h3>What happens next</h3><ol><li><span>1</span><div><strong>Read the invoice</strong><p>Extract vendor, dates, items and amounts.</p></div></li><li><span>2</span><div><strong>Check the details</strong><p>Validate totals, inventory and approval policy.</p></div></li><li><span>3</span><div><strong>Record the decision</strong><p>See the result, exceptions and mock receipt.</p></div></li></ol></div>
-      </div><div className="drawer-footer"><span>All payments in this workspace are simulated.</span><div><button className="button button-outline" onClick={close} disabled={pending}>Cancel</button><button className="button button-primary" onClick={process} disabled={disabled || !valid}>{pending ? pendingText || 'Processing…' : 'Process invoice'}{pending ? <LoaderCircle size={16} className="spin" /> : <ArrowRight size={16} />}</button></div></div>
+      </div><div className="drawer-footer"><span>All payments in this workspace are simulated.</span><div><button className="button button-outline" onClick={close} disabled={pending}>Cancel</button><button data-tour="process" className="button button-primary" onClick={process} disabled={disabled || !valid}>{pending ? pendingText || 'Processing…' : 'Process invoice'}{pending ? <LoaderCircle size={16} className="spin" /> : <ArrowRight size={16} />}</button></div></div>
     </div>
   </div>;
 }

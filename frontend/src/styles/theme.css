@@ -1,0 +1,36 @@
+/* Light is the default. Only an explicit saved choice enables dark tokens. */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --theme-text: #e4ecdf;
+  --theme-muted: #b1c1ad;
+  --theme-surface: #1c2923;
+  --theme-surface-soft: #23362b;
+  --theme-line: #405343;
+  --theme-warning-bg: #382f1f;
+  --theme-warning-text: #edc580;
+  --theme-danger-bg: #3b2824;
+  --theme-danger-text: #f1b19b;
+  --ink: #e4ecdf;
+  --muted: #b1c1ad;
+  --line: #405343;
+  --surface: #1c2923;
+  --green-soft: #23362b;
+  --indigo: #a6d6b5;
+  --rail: #142c22;
+  --guide-bg: #1c2923;
+  --guide-text: #e4ecdf;
+  --guide-muted: #b1c1ad;
+  --guide-line: #6c8f66;
+  background: #131e18;
+  color: #e4ecdf;
+}
+:root[data-theme='dark'] .main-area { background: #131e18; }
+:root[data-theme='dark'] .button-primary { background: #28634c; color: #f3f8ef; }
+:root[data-theme='dark'] .button-primary:hover { background: #32785c; }
+:root[data-theme='dark'] .nav-item.active { background: #dce9bf; color: #24402c; }
+:root[data-theme='dark'] .nav-item.active .nav-count { color: #24402c; }
+:root[data-theme='dark'] .brand-name { color: #edf0df; }
+:root[data-theme='dark'] .architecture-diagram marker path { fill: #b1c1ad; }
+/* A PDF is source evidence. Keep its original page colors intact. */
+:root[data-theme='dark'] .pdf-page img { background: white; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; } }

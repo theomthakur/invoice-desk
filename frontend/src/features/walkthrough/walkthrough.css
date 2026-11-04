@@ -1,0 +1,27 @@
+.sidebar-tools { display: flex; flex-direction: column; gap: 5px; margin-top: auto; padding: 14px 0 0; }
+.sidebar-tools .nav-item { font-size: 12px; min-height: 39px; }
+.sidebar-tools + .sidebar-bottom { margin-top: 0; }
+.tour-highlight { outline: 3px solid #729f58 !important; outline-offset: 5px; border-radius: 9px; scroll-margin: 100px 0; }
+.walkthrough-card { position: fixed; z-index: 80; bottom: 22px; left: 22px; width: 370px; max-width: calc(100vw - 32px); max-height: calc(100dvh - 40px); overflow-y: auto; padding: 19px; border: 1px solid var(--guide-line, #c5d7b5); border-radius: 15px; background: var(--guide-bg, #fffefa); color: var(--guide-text, #24392e); box-shadow: 0 12px 65px #07190f40; }
+.walkthrough-card > header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.walkthrough-card > header > span { display: flex; gap: 8px; align-items: center; font-size: 9px; font-weight: 700; letter-spacing: 1px; }
+.walkthrough-copy small { font-size: 10px; color: var(--guide-muted, #626f58); }
+.walkthrough-copy h2 { font-size: 19px; line-height: 1.25; margin: 7px 0 10px; }
+.walkthrough-copy p, .walkthrough-wait { font-size: 12px; line-height: 1.7; }
+.walkthrough-wait { margin-top: 10px; color: var(--guide-muted, #626f58); }
+.walkthrough-card > footer { display: flex; justify-content: space-between; gap: 10px; margin-top: 16px; }
+.tour-active .page-content { padding-bottom: var(--guide-height, 310px); }
+@media (max-width: 900px) {
+  .sidebar-tools { padding-bottom: 16px; }
+  .sidebar-tools .nav-item { justify-content: center; padding: 0; }
+  .sidebar-tools .nav-item > span { display: none; }
+  .walkthrough-card { left: 12px; bottom: 12px; width: calc(100vw - 24px); max-width: none; max-height: 45dvh; padding: 14px; }
+  .walkthrough-copy h2 { font-size: 17px; }
+  .tour-active .drawer-footer { margin-bottom: var(--guide-height, 300px); }
+  .tour-active .drawer-body { min-height: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .tour-highlight { scroll-behavior: auto; } }
+@media (max-width: 600px) {
+  .sidebar-tools { position: fixed; right: 12px; bottom: 12px; z-index: 25; flex-direction: row; gap: 5px; margin: 0; padding: 6px; background: var(--rail); border: 1px solid #66806a; border-radius: 12px; box-shadow: 0 4px 20px #07190f26; }
+  .page-content > .footer { padding-bottom: 65px; }
+}
