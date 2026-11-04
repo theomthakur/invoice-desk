@@ -43,7 +43,7 @@ Held invoices show review controls and findings before extracted details. Reject
 ## Verification on 4 November 2026
 
 - Node 22; TypeScript and ESLint passed.
-- Vitest: 38 tests passed. Coverage includes error bodies and status codes, CSRF and access-code headers, cancellation, exact decimal display, receipt gating, original PDF retrieval, text/preview switching, evidence location, explicit processing, duplicate clicks, queue search/sort and status grouping.
+- Vitest: 43 tests passed. Coverage includes error bodies and status codes, CSRF and access-code headers, cancellation, exact decimal display, receipt gating, original PDF retrieval, text/preview switching, evidence location, explicit processing, duplicate clicks, queue search/sort and status grouping.
 - Production build passed.
 - Real Brave browser against the local backend in **mock mode**, using a separate temporary database: a TXT sample reached a stored mock-payment receipt; an invalid CSV sample was rejected with findings; an uploaded JSON file was processed; its JSON trace downloaded with stored events; history survived refresh; and the 20-file sample batch completed. These are workflow checks, not live-model quality measurements.
 - Desktop at 1512×1050 and mobile at 390×844 were inspected. Queue search, the rules page, Escape to close intake and page-level horizontal overflow were checked. No browser JavaScript errors were observed.
@@ -54,7 +54,7 @@ Screenshots in `docs/screenshots/` show actual local simulated runs, not interce
 - `new-invoice-upload.png`, `new-invoice.png`, `new-invoice-mobile.png`
 - `invoice-record.png`, `invoice-exception.png`, `simulated-review.png`, `batch-results.png`, `processing-rules.png`
 
-The current simulated review screen is shown in `docs/screenshots/simulated-review.png`; `pdf-review.png` shows the original PDF preview. `system-design.png` and `presentation.png` show the project resources. The screenshots use actual local mock runs. Ten Playwright tests exercise the integrated workflow, including sidebar persistence, resource navigation, review priority, controls and original PDF inspection.
+The current simulated review screen is shown in `docs/screenshots/simulated-review.png`; `pdf-review.png` shows the original PDF preview. `system-design.png` and `presentation.png` show the project resources. The screenshots use actual local mock runs. Thirteen Playwright tests exercise the integrated workflow, including sidebar persistence, resource navigation, review priority, controls and original PDF inspection.
 
 ## Remaining integration boundaries
 
@@ -79,3 +79,11 @@ The production build is served by the same backend origin. The review update add
 Choose a Review action, then a predefined Decision reason. Approval still requires every permitted finding to be confirmed and the source acknowledgment checked. A typed Decision note is optional. Rejection saves the chosen reason and any extra note as the rationale.
 
 Assign to a department records a durable internal handoff to Accounts payable, Procurement, Vendor management or Finance operations. Payment stays on hold. The latest assignment and its reason appear when the invoice is reopened. No email or external notification is sent. See `docs/screenshots/department-handoff.png`.
+
+## Guided walkthrough and appearance
+
+Open Guided walkthrough near the bottom of the sidebar. On small screens the guide and appearance controls sit at the bottom right. The 11-step guide points to the actual controls and covers intake, document selection, explicit processing, recorded stages, outcomes, source inspection, review, Activity, export and project resources. Back, Next and Close are available. The guide waits for intake and processing actions instead of clicking them. It never submits an approval, rejection or department handoff. It uses the current workspace without clearing history; previous runs can affect duplicate outcomes. Closing ends the guide; reopening starts it again.
+
+Light is always the first-visit default, including on a computer set to dark mode. Use the sidebar appearance button to choose dark or light. The browser remembers that explicit choice. The choice is applied before the first React paint. If browser storage is blocked, the toggle still works for the current page. Dark tokens cover intake, review, history, rules, system design and presentation; original PDF page images keep their document colors.
+
+New screenshots: `dark-workspace.png`, `guided-walkthrough.png` and `guided-mobile.png`. Browser checks cover the manual processing gate, no automatic review mutation, persisted appearance, dark resources, guide cleanup and mobile control placement.

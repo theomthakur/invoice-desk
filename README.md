@@ -2,9 +2,11 @@
 
 A local invoice-processing prototype for the fictional Acme Corp case. It reads invoices, checks items against SQLite inventory, explains exceptions, runs a simulated approval and critique, and records a **mock** payment only after deterministic checks pass. A React inbox lets an operator inspect source text, findings, decisions and receipts.
 
-The top bar includes System design and Presentation for a walkthrough of the current architecture, agent roles, sample scenarios and limitations. Held invoices put the review decision and blockers first; the source document remains available alongside them.
+The top bar includes System design and Presentation for a walkthrough of the current architecture, agent roles, sample scenarios and limitations. The sidebar also offers an interactive Guided walkthrough and a saved light/dark preference. The guide highlights real controls and waits for explicit processing; it does not submit review decisions. Light is the default. Held invoices put the review decision and blockers first; the source document remains available alongside them.
 
-![Invoice inbox](frontend/docs/screenshots/inbox-desktop.png)
+![Invoice Desk workspace in dark mode](frontend/docs/screenshots/dark-workspace.png)
+
+[See the guided walkthrough](frontend/docs/screenshots/guided-walkthrough.png).
 
 > **Mode matters:** the default offline `mock` mode uses a deterministic simulated reader, not a language model. An OpenRouter adapter is implemented for a real model, but no live-model run has been verified. Mock mode demonstrates the case's local simulated workflow; it does not measure genuine LLM reasoning or extraction accuracy. OpenRouter needs internet, and a local LLM is not configured.
 
