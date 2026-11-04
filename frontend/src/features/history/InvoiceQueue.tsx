@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowRight, CheckCheck, CircleAlert, FileClock, Files, FileText, Inbox, Plus, Search, X } from 'lucide-react';
+import { ArrowDown, ArrowRight, CheckCheck, ChevronLeft, ChevronRight, CircleAlert, FileClock, Files, FileText, Inbox, Plus, Search, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { formatAmount, Status } from '../../components/Status';
 import type { HistoryItem } from '../../types/api';
@@ -18,6 +18,16 @@ export function inQueue(item: HistoryItem, filter: QueueFilter) {
   if (filter === 'duplicate') return item.outcome === 'duplicate';
   return true;
 }
+export const PAGE_SIZE = 10;
+/** Page numbers to show: first, last and a window around the current page, with gaps as null. */
+export function pageWindow(current: number, count: number): (number | null)[] {
+  const pages: (number | null)[] = [];
+  for (let n = 1; n <= count; n++) {
+    if (n === 1 || n === count || Math.abs(n - current) <= 1) pages.push(n);
+    else if (pages[pages.length - 1] !== null) pages.push(null);
+  }
+  return pages;
+}
 const names: Record<QueueFilter, string> = { all: 'All runs', attention: 'Needs review', assigned: 'Assigned', processing: 'Processing', completed: 'Processing finished', blocked: 'Blocked', duplicate: 'Duplicates' };
 
 export function InvoiceQueue({ items, filter, onFilter, openRun, newInvoice, trySamples, connected, cursor, loadMore, loading, api, refresh }: {
@@ -33,9 +43,21 @@ export function InvoiceQueue({ items, filter, onFilter, openRun, newInvoice, try
   const shown = useMemo(() => items.filter((item) => inQueue(item, filter))
     .filter((item) => [item.invoice_number, item.filename, item.vendor].filter(Boolean).join(' ').toLowerCase().includes(query.trim().toLowerCase()))
     .sort((a, b) => sort === 'vendor' ? (a.vendor ?? '').localeCompare(b.vendor ?? '') : (sort === 'newest' ? -1 : 1) * a.started_at.localeCompare(b.started_at)), [items, filter, query, sort]);
+  const [page, setPage] = useState(1);
+  useEffect(() => { setPage(1); }, [filter, query, sort]);
+  const pageCount = Math.max(1, Math.ceil(shown.length / PAGE_SIZE));
+  // Clamp rather than reset, so a page requested from the server opens once it arrives.
+  const currentPage = Math.min(page, pageCount);
+  const pageStart = (currentPage - 1) * PAGE_SIZE;
+  const pageItems = shown.slice(pageStart, pageStart + PAGE_SIZE);
+  const canFetchNext = currentPage === pageCount && Boolean(cursor);
+  function nextPage() {
+    setPage(currentPage + 1);
+    if (currentPage === pageCount && cursor) loadMore();
+  }
   const selectedItems = items.filter(item => selected.has(item.run_id));
-  const visibleSelected = shown.filter(item => selected.has(item.run_id)).length;
-  const allVisible = shown.length > 0 && visibleSelected === shown.length;
+  const visibleSelected = pageItems.filter(item => selected.has(item.run_id)).length;
+  const allVisible = pageItems.length > 0 && visibleSelected === pageItems.length;
   useEffect(() => { if (selectAll.current) selectAll.current.indeterminate = visibleSelected > 0 && !allVisible; }, [visibleSelected, allVisible]);
   useEffect(() => {
     const present = new Set(items.map(item => item.run_id));
@@ -45,7 +67,7 @@ export function InvoiceQueue({ items, filter, onFilter, openRun, newInvoice, try
     });
   }, [items]);
   function toggleVisible(checked: boolean) {
-    setSelected(previous => { const next = new Set(previous); shown.forEach(item => checked ? next.add(item.run_id) : next.delete(item.run_id)); return next; });
+    setSelected(previous => { const next = new Set(previous); pageItems.forEach(item => checked ? next.add(item.run_id) : next.delete(item.run_id)); return next; });
   }
   function downloadSelected() {
     const rows:unknown[][] = [['Run ID','Invoice','Vendor','Filename','Amount','Currency','Outcome','Processing status','Received']];
@@ -74,7 +96,7 @@ export function InvoiceQueue({ items, filter, onFilter, openRun, newInvoice, try
       </div>
       {selectedItems.length > 0 && <div className="selection-bar"><span><strong>{selectedItems.length} selected</strong>{selectedItems.length > visibleSelected && ` · ${selectedItems.length - visibleSelected} outside this view`}</span><div><button className="text-button" onClick={() => toggleVisible(!allVisible)}>{allVisible ? 'Deselect visible' : 'Select all visible'}</button>{selectedItems.length > 0 && <><button className="text-button" onClick={() => setSelected(new Set())}>Clear selection</button><button className="button button-outline" onClick={downloadSelected}>Export selected CSV</button>{api && <button className="button button-outline" onClick={()=>setBulkOpen(true)}>Assign selected</button>}</>}</div></div>}
       {bulkOpen && api && <BulkHandoff api={api} items={selectedItems} close={()=>setBulkOpen(false)} refresh={()=>refresh?.()} />}
-      {shown.length ? <div className="table-wrap queue-table"><table><thead><tr><th className="selection-cell"><input ref={selectAll} type="checkbox" aria-label="Select all visible loaded runs" checked={allVisible} onChange={event => toggleVisible(event.target.checked)} /></th><th>INVOICE</th><th>VENDOR</th><th>AMOUNT</th><th>STATUS</th><th>RECEIVED</th><th aria-label="Action" /></tr></thead><tbody>{shown.map((item) => <tr key={item.run_id}>
+      {shown.length ? <div className="table-wrap queue-table"><table><thead><tr><th className="selection-cell"><input ref={selectAll} type="checkbox" aria-label="Select all visible loaded runs" checked={allVisible} onChange={event => toggleVisible(event.target.checked)} /></th><th>INVOICE</th><th>VENDOR</th><th>AMOUNT</th><th>STATUS</th><th>RECEIVED</th><th aria-label="Action" /></tr></thead><tbody>{pageItems.map((item) => <tr key={item.run_id}>
         <td className="selection-cell"><input type="checkbox" aria-label={`Select ${item.invoice_number ?? item.filename ?? 'run'} (${item.run_id})`} checked={selected.has(item.run_id)} onChange={event => setSelected(previous => {const next = new Set(previous); if(event.target.checked) next.add(item.run_id); else next.delete(item.run_id); return next;})} /></td><td><div className="invoice-cell"><span className="file-symbol"><FileText size={18} /></span><div><button onClick={() => openRun(item.run_id)}>{item.invoice_number ?? item.filename ?? 'Invoice processing run'}</button><small>{item.filename ?? item.run_id}</small></div></div></td>
         <td>{item.vendor ?? <span className="muted">Not extracted</span>}</td><td className="money-cell">{item.amount != null ? formatAmount(item.amount, item.currency) : <span className="muted">Not available</span>}</td>
         <td><Status status={item.outcome === 'paid' ? 'reported_paid' : item.outcome ?? item.lifecycle} />{item.handoff_department && item.outcome === 'needs_review' && <small>Handoff recorded: {item.handoff_department.replaceAll('_',' ')}</small>}</td>
@@ -88,7 +110,12 @@ export function InvoiceQueue({ items, filter, onFilter, openRun, newInvoice, try
           {!items.length && <><div className="empty-actions"><button className="button button-primary" disabled={!connected} onClick={newInvoice}><Plus size={16} />Add your first invoice</button><button className="button button-outline" disabled={!connected} onClick={trySamples}>Try a sample<ArrowRight size={15} /></button></div><div className="empty-formats">PDF, TXT, JSON, CSV and XML supported</div></>}
           </div>
         </div>}
-      <div className="queue-bottom"><span>{shown.length} of {items.length} loaded runs{cursor ? ' · more available' : ''}</span>{cursor ? <button className="text-button" onClick={loadMore} disabled={loading}>{loading ? 'Loading…' : 'Load more'}</button> : <span>Each processing attempt is recorded separately</span>}</div>
+      <div className="queue-bottom"><span aria-live="polite">{shown.length ? `Showing ${pageStart + 1}–${pageStart + pageItems.length} of ${shown.length}` : `0 of ${items.length}`} loaded runs{cursor ? ' · more on the server' : ''}</span>
+        {(pageCount > 1 || cursor) ? <nav className="pagination" aria-label="Invoice pages">
+          <button className="page-step" onClick={() => setPage(currentPage - 1)} disabled={currentPage === 1}><ChevronLeft size={14} />Previous</button>
+          {pageWindow(currentPage, pageCount).map((n, i) => n === null ? <span className="page-gap" key={`gap-${i}`}>…</span> : <button key={n} className={`page-number ${n === currentPage ? 'active' : ''}`} aria-label={`Page ${n}`} aria-current={n === currentPage ? 'page' : undefined} onClick={() => setPage(n)}>{n}</button>)}
+          <button className="page-step" onClick={nextPage} disabled={loading || (currentPage === pageCount && !cursor)} title={canFetchNext ? 'Loads the next runs from the server' : undefined}>{loading && canFetchNext ? 'Loading…' : 'Next'}<ChevronRight size={14} /></button>
+        </nav> : <span>Each processing attempt is recorded separately</span>}</div>
     </div>
     {!items.length && !query ? <div className="workflow-guide"><div><span>01</span><strong>Bring in the document</strong><p>Upload a file or explore a sample.</p></div><ArrowRight size={17} /><div><span>02</span><strong>Let the checks run</strong><p>Totals, stock and approval rules.</p></div><ArrowRight size={17} /><div><span>03</span><strong>See the next step</strong><p>A decision, a hold or a mock receipt.</p></div></div> : <div className="queue-footnote"><FileText size={14} /><span>Original documents, checks and decisions stay together in each invoice record.</span></div>}
   </section>;

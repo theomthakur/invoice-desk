@@ -70,7 +70,7 @@ This initial overview did not implement the full planned analytics. See the ledg
 
 ## Multiple selection
 
-Selection applies to loaded runs. Select all affects only currently visible loaded rows; selected rows hidden by a filter remain selected and are counted. CSV export includes every selected loaded run and escapes spreadsheet formula-like input. Selection is in browser memory and clears when the list unmounts; it does not execute invoice actions. Tests cover filtering, clearing, removal from loaded history and formula escaping. The integrated browser check verifies the selected CSV contains both visible and hidden selected run IDs.
+Selection applies to loaded runs. Select all affects only the loaded rows on the current page; selected rows hidden by a filter remain selected and are counted. CSV export includes every selected loaded run and escapes spreadsheet formula-like input. Selection is in browser memory and clears when the list unmounts; it does not execute invoice actions. Tests cover filtering, clearing, removal from loaded history and formula escaping. The integrated browser check verifies the selected CSV contains both visible and hidden selected run IDs.
 
 ## Ledger filters
 

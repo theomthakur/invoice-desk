@@ -58,6 +58,26 @@ describe('invoice queue', () => {
     await user.click(screen.getByRole('button',{name:'Clear selection'}));
     expect(screen.queryByText('2 selected')).not.toBeInTheDocument();
   });
+  it('paginates loaded runs and fetches the next server page from the last page', async () => {
+    const many: HistoryItem[] = Array.from({length: 23}, (_, i) => ({ run_id: `run_p${i}`, invoice_number: `INV-P${String(i).padStart(2,'0')}`, vendor: 'Pager Co', lifecycle: 'completed', outcome: 'paid', filename: `p${i}.txt`, amount: '1.00', currency: 'USD', started_at: `2026-11-03T${String(i).padStart(2,'0')}:00:00Z` }));
+    const loadMore = vi.fn();
+    const props = {filter:'all' as const,onFilter:vi.fn(),openRun:vi.fn(),newInvoice:vi.fn(),trySamples:vi.fn(),connected:true,loadMore,loading:false};
+    const view = render(<InvoiceQueue {...props} items={many} cursor="next"/>); const user = userEvent.setup();
+    const rows = () => within(screen.getByRole('table')).getAllByRole('row').length - 1;
+    expect(rows()).toBe(10);
+    expect(screen.getByText(/Showing 1–10 of 23 loaded runs · more on the server/)).toBeVisible();
+    expect(screen.getByRole('button',{name:'Previous'})).toBeDisabled();
+    await user.click(screen.getByRole('button',{name:'Page 3'}));
+    expect(rows()).toBe(3);
+    expect(screen.getByRole('button',{name:'Page 3'})).toHaveAttribute('aria-current','page');
+    await user.click(screen.getByRole('button',{name:'Next'}));
+    expect(loadMore).toHaveBeenCalledTimes(1);
+    view.rerender(<InvoiceQueue {...props} items={[...many, {...many[0], run_id:'run_extra', invoice_number:'INV-EXTRA', started_at:'2026-11-01T00:00:00Z'}]} cursor={null}/>);
+    expect(screen.getByText(/Showing 21–24 of 24 loaded runs$/)).toBeVisible();
+    expect(screen.getByRole('button',{name:'Next'})).toBeDisabled();
+    await user.selectOptions(screen.getByLabelText('Sort invoices'),'oldest');
+    expect(screen.getByText(/Showing 1–10 of 24/)).toBeVisible();
+  });
   it('removes a selected run when it disappears from loaded history', async () => {
     const props={filter:'all' as const,onFilter:vi.fn(),openRun:vi.fn(),newInvoice:vi.fn(),trySamples:vi.fn(),connected:true,cursor:null,loadMore:vi.fn(),loading:false};
     const view=render(<InvoiceQueue {...props} items={items}/>); const user=userEvent.setup();
