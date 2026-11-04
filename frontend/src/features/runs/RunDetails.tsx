@@ -5,6 +5,7 @@ import { formatAmount, Status } from '../../components/Status';
 import { ApiClient } from '../../api/client';
 import { ReviewPanel } from '../review/ReviewPanel';
 import { activitySummary } from './activity';
+import { stageState } from './progress';
 import { downloadDecisionCsv } from './reportCsv';
 import type { Finding, RunEvent, RunResult } from '../../types/api';
 
@@ -34,9 +35,6 @@ export function RunDetails({ run, events, source, pdfUrl, pdfPages = 1, sourceEr
   const mark = useRef<HTMLElement>(null);
   useEffect(() => { if (evidence) mark.current?.scrollIntoView?.({ block: 'center' }); }, [tab, evidence]);
   const active = run.lifecycle === 'queued' || run.lifecycle === 'running';
-  const current = events.at(-1)?.stage;
-  const seen = new Set(events.map((event) => event.stage));
-  if (seen.has('critique')) seen.add('approval');
   const invoice = run.invoice;
   const needsAttention = run.outcome === 'needs_review' || run.outcome === 'rejected' || run.lifecycle === 'failed' || run.findings.some(f => f.severity === 'ERROR' || f.severity === 'REVIEW');
   const status = run.outcome === 'paid' && !run.receipt ? <span className="status status-warning"><span className="status-dot" />Receipt unavailable</span> : <Status status={run.outcome ?? run.lifecycle} />;
@@ -49,8 +47,9 @@ export function RunDetails({ run, events, source, pdfUrl, pdfPages = 1, sourceEr
     {(run.lifecycle === 'failed' || run.lifecycle === 'interrupted') && onRetry && <div className="content-card retry-card"><h2>Try processing again</h2><p>The original stays in your history. The new attempt goes through the same payment checks.{run.mode === 'live' ? ' This uses live mode and provider charges may apply.' : ' This uses simulated mode.'}</p><button className="button button-outline" disabled={retrying} onClick={onRetry}>{retrying ? 'Starting retry…' : 'Retry this invoice'}</button></div>}
     <div className="record-metadata"><span><span className="mode-dot" />{run.mode === 'mock' ? 'Simulated model' : run.mode === 'live' ? 'Live model' : 'Model mode unavailable'}</span>{run.model && <span>{run.model}</span>}<span>Mock payments only</span>{run.started_at && <span className="record-date">Received {new Date(run.started_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>}</div>
     <div className="stage-row">{stages.map((stage, index) => {
-      const isCurrent = active && (current === stage.key || (stage.key === 'approval' && current === 'critique'));
-      return <div className={`stage-item ${seen.has(stage.key) ? 'visited' : ''}`} key={stage.key}><div className={`stage-icon ${isCurrent ? 'current' : seen.has(stage.key) ? 'done' : ''}`}>{isCurrent ? <LoaderCircle size={14} className="spin" /> : seen.has(stage.key) ? <Check size={13} /> : <span>{index + 1}</span>}</div><span>{stage.title}</span>{index < stages.length - 1 && <div className="stage-connector" />}</div>;
+      const state = stageState(stage.key as 'intake' | 'extraction' | 'validation' | 'approval' | 'payment', run, events);
+      const label = {complete:'Complete', in_progress:'In progress', reached:'Reached', blocked:'Blocked', failed:'Interrupted', not_reached:'Not reached'}[state];
+      return <div className={`stage-item ${state}`} key={stage.key} aria-label={`${stage.title}: ${label}`}><div className={`stage-icon ${state}`}>{state === 'in_progress' ? <LoaderCircle size={14} className="spin" /> : state === 'complete' ? <Check size={13} /> : state === 'blocked' || state === 'failed' ? <AlertCircle size={14} /> : <span>{index + 1}</span>}</div><span>{stage.title}<small>{label}</small></span>{index < stages.length - 1 && <div className="stage-connector" />}</div>;
     })}</div>
     <div className="tabs" role="tablist" aria-label="Invoice information"><button data-tour="overview" role="tab" aria-selected={tab === 'details'} onClick={() => setTab('details')}>Overview</button><button role="tab" aria-selected={tab === 'source'} onClick={() => setTab('source')}>Source document</button><button data-tour="activity" role="tab" aria-selected={tab === 'activity'} onClick={() => setTab('activity')}>Activity<span>{events.length}</span></button></div>
     <div role="tabpanel" className="tab-content">
