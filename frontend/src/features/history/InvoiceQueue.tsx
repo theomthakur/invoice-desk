@@ -2,6 +2,7 @@ import { ArrowDown, ArrowRight, CheckCheck, CircleAlert, FileClock, Files, FileT
 import { useMemo, useState } from 'react';
 import { formatAmount, Status } from '../../components/Status';
 import type { HistoryItem } from '../../types/api';
+import { InvoiceIllustration } from '../../components/InvoiceIllustration';
 
 export type QueueFilter = 'all' | 'attention' | 'processing' | 'completed' | 'blocked';
 const active = (item: HistoryItem) => item.lifecycle === 'queued' || item.lifecycle === 'running';
@@ -47,11 +48,15 @@ export function InvoiceQueue({ items, filter, onFilter, openRun, newInvoice, try
         <td className="date-cell">{new Date(item.started_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}<small>{new Date(item.started_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</small></td>
         <td><button className="row-open" onClick={() => openRun(item.run_id)} aria-label={`Open ${item.invoice_number ?? item.filename ?? item.run_id}`}><ArrowRight size={17} /></button></td>
       </tr>)}</tbody></table></div>
-        : <div className="queue-empty"><div className="empty-document"><Inbox size={29} strokeWidth={1.5} /></div><h2>{query ? 'No matching invoices' : items.length ? 'Nothing in this view' : 'A clear view of every invoice'}</h2><p>{query ? 'Try another invoice number, filename or vendor.' : items.length ? 'Choose another status to see your invoices.' : 'Add an invoice to extract its details, check it against inventory, and follow its decision here.'}</p>
-          {!items.length && <div className="empty-actions"><button className="button button-primary" disabled={!connected} onClick={newInvoice}><Plus size={16} />Add your first invoice</button><button className="button button-outline" disabled={!connected} onClick={trySamples}>Try a sample<ArrowRight size={15} /></button></div>}
+        : <div className={`queue-empty ${!items.length && !query ? 'first-invoice' : ''}`}>
+          {!items.length && !query && <InvoiceIllustration />}
+          <div className="empty-copy">{!items.length && !query ? <span className="empty-eyebrow"><span />YOUR INBOX STARTS HERE</span> : <div className="empty-document"><Inbox size={29} strokeWidth={1.5} /></div>}
+          <h2>{query ? 'No matching invoices' : items.length ? 'Nothing in this view' : 'A clear view of every invoice'}</h2><p>{query ? 'Try another invoice number, filename or vendor.' : items.length ? 'Choose another status to see your invoices.' : 'Bring in an invoice. We’ll read the details, check the numbers, and show you what needs a decision.'}</p>
+          {!items.length && <><div className="empty-actions"><button className="button button-primary" disabled={!connected} onClick={newInvoice}><Plus size={16} />Add your first invoice</button><button className="button button-outline" disabled={!connected} onClick={trySamples}>Try a sample<ArrowRight size={15} /></button></div><div className="empty-formats">PDF, TXT, JSON, CSV and XML supported</div></>}
+          </div>
         </div>}
       <div className="queue-bottom"><span>{shown.length} of {items.length} loaded runs{cursor ? ' · more available' : ''}</span>{cursor ? <button className="text-button" onClick={loadMore} disabled={loading}>{loading ? 'Loading…' : 'Load more'}</button> : <span>Each processing attempt is recorded separately</span>}</div>
     </div>
-    <div className="queue-footnote"><FileText size={14} /><span>Original documents, checks and decisions stay together in each invoice record.</span></div>
+    {!items.length && !query ? <div className="workflow-guide"><div><span>01</span><strong>Bring in the document</strong><p>Upload a file or explore a sample.</p></div><ArrowRight size={17} /><div><span>02</span><strong>Let the checks run</strong><p>Totals, stock and approval rules.</p></div><ArrowRight size={17} /><div><span>03</span><strong>See the next step</strong><p>A decision, a hold or a mock receipt.</p></div></div> : <div className="queue-footnote"><FileText size={14} /><span>Original documents, checks and decisions stay together in each invoice record.</span></div>}
   </section>;
 }

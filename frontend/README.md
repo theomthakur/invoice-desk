@@ -32,7 +32,7 @@ The UI does not edit source documents, determine payment eligibility, invent tot
 
 ## Branding and responsive layout
 
-One invoice/check mark is used in the app and in browser icons. `public/` contains the SVG, PNG favicons, Apple touch icon and web manifest. Fonts and assets load locally. The light layout uses compact operational tables and a focused document review view. On narrow screens the navigation is condensed, the document review stacks, and tables scroll inside their own container.
+A custom Invoice Desk lettermark is used in the app and browser icons. `public/` contains the SVG, matching PNG favicons, Apple touch icon and web manifest. The bundled DM Sans font and its license are in `public/fonts/`; no external font request is needed. The workspace uses forest-green navigation, warm light surfaces, a first-invoice illustration, and a consistent layout for intake, review, history and rules. On narrow screens the navigation is condensed, the document review stacks, and tables scroll inside their own container.
 
 ## Verification on 3 November 2026
 
@@ -48,7 +48,7 @@ Screenshots in `docs/screenshots/` show actual local simulated runs, not interce
 - `new-invoice-upload.png`, `new-invoice.png`, `new-invoice-mobile.png`
 - `invoice-record.png`, `invoice-exception.png`, `simulated-review.png`, `batch-results.png`, `processing-rules.png`
 
-The current simulated review screen is shown in `docs/screenshots/simulated-review.png`. Six Playwright tests exercise the integrated mock workflow, including review controls and original PDF inspection. Screenshots predating PDF retention show the extracted-text view.
+The current simulated review screen is shown in `docs/screenshots/simulated-review.png`; `pdf-review.png` shows the original PDF preview. The screenshots were refreshed for the current design using actual local mock runs. Six Playwright tests exercise the integrated mock workflow, including review controls and original PDF inspection.
 
 ## Remaining integration boundaries
 

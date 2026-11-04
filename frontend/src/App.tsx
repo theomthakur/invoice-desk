@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, ChevronDown, CircleAlert, Clock3, FileStack, FileText, Inbox, LoaderCircle, LockKeyhole, Plus, RefreshCw, Settings2, ShieldCheck, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CircleAlert, Clock3, FileStack, FileText, Inbox, LoaderCircle, LockKeyhole, Plus, RefreshCw, Settings2, ShieldCheck, X } from 'lucide-react';
 import { ApiClient, ApiError } from './api/client';
 import { Status, formatAmount } from './components/Status';
 import { RunDetails } from './features/runs/RunDetails';
@@ -14,7 +14,7 @@ const messageOf = (error: unknown) => error instanceof Error ? error.message : '
 const token = () => `req_${crypto.randomUUID()}`;
 
 function Brand() {
-  return <div className="brand"><img src="/favicon.svg" width="35" height="35" alt="" /><span>Invoice Desk</span></div>;
+  return <div className="brand"><img src="/brand-mark.svg" width="42" height="42" alt="" /><span className="brand-name">Invoice<span>Desk</span><small>LESS ADMIN. MORE CLARITY.</small></span></div>;
 }
 
 function App() {
@@ -223,7 +223,7 @@ function App() {
   return <div className="app-shell">
     <a className="skip-link" href="#main-content">Skip to content</a>
     <aside className="sidebar"><Brand />
-      <div className="company-switch"><div className="company-avatar">A</div><div><strong>Acme Corp</strong><span>Accounts payable</span></div><span className="company-chevron"><ChevronDown size={14} /></span></div>
+      <div className="company-switch"><div className="company-avatar">A<span /></div><div><strong>Acme Corp</strong><span>Accounts payable workspace</span></div></div>
       <div className="sidebar-label">WORKSPACE</div>
       <nav aria-label="Main navigation">
         <button className={`nav-item ${screen === 'workspace' && queueFilter !== 'attention' ? 'active' : ''}`} aria-label="Invoices" onClick={() => showInbox()}><Inbox size={18} /><span>Invoices</span><span className="nav-count">{history.length}</span></button>
@@ -231,9 +231,10 @@ function App() {
         <button className={`nav-item ${screen === 'history' ? 'active' : ''}`} aria-label="Run history" onClick={() => { setRunId(null); setBatchId(null); setScreen('history'); }}><Clock3 size={18} /><span>Run history</span></button>
         <button className={`nav-item ${screen === 'rules' ? 'active' : ''}`} aria-label="Processing rules" onClick={() => { setRunId(null); setBatchId(null); setScreen('rules'); }}><Settings2 size={18} /><span>Processing rules</span></button>
       </nav>
+      <div className="sidebar-note"><FileStack size={22} strokeWidth={1.5} /><strong>A paper trail.<br />Without the paperwork.</strong><p>Documents, checks and decisions. All in one place.</p></div>
       <div className="sidebar-bottom"><div className="workspace-caption"><span className={`connection-dot ${session ? 'online' : ''}`} />{session ? 'Workspace connected' : 'Workspace offline'}</div><p>{session?.persistence === 'ephemeral' ? 'Temporary storage. Records may reset when the server restarts.' : session ? 'History is stored in this workspace.' : 'Connect to the server to load your records.'}</p><div className="sidebar-profile"><span className="avatar">AP</span><div><strong>Acme workspace</strong><small>Demo environment</small></div><LockKeyhole size={14} /></div></div>
     </aside>
-    <main className="main-area" id="main-content"><header className="topbar"><div className="breadcrumb"><span>Acme Corp</span><span>/</span><strong>{currentTitle}</strong></div><div className="top-right"><span className="demo-badge"><ShieldCheck size={14} />Mock payments</span><span className="top-divider" /><span className="avatar">AP</span></div></header>
+    <main className="main-area" id="main-content"><header className="topbar"><div className="breadcrumb"><span>Workspace</span><span>/</span><strong>{currentTitle}</strong></div><div className="top-right"><span className="workspace-date">{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span><span className="demo-badge"><span />Demo workspace</span><span className="top-divider" /><span className="avatar">AP</span></div></header>
       <div className="page-content">
         {initializing && <div className="connection-banner" role="status"><LoaderCircle size={16} className="spin" /> Connecting to your workspace…</div>}
         {connectionError && <div className="connection-banner error-banner" role="alert"><CircleAlert size={17} /><span>{connectionError}</span><button onClick={() => void connect()}>Retry connection</button></div>}
