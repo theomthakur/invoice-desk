@@ -27,6 +27,7 @@ from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from ..api_models import (
+    AnalyticsOverview,
     BatchAccepted,
     BatchFileResult,
     BatchResult,
@@ -63,7 +64,7 @@ from ..ledger import (
     load_version_state,
     store_document,
 )
-from ..money import format_amount
+from ..money import format_amount, format_minor
 from ..parsers import SourceError, parse_bytes
 from ..parsers.common import safe_filename
 from ..parsers.pdf import pdf_page_count, render_pdf_page
@@ -874,6 +875,51 @@ def create_app(
             counts=report.get("counts", {}),
             paid_by_currency=report.get("paid_by_currency", {}),
         )
+
+    @api.get(f"{API}/analytics/overview", response_model=AnalyticsOverview)
+    async def analytics_overview(ws: str = Depends(workspace)):
+        # Integer arithmetic and a single read snapshot keep currencies separate and exact.
+        with ctx.db.read() as conn:
+            conn.execute("BEGIN")
+            invoice_count = conn.execute(
+                "SELECT COUNT(*) FROM payables WHERE workspace_id=?", (ws,)
+            ).fetchone()[0]
+            runs = conn.execute(
+                "SELECT COUNT(*) AS total,"
+                " COUNT(CASE WHEN lifecycle IN ('queued','running') THEN 1 END) AS active,"
+                " COUNT(CASE WHEN lifecycle IN ('failed','interrupted') THEN 1 END) AS failed,"
+                " COUNT(CASE WHEN outcome='needs_review' THEN 1 END) AS review"
+                " FROM runs WHERE workspace_id=?",
+                (ws,),
+            ).fetchone()
+            flagged = conn.execute(
+                "SELECT COUNT(*) FROM invoice_versions WHERE workspace_id=?"
+                " AND status='active' AND identity_flag IS NOT NULL",
+                (ws,),
+            ).fetchone()[0]
+            totals: dict[str, tuple[int, int]] = {}
+            for payment in conn.execute(
+                "SELECT currency, amount_minor FROM payments WHERE workspace_id=?", (ws,)
+            ):
+                amount, count = totals.get(payment["currency"], (0, 0))
+                totals[payment["currency"]] = (amount + payment["amount_minor"], count + 1)
+            return {
+                "identified_invoices": invoice_count,
+                "total_runs": runs["total"],
+                "active_runs": runs["active"],
+                "failed_runs": runs["failed"],
+                "review_runs": runs["review"],
+                "flagged_active_versions": flagged,
+                "simulated_receipts": sum(count for _, count in totals.values()),
+                "paid_by_currency": [
+                    {
+                        "currency": currency,
+                        "amount": format_minor(amount, currency),
+                        "receipts": count,
+                    }
+                    for currency, (amount, count) in sorted(totals.items())
+                ],
+            }
 
     @api.get(f"{API}/invoices/lookup", response_model=InvoiceLookupResult)
     async def lookup_invoice(

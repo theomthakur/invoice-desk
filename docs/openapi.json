@@ -1,6 +1,82 @@
 {
   "components": {
     "schemas": {
+      "AnalyticsAmount": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "string"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "receipts": {
+            "title": "Receipts",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "currency",
+          "amount",
+          "receipts"
+        ],
+        "title": "AnalyticsAmount",
+        "type": "object"
+      },
+      "AnalyticsOverview": {
+        "additionalProperties": false,
+        "properties": {
+          "active_runs": {
+            "title": "Active Runs",
+            "type": "integer"
+          },
+          "failed_runs": {
+            "title": "Failed Runs",
+            "type": "integer"
+          },
+          "flagged_active_versions": {
+            "title": "Flagged Active Versions",
+            "type": "integer"
+          },
+          "identified_invoices": {
+            "title": "Identified Invoices",
+            "type": "integer"
+          },
+          "paid_by_currency": {
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsAmount"
+            },
+            "title": "Paid By Currency",
+            "type": "array"
+          },
+          "review_runs": {
+            "title": "Review Runs",
+            "type": "integer"
+          },
+          "simulated_receipts": {
+            "title": "Simulated Receipts",
+            "type": "integer"
+          },
+          "total_runs": {
+            "title": "Total Runs",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "identified_invoices",
+          "total_runs",
+          "active_runs",
+          "failed_runs",
+          "review_runs",
+          "flagged_active_versions",
+          "simulated_receipts",
+          "paid_by_currency"
+        ],
+        "title": "AnalyticsOverview",
+        "type": "object"
+      },
       "ApprovalAction": {
         "enum": [
           "approve",
@@ -2375,6 +2451,104 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/analytics/overview": {
+      "get": {
+        "operationId": "analytics_overview_api_v1_analytics_overview_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsOverview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No valid session, or a bad access code."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Cross-site request, or a missing or invalid CSRF token."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such record in this workspace."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict: stale decision, reused request token, or active run."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The upload is larger than the configured limit."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid input."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Rate limited, or the run queue is full. Retry later."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested mode is unavailable."
+          }
+        },
+        "summary": "Analytics Overview"
+      }
+    },
     "/api/v1/batches": {
       "post": {
         "operationId": "create_batch_api_v1_batches_post",

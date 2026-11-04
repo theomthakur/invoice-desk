@@ -263,6 +263,23 @@ class CorrectionRequest(RetryRequest):
     document_id: SafeId
 
 
+class AnalyticsAmount(StrictModel):
+    currency: str
+    amount: str
+    receipts: int
+
+
+class AnalyticsOverview(StrictModel):
+    identified_invoices: int
+    total_runs: int
+    active_runs: int
+    failed_runs: int
+    review_runs: int
+    flagged_active_versions: int
+    simulated_receipts: int
+    paid_by_currency: list[AnalyticsAmount]
+
+
 class InvoiceLookupVersion(StrictModel):
     version_id: str
     revision: str | None
