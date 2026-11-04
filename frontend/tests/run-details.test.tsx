@@ -54,6 +54,27 @@ describe('run details', () => {
     expect((screen.getByLabelText('Correction request draft') as HTMLTextAreaElement).value).toContain('Currency needs review.');
     expect(screen.getByText(/No message is sent/)).toBeInTheDocument();
   });
+  it('offers explicit retry for interrupted runs and identifies live costs', async () => {
+    const retry=vi.fn(); const open=vi.fn();
+    render(<RunDetails run={{...base, lifecycle:'interrupted', outcome:null, mode:'live', attempt_of:'run_previous'}} events={[]} source={null} sourceError={null} onExport={vi.fn()} exporting={false} onRetry={retry} onOpenRelated={open} />);
+    expect(screen.getByText(/Retry of run run_previous/)).toBeVisible();
+    expect(screen.getByText(/provider charges may apply/)).toBeVisible();
+    await userEvent.click(screen.getByRole('button',{name:'Retry this invoice'}));
+    expect(retry).toHaveBeenCalledOnce();
+    await userEvent.click(screen.getByRole('button',{name:'Open original run'}));
+    expect(open).toHaveBeenCalledWith('run_previous');
+  });
+  it('requires a file and an explicit action before submitting a correction', async () => {
+    const correction=vi.fn();
+    render(<RunDetails run={{...base, outcome:'rejected'}} events={[]} source="original" sourceError={null} onExport={vi.fn()} exporting={false} onCorrection={correction} />);
+    const user=userEvent.setup();
+    expect(screen.getByRole('button',{name:'Process corrected invoice'})).toBeDisabled();
+    const file=new File(['corrected invoice'], 'corrected.txt', {type:'text/plain'});
+    await user.upload(screen.getByLabelText('Upload a corrected invoice'),file);
+    expect(correction).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button',{name:'Process corrected invoice'}));
+    expect(correction).toHaveBeenCalledWith(file);
+  });
   it('renders untrusted source as text', async () => {
     render(<RunDetails run={base} events={[]} source={'<img src=x onerror=alert(1)>'} sourceError={null} onExport={vi.fn()} exporting={false} />);
     await userEvent.click(screen.getByRole('tab', { name: 'Source document' }));

@@ -83,6 +83,8 @@ export class ApiClient {
       method: 'POST', body: JSON.stringify({ sample_ids: null, mode, request_token }),
     });
   }
+  retry(id: string, mode: Mode, requestToken: string) { return this.json<RunAccepted>(`/runs/${encodeURIComponent(id)}/retry`, { method:'POST', body:JSON.stringify({mode, request_token:requestToken}) }); }
+  correction(id:string, documentId:string, mode:Mode, requestToken:string) { return this.json<RunAccepted>(`/runs/${encodeURIComponent(id)}/correction`, { method:'POST', body:JSON.stringify({document_id:documentId, mode, request_token:requestToken}) }); }
   getBatch(id: string, signal?: AbortSignal) { return this.json<BatchResult>(`/batches/${encodeURIComponent(id)}`, { signal }); }
   getRun(id: string, signal?: AbortSignal) { return this.json<RunResult>(`/runs/${encodeURIComponent(id)}`, { signal }); }
   events(id: string, after: number, signal?: AbortSignal) {

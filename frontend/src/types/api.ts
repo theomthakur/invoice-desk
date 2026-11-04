@@ -48,7 +48,7 @@ export interface RunResult {
   draft?: Record<string, unknown> | null; findings: Finding[]; requires_scrutiny: boolean;
   approval: Approval[]; receipt?: Receipt | null; mode?: string | null;
   provider?: string | null; model?: string | null; started_at?: string | null; finished_at?: string | null;
-  content_hash?: string | null;
+  content_hash?: string | null; attempt_of?: string | null; relation_kind?: 'retry' | 'correction' | null;
 }
 export interface ReviewOptions {
   version_id: string | null; content_hash: string | null; resolvable_codes: string[];

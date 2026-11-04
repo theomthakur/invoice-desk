@@ -435,3 +435,9 @@ td small { display: block; color: var(--theme-muted, #646d5c); font-size: 10px; 
 .lookup-result ul { list-style:none; padding:0; margin:18px 0 0; }
 .lookup-result li { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:14px 0; border-top:1px solid var(--line); font-size:12px; }
 .lookup-result li small { display:block; color:var(--muted); margin-top:6px; }
+.retry-card { margin: 18px 0; }
+.retry-card h2 { font-size:16px; }
+.retry-card p { color:var(--muted); font-size:12px; line-height:1.7; margin:10px 0 14px; }
+.correction-upload { margin-top:18px; padding-top:16px; border-top:1px solid var(--line); }
+.correction-upload label { display:block; font-size:12px; font-weight:600; margin-bottom:10px; }
+.correction-upload input { max-width:100%; font-size:12px; }

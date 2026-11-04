@@ -1,10 +1,11 @@
 import type { RunEvent } from '../../types/api';
 
 const labels: Record<string, string> = {
-  run_started: 'Processing started', document_received: 'Document received',
+  run_queued: 'Processing queued', run_started: 'Processing started', run_finished: 'Processing finished', document_received: 'Document received',
   parsed_structured: 'Structured document parsed', reused_stored_extraction: 'Previous reading of this file reused',
   reused_prepared_extraction: 'Prepared reading reused', extracted: 'Invoice details extracted',
-  validated: 'Invoice details checked', registered: 'Invoice registered in the ledger',
+  extraction_checked: 'Extracted details checked against the source', reflection_result: 'A second reading was assessed', reflection_skipped: 'A second reading was skipped', reflection_failed: 'A second reading failed',
+  validated: 'Invoice details checked', registered: 'Invoice registered in the ledger', catalog_evidence: 'Inventory evidence collected',
   context_loaded: 'Approval context prepared', proposal: 'Approver recommendation recorded', revision: 'Approver revised the recommendation', critique: 'Critic assessment recorded', final_decision: 'Decision recorded',
   payment_attempt: 'Simulated payment attempted', payment_made: 'Simulated payment recorded',
   payment_refused: 'Payment was stopped', gate_refused: 'Approval was stopped',
@@ -13,6 +14,7 @@ const labels: Record<string, string> = {
   run_crashed: 'Processing failed', model_retry: 'Model request retried', output_invalid: 'Model output failed validation',
   tool_not_called: 'Required tool was not called', unresolved: 'Review disagreement remains unresolved',
   audit_skipped: 'Decision record could not be saved', extraction_only_finished: 'Document reading finished',
+  model_request: 'A reader request started', model_response: 'A reader response was received', model_error: 'A reader request failed', tool_call: 'A tool call was recorded', run_interrupted: 'Processing was interrupted',
 };
 const stages: Record<string, string> = {intake:'Intake', extraction:'Extraction', validation:'Validation', approval:'Approval', critique:'Critique', payment:'Payment', completion:'Completion', error:'Error'};
 export function activitySummary(event: RunEvent) {

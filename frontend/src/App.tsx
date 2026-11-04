@@ -73,6 +73,8 @@ function App() {
   const requestRef = useRef<{ kind: 'run' | 'batch'; token: string } | null>(null);
   const uploadRef = useRef<string | null>(null);
   const pendingRef = useRef(false);
+  const retryRequest = useRef<{runId:string; mode:Mode; token:string}|null>(null);
+  const correctionRequest = useRef<{runId:string; file:File; mode:Mode; token:string; documentId?:string}|null>(null);
 
   const refreshHistory = useCallback(async (cursor?: string) => {
     const result = await api.history(cursor);
@@ -207,6 +209,28 @@ function App() {
     } catch (err) { setError(messageOf(err)); }
     finally { pendingRef.current = false; setPending(false); setPendingText(''); }
   }
+  async function retryRun(original: RunResult) {
+    if (pendingRef.current) return;
+    const retryMode:Mode = original.mode === 'live' ? 'live' : 'mock';
+    if (retryRequest.current?.runId !== original.run_id || retryRequest.current.mode !== retryMode) retryRequest.current = {runId:original.run_id, mode:retryMode, token:token()};
+    pendingRef.current = true; setPending(true); setError(null);
+    try {
+      const result=await api.retry(original.run_id, retryMode, retryRequest.current.token);
+      retryRequest.current=null; openRun(result.run_id); void refreshHistory().catch(()=>{});
+    } catch (err) {setError(messageOf(err));}
+    finally {pendingRef.current=false; setPending(false);}
+  }
+  async function submitCorrection(original:RunResult, file:File) {
+    if (pendingRef.current) return;
+    const correctionMode:Mode=original.mode === 'live' ? 'live' : 'mock';
+    if (correctionRequest.current?.runId !== original.run_id || correctionRequest.current.file !== file || correctionRequest.current.mode !== correctionMode) correctionRequest.current={runId:original.run_id,file,mode:correctionMode,token:token()};
+    pendingRef.current=true; setPending(true); setError(null);
+    try {
+      correctionRequest.current.documentId ??= (await api.upload(file)).document_id;
+      const result=await api.correction(original.run_id,correctionRequest.current.documentId,correctionMode,correctionRequest.current.token);
+      correctionRequest.current=null; openRun(result.run_id); void refreshHistory().catch(()=>{});
+    } catch(err) {setError(messageOf(err));} finally {pendingRef.current=false;setPending(false);}
+  }
   async function exportRun() {
     if (!runId || exporting) return;
     setExporting(true);
@@ -270,7 +294,7 @@ function App() {
         {screen === 'lookup' ? <InvoiceLookup api={api} initialNumber={lookupNumber} openRun={openRun} />
         : screen === 'architecture' ? <SystemDesign config={config} />
         : screen === 'presentation' ? <ProjectPresentation openInvoices={() => showInbox()} />
-        : runId ? <><button className="back-link" onClick={() => showInbox()}><ArrowLeft size={15} />Back to invoices</button>{!run ? <div className="loading-card"><LoaderCircle size={20} className="spin" />Loading invoice record…</div> : <RunDetails key={run.run_id} run={run} events={events} source={source} pdfUrl={pdfUrl} pdfPages={pdfPages} sourceError={sourceError} onExport={() => void exportRun()} exporting={exporting} api={api} onReviewed={reviewCompleted} onFindRelated={showLookup} />}</>
+        : runId ? <><button className="back-link" onClick={() => showInbox()}><ArrowLeft size={15} />Back to invoices</button>{!run ? <div className="loading-card"><LoaderCircle size={20} className="spin" />Loading invoice record…</div> : <RunDetails key={run.run_id} run={run} events={events} source={source} pdfUrl={pdfUrl} pdfPages={pdfPages} sourceError={sourceError} onExport={() => void exportRun()} exporting={exporting} api={api} onReviewed={reviewCompleted} onFindRelated={showLookup} onOpenRelated={openRun} onRetry={() => void retryRun(run)} onCorrection={(file) => void submitCorrection(run,file)} retrying={pending} />}</>
         : batchId ? <section><button className="back-link" onClick={() => showInbox()}><ArrowLeft size={15} />Back to invoices</button><div className="page-heading"><div><h1>Batch results</h1><p>Duplicate files and revisions are grouped before payment.</p></div><button className="button button-primary" onClick={newInvoice}><Plus size={16} />New invoice</button></div>
           {!batch ? <div className="loading-card"><LoaderCircle size={20} className="spin" />Loading batch…</div> : <div className="content-card"><div className="card-heading"><div><h3>Sample batch</h3><p>{batch.files.length} files in this batch</p></div><Status status={batch.lifecycle} /></div><div className="batch-summary">{Object.entries(batch.counts).map(([label, count]) => <div key={label}><span>{label.replaceAll('_', ' ')}</span><strong>{count}</strong></div>)}{Object.entries(batch.paid_by_currency).map(([currency, amount]) => <div key={currency}><span>Mock paid · {currency}</span><strong>{formatAmount(amount, currency)}</strong></div>)}</div><div className="table-wrap"><table><thead><tr><th>FILE</th><th>DISPOSITION</th><th>RESULT</th><th>REASON</th><th /></tr></thead><tbody>{batch.files.map((file) => <tr key={file.file}><td><strong>{file.file}</strong></td><td>{file.kind}</td><td><Status status={file.outcome === 'paid' ? 'completed' : file.outcome} /></td><td>{file.reason}{file.related_file && <small>Related file: {file.related_file}</small>}</td><td>{file.run_id && <button className="text-button" onClick={() => openRun(file.run_id!)}>Open<ArrowRight size={14} /></button>}</td></tr>)}</tbody></table></div></div>}</section>
         : screen === 'rules' ? <section className="rules-page"><div className="page-heading"><div><span className="page-eyebrow">WORKSPACE SETTINGS</span><h1>Processing rules</h1><p>The server’s current limits and approval settings.</p></div>{config && <span className="version-tag">Policy {config.policy_version}</span>}</div>{config ? <div className="rules-grid"><div className="content-card"><span className="rules-icon"><ShieldCheck size={22} /></span><h2>Approvals & payments</h2><dl><div><dt>Additional scrutiny above</dt><dd>{formatAmount(config.approval_threshold, config.approval_currency)}</dd></div><div><dt>Automatic payment currencies</dt><dd>{config.payment_currencies.join(', ')}</dd></div><div><dt>Payment integration</dt><dd>Simulated only</dd></div></dl><p>Findings and current policy are checked again before a mock payment is recorded. A model’s approval does not bypass these checks.</p></div><div className="content-card"><span className="rules-icon"><FileText size={22} /></span><h2>Document intake</h2><dl><div><dt>Supported formats</dt><dd>{config.supported_extensions.join(', ').toUpperCase()}</dd></div><div><dt>Maximum file size</dt><dd>{(config.limits.max_file_bytes / 1024 / 1024).toFixed(0)} MB</dd></div><div><dt>Maximum PDF pages</dt><dd>{config.limits.max_pdf_pages}</dd></div><div><dt>Maximum line items</dt><dd>{config.limits.max_line_items}</dd></div></dl><p>Original source text is preserved with the run. Unknown or invalid fields are recorded as findings.</p></div></div> : <div className="loading-card">Connect to the workspace to load processing rules.</div>}</section>

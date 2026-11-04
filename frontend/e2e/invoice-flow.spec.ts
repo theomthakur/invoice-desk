@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { readFileSync } from 'node:fs';
 
 async function runSample(page: Page, name: string) {
   await page.getByRole('button', { name: 'Start a new invoice' }).click();
@@ -321,4 +322,22 @@ test('related versions use a workspace-scoped ledger lookup', async ({page}) => 
   if (process.env.UPDATE_SCREENSHOTS === '1') await page.screenshot({path:'docs/screenshots/invoice-lookup.png', animations:'disabled'});
   await page.getByRole('button',{name:'Open record'}).click();
   await expect(page.getByText('Mock payment recorded')).toBeVisible();
+});
+
+ test('a corrected document is explicitly submitted and linked to the rejected run', async ({page}) => {
+  await page.goto('/');
+  await expect(page.getByRole('button',{name:'Start a new invoice'})).toBeEnabled();
+  const original=await runSample(page,'invoice_1007.csv');
+  await expect(page.getByText('Rejected',{exact:true})).toBeVisible();
+  const data=Buffer.concat([readFileSync('../data/invoices/invoice_1007.csv'),Buffer.from('\n')]);
+  const button=page.getByRole('button',{name:'Process corrected invoice'});
+  await expect(button).toBeDisabled();
+  await page.getByLabel('Upload a corrected invoice').setInputFiles({name:'corrected.csv',mimeType:'text/csv',buffer:data});
+  const accepted=page.waitForResponse(response=>response.url().endsWith(`/runs/${original}/correction`) && response.request().method()==='POST');
+  await button.click();
+  expect((await accepted).status()).toBe(202);
+  await expect(page.getByText(`Submitted as a correction to run ${original}.`)).toBeVisible();
+  await expect(page.getByText('Mock payment recorded')).toHaveCount(0);
+  await page.getByRole('button',{name:'Open original run'}).click();
+  await expect(page.getByText('Rejected',{exact:true})).toBeVisible();
 });
