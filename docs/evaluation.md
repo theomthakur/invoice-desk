@@ -5,8 +5,8 @@
 | Check | Result | Scope |
 | --- | --- | --- |
 | Python tests | 729 passed, 4 live tests deselected | Deterministic rules, controlled providers, API, security, workflow, CLI, conflict persistence, legacy holds, grounding, cancellation, original PDF inspection and internal department routing. |
-| Frontend unit and interaction tests | 51 passed | Controlled HTTP responses; no live model. |
-| Browser tests | 16 passed | Real local backend in mock mode; valid invoice, rejection, workspace isolation, mobile intake, simulated review, optional notes, persistent department handoffs, rendered original PDF pages, manual guided onboarding and saved appearance in light/dark modes. |
+| Frontend unit and interaction tests | 54 passed | Controlled HTTP responses; no live model. |
+| Browser tests | 17 passed | Real local backend in mock mode; valid invoice, rejection, workspace isolation, mobile intake, simulated review, optional notes, persistent department handoffs, rendered original PDF pages, manual guided onboarding and saved appearance in light/dark modes. |
 | Mutation checks | Historical baseline: 52/52 caught | Measured before the corrections; not rerun for the current source. Current safeguard regressions are included in the Python suite. |
 | Container smoke | Historical packaging check: passed on Linux amd64, 512 MB RAM / 0.1 CPU | Non-root image, custom port, access gate, browser production cookie on loopback, invoice outcomes, native PDF preview, review, export, isolation, full batch and CLI. Peak memory 213,676,032 bytes; no OOM. |
 | Supplied-file regression | 20/20 expected outcomes matched | Each file on a fresh isolated ledger, simulated reader, fixed processing date 3 Nov 2026. Known examples, not a blind set or LLM accuracy estimate. |
@@ -67,3 +67,7 @@ The final local checks passed 726 Python tests (four live tests deselected), 50 
 The overview reads all identified payables, runs, active flagged versions and simulated receipts from one workspace-scoped database snapshot. Runs are attempts and include batch extraction, retries and duplicates; they are not a count of distinct invoices. Review-run counts reflect recorded run outcomes, not currently outstanding invoices. Receipt totals use integer minor units and remain separate by currency. Unknown identities are excluded from identified-invoice counts. The CSV has the same labels and values.
 
 This initial overview does not implement the full planned analytics: date/vendor/outcome filters, reconciliation drill-through, processing percentiles and comprehensive version-aware business metrics remain open. Tests cover empty workspaces, workspace isolation, duplicate attempts and separate currencies. Current checks: 729 Python tests with four live tests deselected, 51 frontend tests and 16 browser tests. The overview CSV and compact sidebar were also checked in a targeted browser run after the full suite. Known mock regression: 20/20. Historical container and shared-ledger batch artifacts were not rerun.
+
+## Multiple selection
+
+Selection applies to loaded runs. Select all affects only currently visible loaded rows; selected rows hidden by a filter remain selected and are counted. CSV export includes every selected loaded run and escapes spreadsheet formula-like input. Selection is in browser memory and clears when the list unmounts; it does not execute invoice actions. Tests cover filtering, clearing, removal from loaded history and formula escaping. The integrated browser check verifies the selected CSV contains both visible and hidden selected run IDs.

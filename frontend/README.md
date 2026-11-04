@@ -43,7 +43,7 @@ Held invoices show review controls and findings before extracted details. Reject
 ## Verification on 4 November 2026
 
 - Node 22; TypeScript and ESLint passed.
-- Vitest: 51 tests passed. Coverage includes error bodies and status codes, CSRF and access-code headers, cancellation, exact decimal display, receipt gating, original PDF retrieval, text/preview switching, evidence location, explicit processing, duplicate clicks, queue search/sort and status grouping.
+- Vitest: 54 tests passed. Coverage includes error bodies and status codes, CSRF and access-code headers, cancellation, exact decimal display, receipt gating, original PDF retrieval, text/preview switching, evidence location, explicit processing, duplicate clicks, queue search/sort and status grouping.
 - Production build passed.
 - Real Brave browser against the local backend in **mock mode**, using a separate temporary database: a TXT sample reached a stored mock-payment receipt; an invalid CSV sample was rejected with findings; an uploaded JSON file was processed; its JSON trace downloaded with stored events; history survived refresh; and the 20-file sample batch completed. These are workflow checks, not live-model quality measurements.
 - Desktop at 1512×1050 and mobile at 390×844 were inspected. Queue search, the rules page, Escape to close intake and page-level horizontal overflow were checked. No browser JavaScript errors were observed.
@@ -54,7 +54,7 @@ Screenshots in `docs/screenshots/` show actual local simulated runs, not interce
 - `new-invoice-upload.png`, `new-invoice.png`, `new-invoice-mobile.png`
 - `invoice-record.png`, `invoice-exception.png`, `simulated-review.png`, `batch-results.png`, `processing-rules.png`
 
-The current simulated review screen is shown in `docs/screenshots/simulated-review.png`; `pdf-review.png` shows the original PDF preview. `system-design.png` and `presentation.png` show the project resources. The screenshots use actual local mock runs. Sixteen Playwright tests exercise the integrated workflow, including sidebar persistence, resource navigation, review priority, controls and original PDF inspection.
+The current simulated review screen is shown in `docs/screenshots/simulated-review.png`; `pdf-review.png` shows the original PDF preview. `system-design.png` and `presentation.png` show the project resources. The screenshots use actual local mock runs. Seventeen Playwright tests exercise the integrated workflow, including sidebar persistence, resource navigation, review priority, controls and original PDF inspection.
 
 ## Remaining integration boundaries
 
@@ -111,3 +111,7 @@ Failed and interrupted records offer an explicit Retry this invoice action. Reje
 ## Ledger overview
 
 Ledger overview shows workspace-wide identified payables, run counts, failures, review outcomes, flagged active versions and simulated receipts grouped by currency. It queries the database, not just the history page. Counts of runs include retries, duplicates and batch extraction. Review runs are historical outcomes, not an outstanding balance. Values can be downloaded as CSV. This initial version has no date, vendor or outcome filters, no reconciled drill-through and no latency percentiles. `ledger-overview.png` shows the local mock view.
+
+## Select multiple entries
+
+The invoice list supports selecting individual loaded runs and selecting all visible loaded runs. Search and status filters retain the selection and show how many selected runs are outside the current view. The selection is limited to loaded history, clears when leaving the list, and is pruned if records disappear from the loaded page. Export selected CSV includes all selected loaded runs, including those hidden by a filter. The export uses spreadsheet formula escaping. Selection and export do not approve, reject, reprocess or pay invoices. `multi-select.png` shows the workflow.

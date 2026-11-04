@@ -3,8 +3,8 @@
 The local application has been checked with Python 3.12.2 and Node 22.13.1. Current results:
 
 - Python: 729 passed; four paid-provider tests deselected.
-- Frontend: TypeScript, ESLint and production build passed; 51 tests passed.
-- Browser: sixteen integrated Brave tests passed against an isolated local backend in mock mode, including actual PDF page rendering.
+- Frontend: TypeScript, ESLint and production build passed; 54 tests passed.
+- Browser: seventeen integrated Brave tests passed against an isolated local backend in mock mode, including actual PDF page rendering.
 - Supplied data: all 20 original files retained unchanged; 20 predefined independent-ledger outcomes matched.
 - Previously measured shared-ledger batch: six paid, eight rejected, two held, three duplicate, one superseded; USD 30,375.00 in simulated receipts.
 - Source regression evidence records a source-code and policy fingerprint. No genuine model trace has been produced.
@@ -51,3 +51,7 @@ Final checks: 726 Python tests, four live tests deselected, 50 frontend tests an
 ## Initial ledger overview
 
 A workspace-scoped read-only overview reports distinct identified payables, run lifecycle counts, historical review-run outcomes, active identity flags and simulated receipts, with amounts separated by currency. Run counts include batch extraction, retries and duplicates. The CSV preserves those labels. This is a first increment: filters, per-metric drill-through and latency/version-aware business measures remain open. Current checks: 729 Python tests (four live tests deselected), 51 frontend tests and 16 browser tests, plus a targeted overview CSV/sidebar check. The known mock sample regression matched 20/20. No live model, paid hosting or external payment was used.
+
+## Multi-select
+
+Loaded runs can be selected individually or all at once for the visible view. Hidden selections remain counted when filters change, and the selected rows can be exported as CSV. This is a browser-side selection and export, not a bulk approval or payment operation. The CSV preserves raw fields with spreadsheet formula escaping. Current checks include 54 frontend tests and 17 browser tests.
