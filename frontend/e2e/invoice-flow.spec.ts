@@ -55,7 +55,7 @@ test('project resources explain the real system without starting invoice work', 
   await page.getByRole('button', { name: 'System design', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'System design', exact: true })).toBeVisible();
   await expect(page.getByRole('button', {name:'System design', exact:true})).toHaveAttribute('aria-current','page');
-  await expect(page.getByRole('img', { name: 'Invoice Desk current system architecture' })).toBeVisible();
+  await expect(page.getByRole('figure', { name: 'Invoice Desk current system architecture' })).toBeVisible();
   await expect(page.getByText('Different roles. One controlled decision.')).toBeVisible();
   await page.getByRole('button', { name: 'Presentation', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'An invoice should end with a clear next step.' })).toBeVisible();
@@ -65,7 +65,12 @@ test('project resources explain the real system without starting invoice work', 
   await expect(page.getByText('Slide 1 of 7')).toBeVisible();
   await page.getByRole('button',{name:'Full screen',exact:true}).click();
   await expect(page.locator('.presentation-page')).toHaveClass(/presentation-fullscreen/);
-  await page.getByRole('button',{name:'Exit full screen',exact:true}).click();
+  await expect(page.getByRole('navigation',{name:'Presentation slides'})).toBeHidden();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByRole('heading',{name:'Upload. Check. Decide.'})).toBeVisible();
+  await page.keyboard.press('ArrowLeft');
+  await expect(page.getByRole('heading',{name:'An invoice should end with a clear next step.'})).toBeVisible();
+  await page.getByRole('button',{name:'Exit presentation',exact:true}).click();
   await expect(page.locator('.presentation-page')).not.toHaveClass(/presentation-fullscreen/);
   await page.getByRole('button', { name: 'Open invoice workspace' }).click();
   await page.getByRole('button', { name: 'Refresh invoices' }).click();
@@ -244,7 +249,7 @@ test('light is the first look even on a dark computer; a saved choice persists o
   await expect(page.locator('html')).toHaveAttribute('data-theme','dark');
   await page.getByRole('button',{name:'System design',exact:true}).click();
   await expect(page.getByRole('heading',{name:'System design',exact:true})).toBeVisible();
-  await expect(page.locator('.diagram-node rect').first()).toHaveCSS('fill','rgb(28, 41, 35)');
+  await expect(page.locator('.architecture-steps li').first()).toHaveCSS('background-color','rgb(28, 41, 35)');
   await page.getByRole('button',{name:'Presentation',exact:true}).click();
   await expect(page.locator('.slide-stage')).toHaveCSS('background-color','rgb(28, 41, 35)');
   await page.getByRole('button',{name:'Switch to light mode'}).click();
