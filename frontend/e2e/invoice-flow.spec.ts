@@ -18,10 +18,16 @@ async function runSample(page: Page, name: string) {
 test('sidebar can collapse, keep navigation usable and remember the choice', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto('/');
+  const sidebar = page.getByRole('complementary');
+  await expect(sidebar.getByRole('button', {name:'System design', exact:true})).toBeVisible();
+  await expect(sidebar.getByRole('button', {name:'Presentation', exact:true})).toBeVisible();
+  await expect(page.getByRole('region', {name:'Workspace account'})).toBeVisible();
+  await expect(page.locator('.sidebar-account')).toContainText('Acme workspace');
   const collapse = page.getByRole('button', { name: 'Collapse sidebar', exact: true });
   await expect(collapse).toHaveAttribute('aria-expanded', 'true');
   await collapse.click();
   await expect(page.locator('.sidebar')).toHaveCSS('width', '76px');
+  await expect(page.getByRole('region', {name:'Workspace account'})).toBeVisible();
   await page.getByRole('button', { name: 'Processing rules', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Processing rules', exact: true })).toBeVisible();
   await page.reload();
@@ -43,6 +49,7 @@ test('project resources explain the real system without starting invoice work', 
   await expect(page.getByRole('button', { name: 'Start a new invoice' })).toBeEnabled();
   await page.getByRole('button', { name: 'System design', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'System design', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', {name:'System design', exact:true})).toHaveAttribute('aria-current','page');
   await expect(page.getByRole('img', { name: 'Invoice Desk current system architecture' })).toBeVisible();
   await expect(page.getByText('Different roles. One controlled decision.')).toBeVisible();
   await page.getByRole('button', { name: 'Presentation', exact: true }).click();
@@ -281,4 +288,13 @@ test('guide and theme controls work on mobile with the sidebar collapsed', async
   await expect(page.getByRole('dialog',{name:'New invoice'})).toBeFocused();
   await page.getByRole('button',{name:'Close new invoice'}).click();
   await page.getByRole('button',{name:'Switch to light mode'}).click();
+  for (const width of [320,390,768,1440]) {
+    await page.setViewportSize({width,height:844});
+    const account=page.getByRole('region',{name:'Workspace account'});
+    await expect(account).toBeVisible();
+    const rect=await account.boundingBox();
+    expect(rect!.y).toBeGreaterThanOrEqual(0);
+    expect(rect!.y+rect!.height).toBeLessThanOrEqual(844);
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth)).toBe(false);
+  }
 });
