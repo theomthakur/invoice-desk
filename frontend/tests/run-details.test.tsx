@@ -12,11 +12,22 @@ const base: RunResult = {
 };
 
 describe('run details', () => {
+  it('keeps technical exports and event payloads behind developer mode', async () => {
+    const props={run:base,events:[{seq:1,timestamp:'2026-11-04T12:00:00Z',stage:'validation',type:'validated',payload:{internal:'detail'}}],source:'text',sourceError:null,onExport:vi.fn(),exporting:false};
+    const {rerender}=render(<RunDetails {...props}/>);
+    expect(screen.queryByRole('button',{name:'Export trace'})).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('tab',{name:/Activity/}));
+    expect(screen.queryByText('Technical details')).not.toBeInTheDocument();
+    rerender(<RunDetails {...props} developerMode/>);
+    expect(screen.getByRole('button',{name:'Export trace'})).toBeInTheDocument();
+    expect(screen.getByText('Technical details')).toBeInTheDocument();
+  });
+
   it('shows review findings and no fake payment control', () => {
     render(<RunDetails run={base} events={[]} source="original source" sourceError={null} onExport={vi.fn()} exporting={false} />);
     expect(screen.getByText('Needs review')).toBeInTheDocument();
     expect(screen.getByText('Currency needs review.')).toBeInTheDocument();
-    expect(screen.queryByText('Mock payment recorded')).not.toBeInTheDocument();
+    expect(screen.queryByText('Simulated payment recorded')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /approve/i })).not.toBeInTheDocument();
   });
   it('requires a stored receipt before displaying paid', () => {
@@ -28,13 +39,13 @@ describe('run details', () => {
     const receipt = { payment_id: 'p1', transaction_id: 'mock_123', amount: '5000.00', currency: 'USD', vendor: 'Vendor', created_at: '2026-11-03T12:00:00Z', simulated: true as const };
     render(<RunDetails run={{ ...base, outcome: 'paid', receipt }} events={[]} source={null} sourceError={null} onExport={vi.fn()} exporting={false} />);
     expect(screen.getByText('Paid (simulated)')).toBeInTheDocument();
-    expect(screen.getByText('Mock payment recorded')).toBeInTheDocument();
+    expect(screen.getByText('Simulated payment recorded')).toBeInTheDocument();
     expect(screen.getAllByText(/mock_123/).length).toBeGreaterThanOrEqual(1);
   });
   it('prints a report with recorded values without interpreting source as markup', async () => {
     const print = vi.spyOn(window, 'print').mockImplementation(() => {});
     render(<RunDetails run={base} events={[]} source="text" sourceError={null} onExport={vi.fn()} exporting={false} />);
-    await userEvent.click(screen.getByRole('button', {name:'Print decision report'}));
+    await userEvent.click(screen.getByRole('button', {name:'Save decision PDF'}));
     expect(print).toHaveBeenCalledOnce();
     expect(document.querySelector('.decision-report')).toHaveTextContent('Currency needs review.');
     expect(document.querySelector('.decision-report')).toHaveTextContent('No simulated receipt recorded.');
@@ -42,7 +53,7 @@ describe('run details', () => {
   });
   it('shows real event summaries with unknown details available', async () => {
     const events = [{seq:1, stage:'intake', type:'parsed_structured', timestamp:'2026-11-03T12:00:00Z', payload:{line_items:2}}, {seq:2, stage:'error', type:'new_event', timestamp:'2026-11-03T12:00:01Z', payload:{code:'failure'}}];
-    render(<RunDetails run={base} events={events} source="text" sourceError={null} onExport={vi.fn()} exporting={false} />);
+    render(<RunDetails developerMode run={base} events={events} source="text" sourceError={null} onExport={vi.fn()} exporting={false} />);
     await userEvent.click(screen.getByRole('tab', {name:/Activity/}));
     expect(screen.getByText('Structured document parsed')).toBeInTheDocument();
     expect(screen.getByText('Other recorded activity')).toBeInTheDocument();

@@ -14,7 +14,7 @@ export function rowsCsv(rows: [unknown, unknown][]): string {
 }
 export function decisionCsv(run: RunResult): string {
   const rows: [string, unknown][] = [
-    ['Report','Invoice decision report'], ['Payment system','Simulated only'], ['Run',run.run_id],
+    ['Application','Invoice Desk'], ['Report','Invoice decision report'], ['Payment system','Simulated only'], ['Run',run.run_id],
     ['Version',run.version_id], ['Linked run',run.attempt_of], ['Link type',run.relation_kind], ['Filename',run.filename], ['Lifecycle',run.lifecycle],
     ['Outcome',run.outcome === 'paid' && !run.receipt ? 'Receipt unavailable' : run.outcome],
     ['Received',run.started_at], ['Finished',run.finished_at], ['Invoice number',run.invoice?.invoice_number],

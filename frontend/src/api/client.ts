@@ -1,5 +1,5 @@
 import type {
-  AnalyticsFilters, AnalyticsOverview, BatchResult, ConfigInfo, DocumentInfo, EventsPage, HistoryPage, Mode, RunAccepted, RunResult,
+  AnalyticsFilters, AnalyticsOverview, AnalyticsRecords, BatchResult, ConfigInfo, DocumentInfo, EventsPage, HistoryPage, Mode, RunAccepted, RunResult,
   DepartmentAssignment, DepartmentHandoffRequest, DepartmentRouting, InvoiceLookupResult, ReviewOptions, SampleInfo, SessionInfo,
 } from '../types/api';
 
@@ -71,6 +71,12 @@ export class ApiClient {
   samples() { return this.json<SampleInfo[]>('/samples'); }
   history(cursor?: string) { return this.json<HistoryPage>(`/history${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`); }
   analyticsOverview(filters?:AnalyticsFilters) { const params=new URLSearchParams(); if(filters) Object.entries(filters).forEach(([key,value])=>{if(value.trim()) params.set(key,value.trim());}); const query=params.toString(); return this.json<AnalyticsOverview>(`/analytics/overview${query ? `?${query}` : ''}`); }
+  analyticsRecords(view:'backlog'|'exceptions',key:string,filters:AnalyticsFilters,offset=0) {
+    const params=new URLSearchParams({view,key,offset:String(offset)});
+    Object.entries(filters).forEach(([name,value])=>{if(value.trim())params.set(name,value.trim());});
+    return this.json<AnalyticsRecords>(`/analytics/records?${params}`);
+  }
+
   lookupInvoice(number:string) { return this.json<InvoiceLookupResult>(`/invoices/lookup?number=${encodeURIComponent(number)}`); }
   async upload(file: File) {
     const form = new FormData(); form.append('file', file);

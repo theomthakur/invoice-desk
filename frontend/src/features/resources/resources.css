@@ -93,3 +93,23 @@
 .presentation-page.presentation-fullscreen {padding:0;overflow:hidden;} .presentation-fullscreen > .page-heading,.presentation-fullscreen .slide-list {display:none;} .presentation-fullscreen .presentation-layout {display:block;height:100%;} .presentation-fullscreen .slide-stage {height:100dvh;border:0;border-radius:0;position:relative;display:flex;flex-direction:column;justify-content:center;} .presentation-fullscreen .slide-content {min-height:0;max-height:calc(100dvh - 130px);overflow:auto;width:100%;max-width:1280px;margin:auto;padding:55px 7vw;box-sizing:border-box;} .presentation-fullscreen .slide-content h2 {font-size:clamp(24px,4.3vw,62px);max-width:1000px;} .presentation-fullscreen .slide-lead {font-size:clamp(13px,1.5vw,21px);max-width:1000px;line-height:1.7;} .presentation-fullscreen .slide-points li {font-size:clamp(12px,1.3vw,18px);} .presentation-fullscreen .slide-controls {position:absolute;inset:auto 0 0;transition:opacity .2s;z-index:2;background:var(--theme-surface,#fffefa);gap:12px;} .presentation-fullscreen .presentation-exit {display:inline-flex!important;margin-right:auto;} .presentation-fullscreen.presentation-controls-hidden .slide-controls {opacity:0;pointer-events:none;} .presentation-fullscreen .slide-controls:focus-within {opacity:1;pointer-events:auto;}
 @media(max-width:1100px){.architecture-steps {grid-template-columns:repeat(2,minmax(0,1fr));}.architecture-steps li:nth-child(2) .flow-arrow {display:none;}.hosting-title {flex-wrap:wrap;}.hosting-title > span {margin-left:0;}}
 @media(max-width:600px){.hosting-boundary {padding:16px;}.architecture-steps {grid-template-columns:1fr;gap:24px;}.flow-arrow {right:calc(50% - 9px);top:auto;bottom:-23px;transform:rotate(90deg);}.architecture-steps li:nth-child(2) .flow-arrow {display:block;}.hosting-title strong {font-size:15px;}.presentation-keys {display:none;}.presentation-fullscreen .slide-content {padding:25px;}.presentation-fullscreen .slide-controls {padding:12px;gap:5px;}.presentation-fullscreen .slide-controls .button {padding:0 8px;font-size:10px;}.presentation-fullscreen .slide-controls > span {font-size:9px;}}
+
+/* Keep the deck visual and readable while the presenter explains the details. */
+.slide-flow { display:flex; flex-wrap:wrap; gap:10px; margin:24px 0; }
+.slide-flow > div { display:flex; align-items:center; gap:10px; flex:1; }
+.slide-flow span { border:1px solid var(--theme-line,#dce5cf); border-radius:9px; padding:12px; background:var(--theme-surface-soft,#f0f4e5); color:var(--ink); font-size:12px; flex:1; text-align:center; }
+.slide-flow svg {flex-shrink:0;color:var(--muted);}
+.presentation-fullscreen .slide-flow span {font-size:clamp(12px,1.25vw,18px);}
+
+/* Raingentic-inspired deck: a single story, visual panels, compact navigation. */
+.presentation-layout {display:block;}
+.presentation-page .slide-list {display:flex;gap:4px;overflow-x:auto;margin-bottom:16px;padding:0 0 5px;}
+.presentation-page .slide-list button {flex:1;min-width:110px;display:block;padding:10px;font-size:10px;line-height:1.5;}
+.presentation-page .slide-list button > span {display:block;margin-bottom:5px;}
+.presentation-page .slide-content {min-height:540px;}
+.presentation-page .slide-points {grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:26px 0;}
+.presentation-page .slide-points li {display:block;padding:18px;border:1px solid var(--theme-line,#dce5cf);border-radius:12px;background:var(--theme-surface-soft,#f3f6eb);font-size:13px;}
+.presentation-page .slide-points li > span {display:block;margin-bottom:12px;font-size:11px;}
+.presentation-page .slide-lead {max-width:850px;}
+.presentation-fullscreen .slide-list {display:none;}
+@media(max-width:760px){.presentation-page .slide-points{grid-template-columns:1fr;}.presentation-page .slide-content{min-height:0;}.presentation-page .slide-list button{flex:none;}}

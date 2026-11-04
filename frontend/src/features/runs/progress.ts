@@ -5,7 +5,7 @@ export type StageState = 'complete' | 'in_progress' | 'reached' | 'blocked' | 'f
 
 /** Report only what the recorded events and receipt actually establish. */
 export function stageState(stage: Stage, run: RunResult, events: RunEvent[]): StageState {
-  const relevant = events.filter(event => event.stage === stage || (stage === 'approval' && event.stage === 'critique'));
+  const relevant = events.filter(event => event.stage === stage || (stage === 'extraction' && ['parsed_structured', 'reused_prepared_extraction', 'reused_stored_extraction'].includes(event.type) && event.stage === 'intake') || (stage === 'approval' && event.stage === 'critique'));
   const types = new Set(relevant.map(event => event.type));
   if (stage === 'payment' && run.receipt) return 'complete';
   if (stage === 'payment' && types.has('payment_refused')) return 'blocked';
@@ -13,7 +13,7 @@ export function stageState(stage: Stage, run: RunResult, events: RunEvent[]): St
   const decision = [...relevant].reverse().find(event => event.type === 'final_decision');
   if (stage === 'approval' && decision && ['reject', 'needs_review'].includes(String(decision.payload.action))) return 'blocked';
   const completed = (stage === 'intake' && types.has('document_received'))
-    || (stage === 'extraction' && (types.has('extracted') || types.has('parsed_structured')))
+    || (stage === 'extraction' && ['extracted', 'parsed_structured', 'reused_prepared_extraction', 'reused_stored_extraction'].some(type => types.has(type)))
     || (stage === 'validation' && types.has('validated'))
     || (stage === 'approval' && decision?.payload.action === 'approve');
   if (completed) return 'complete';

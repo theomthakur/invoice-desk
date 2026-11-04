@@ -28,7 +28,7 @@ export function pageWindow(current: number, count: number): (number | null)[] {
   }
   return pages;
 }
-const names: Record<QueueFilter, string> = { all: 'All runs', attention: 'Needs review', assigned: 'Assigned', processing: 'Processing', completed: 'Processing finished', blocked: 'Blocked', duplicate: 'Duplicates' };
+const names: Record<QueueFilter, string> = { all: 'All runs', attention: 'Needs review', assigned: 'Handoffs', processing: 'In progress', completed: 'Processing finished', blocked: 'Blocked', duplicate: 'Duplicates' };
 
 export function InvoiceQueue({ items, filter, onFilter, openRun, newInvoice, trySamples, connected, cursor, loadMore, loading, api, refresh }: {
   items: HistoryItem[]; filter: QueueFilter; onFilter: (filter: QueueFilter) => void;

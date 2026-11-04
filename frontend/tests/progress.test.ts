@@ -4,6 +4,12 @@ import type {RunEvent,RunResult} from '../src/types/api';
 const run:RunResult={run_id:'one',workspace_id:'ws',lifecycle:'completed',outcome:'needs_review',findings:[],approval:[],requires_scrutiny:false};
 const event=(stage:string,type:string,payload:Record<string,unknown>={}):RunEvent=>({seq:1,timestamp:'2026-11-04T00:00:00Z',stage,type,payload});
 describe('honest stage progress',()=>{
+  it.each(['parsed_structured','reused_prepared_extraction','reused_stored_extraction'])('recognizes successful intake reading: %s',type=>{
+    expect(stageState('extraction',run,[event('intake',type)])).toBe('complete');
+  });
+  it('does not infer extraction merely from receiving a file',()=>{
+    expect(stageState('extraction',run,[event('intake','document_received')])).toBe('not_reached');
+  });
   it('does not mark a refused payment as complete',()=>{
     expect(stageState('payment',run,[event('payment','payment_attempt'),event('payment','payment_refused')])).toBe('blocked');
   });

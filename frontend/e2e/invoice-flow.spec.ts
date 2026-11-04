@@ -12,7 +12,7 @@ async function runSample(page: Page, name: string) {
   const response = await accepted;
   expect(response.status()).toBe(202);
   const { run_id: runId } = await response.json() as { run_id: string };
-  await expect(page.getByRole('button', { name: 'Export trace' })).toBeEnabled({ timeout: 30_000 });
+  await expect(page.getByRole('button', { name: 'Save activity PDF' })).toBeEnabled({ timeout: 30_000 });
   return runId;
 }
 
@@ -33,6 +33,17 @@ test('sidebar can collapse, keep navigation usable and remember the choice', asy
   await collapse.click();
   await expect(page.locator('.sidebar')).toHaveCSS('width', '76px');
   await expect(page.getByRole('region', {name:'Workspace account'})).toBeVisible();
+  const developer = page.getByRole('button',{name:'Developer mode',exact:true});
+  await expect(developer).toHaveAttribute('aria-pressed','false');
+  await developer.click();
+  await expect(developer).toHaveAttribute('aria-pressed','true');
+  await expect(developer).toHaveClass(/enabled/);
+  await expect(page.locator('.developer-banner')).toHaveText('Developer mode on');
+  await page.reload();
+  await expect(developer).toHaveAttribute('aria-pressed','true');
+  await developer.click();
+  await page.getByRole('button',{name:'Handoffs',exact:true}).click();
+  await expect(page.locator('.breadcrumb strong')).toHaveText('Handoffs');
   await page.getByRole('button', { name: 'Processing rules', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Processing rules', exact: true })).toBeVisible();
   await page.reload();
@@ -56,7 +67,7 @@ test('project resources explain the real system without starting invoice work', 
   await expect(page.getByRole('heading', { name: 'System design', exact: true })).toBeVisible();
   await expect(page.getByRole('button', {name:'System design', exact:true})).toHaveAttribute('aria-current','page');
   await expect(page.getByRole('figure', { name: 'Invoice Desk current system architecture' })).toBeVisible();
-  await expect(page.getByText('Different roles. One controlled decision.')).toBeVisible();
+  await expect(page.locator('.architecture-steps > li')).toHaveCount(16);
   await page.getByRole('button', { name: 'Presentation', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'An invoice should end with a clear next step.' })).toBeVisible();
   await page.getByRole('button', { name: 'Next slide' }).click();
@@ -86,25 +97,25 @@ test('an invoice needing a decision puts review and blockers before extracted fi
   await runSample(page, 'invoice_1012.txt');
   const review = page.getByRole('region', { name: 'Simulated review' });
   await expect(review).toBeVisible();
-  const before = await page.locator('.record-pane').evaluate(pane => {
-    const reviewCard = pane.querySelector('.review-card')!;
-    const findings = pane.querySelector('.findings-card')!;
-    const details = pane.querySelector('.extracted-card')!;
-    return Boolean(reviewCard.compareDocumentPosition(findings) & Node.DOCUMENT_POSITION_FOLLOWING)
-      && Boolean(findings.compareDocumentPosition(details) & Node.DOCUMENT_POSITION_FOLLOWING);
-  });
-  expect(before).toBe(true);
+  await page.locator('.agent-explainer summary').click();
+  await expect(page.locator('.agent-explainer')).toContainText('This run uses simulated role responses, not live AI.');
+  await expect(page.locator('.agent-explainer ol li')).toHaveCount(4);
+  await page.locator('.agent-explainer summary').click();
+  const panels = page.locator('.four-panel-layout > div');
+  await expect(panels).toHaveCount(4);
+  const boxes = await panels.evaluateAll(elements => elements.map(el=>({height:el.getBoundingClientRect().height,overflow:getComputedStyle(el).overflowY})));
+  expect(boxes.every(box=>box.height===460 && box.overflow==='auto')).toBe(true);
+  if (process.env.UPDATE_SCREENSHOTS === '1') await page.screenshot({path:'docs/screenshots/four-panel-review.png',fullPage:true,animations:'disabled'});
   await page.setViewportSize({ width: 390, height: 844 });
-  const reviewBox = await review.boundingBox();
-  const sourceBox = await page.locator('.review-layout > .document-pane').boundingBox();
-  expect(reviewBox!.y).toBeLessThan(sourceBox!.y);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth)).toBe(false);
+
 });
 
 test('valid invoice is processed once, traced and isolated from another workspace', async ({ page, browser }) => {
   await page.goto('/');
   await expect(page.getByRole('button', { name: 'Start a new invoice' })).toBeEnabled();
   const runId = await runSample(page, 'invoice_1001.txt');
-  await expect(page.getByText('Mock payment recorded')).toBeVisible();
+  await expect(page.getByText('Simulated payment recorded')).toBeVisible();
   await expect(page.getByText('Simulated model', { exact: true })).toBeVisible();
   await expect(page.getByText('Widgets Inc.', { exact: true }).first()).toBeVisible();
   const [report] = await Promise.all([page.waitForEvent('download'), page.getByRole('button',{name:'Download report CSV'}).click()]);
@@ -114,10 +125,14 @@ test('valid invoice is processed once, traced and isolated from another workspac
   await expect(page.locator('.decision-report')).toContainText('Simulated receipt');
   await expect(page.locator('.sidebar')).toBeHidden();
   await page.emulateMedia({media:'screen'});
+  await expect(page.getByRole('button',{name:'Export trace'})).toHaveCount(0);
+  await page.getByRole('button',{name:'Developer mode',exact:true}).click();
   const [download] = await Promise.all([
     page.waitForEvent('download'), page.getByRole('button', { name: 'Export trace' }).click(),
   ]);
   expect(download.suggestedFilename()).toContain(runId);
+  await page.getByRole('button',{name:'Developer mode',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Export trace'})).toHaveCount(0);
   await page.getByRole('button', { name: 'Back to invoices' }).click();
   await page.reload();
   await expect(page.getByRole('button', { name: 'INV-1001', exact: true })).toBeVisible();
@@ -136,7 +151,7 @@ test('a malformed invoice is rejected with findings and never shows a payment', 
   await expect(page.getByRole('button', { name: 'Start a new invoice' })).toBeEnabled();
   await runSample(page, 'invoice_1007.csv');
   await expect(page.getByText('Rejected', { exact: true })).toBeVisible();
-  await expect(page.getByText('Mock payment recorded')).toHaveCount(0);
+  await expect(page.getByText('Simulated payment recorded')).toHaveCount(0);
   await expect(page.getByText('Payment blocked')).toBeVisible();
   await expect(page.getByLabel('Correction request draft')).toHaveValue(/Please review invoice/);
   await expect(page.getByText(/No message is sent from this application/)).toBeVisible();
@@ -163,7 +178,7 @@ test('a reviewer resolves the vendor-name hold before a simulated payment', asyn
   await expect(page.getByRole('button', { name: 'Start a new invoice' })).toBeEnabled();
   await runSample(page, 'invoice_1012.txt');
   await expect(page.getByText('Needs review', { exact: true }).first()).toBeVisible();
-  await expect(page.getByText('Mock payment recorded')).toHaveCount(0);
+  await expect(page.getByText('Simulated payment recorded')).toHaveCount(0);
   await expect(page.getByRole('checkbox', { name: /vendor identity change/i })).toBeVisible();
   if (process.env.UPDATE_SCREENSHOTS === '1') {
     await page.screenshot({ path: 'docs/screenshots/simulated-review.png', fullPage: true, animations: 'disabled' });
@@ -172,7 +187,7 @@ test('a reviewer resolves the vendor-name hold before a simulated payment', asyn
   await page.getByRole('checkbox', { name: /checked the source/i }).check();
   await page.getByLabel('Decision reason').selectOption('vendor_verified');
   await page.getByRole('button', { name: /approve & simulate payment/i }).click();
-  await expect(page.getByText('Mock payment recorded')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText('Simulated payment recorded')).toBeVisible({ timeout: 15_000 });
 });
 
 test('unsupported currency cannot be cleared by the review button', async ({ page }) => {
@@ -184,7 +199,7 @@ test('unsupported currency cannot be cleared by the review button', async ({ pag
   await page.getByLabel('Decision reason').selectOption('payment_policy');
   await page.getByRole('button', { name: 'Reject invoice' }).click();
   await expect(page.getByText('Rejected', { exact: true })).toBeVisible();
-  await expect(page.getByText('Mock payment recorded')).toHaveCount(0);
+  await expect(page.getByText('Simulated payment recorded')).toHaveCount(0);
 });
 
 test('PDF review preserves the original and the extracted text', async ({ page }, testInfo) => {
@@ -217,12 +232,12 @@ test('PDF review preserves the original and the extracted text', async ({ page }
   await page.getByLabel('Decision reason').selectOption('inventory_check');
   await page.getByRole('button', { name: 'Record department handoff' }).click();
   await expect(page.getByText('Assigned to Procurement', {exact:true})).toBeVisible();
-  await expect(page.getByText('Mock payment recorded')).toHaveCount(0);
+  await expect(page.getByText('Simulated payment recorded')).toHaveCount(0);
   if (process.env.UPDATE_SCREENSHOTS === '1') {
     await page.screenshot({path: 'docs/screenshots/department-handoff.png', fullPage:true, animations:'disabled'});
   }
   await page.reload();
-  await page.getByRole('button',{name:/^Assigned/}).click();
+  await page.getByRole('group',{name:'Filter invoices'}).getByRole('button',{name:/^Handoffs/}).click();
   await expect(page.getByText('Handoff recorded: procurement')).toBeVisible();
   await expect(page.getByText(/no team notification was sent and payment is not approved/)).toBeVisible();
   await page.getByRole('button', {name: 'Open INV 1012', exact:true}).click();
@@ -244,6 +259,11 @@ test('light is the first look even on a dark computer; a saved choice persists o
   await expect(page.locator('html')).toHaveAttribute('data-theme','light');
   await page.getByRole('button',{name:'Switch to dark mode'}).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme','dark');
+  const dot = page.locator('.demo-badge > span');
+  expect(await dot.evaluate(el => getComputedStyle(el).backgroundColor)).not.toBe(await page.locator('.demo-badge').evaluate(el => getComputedStyle(el).backgroundColor));
+  const selected = page.locator('.stat-card.selected');
+  expect(await selected.evaluate(el => getComputedStyle(el,'::before').backgroundColor)).not.toBe(await selected.evaluate(el => getComputedStyle(el).backgroundColor));
+
   if (process.env.UPDATE_SCREENSHOTS === '1') await page.screenshot({path:'docs/screenshots/dark-workspace.png', animations:'disabled'});
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('data-theme','dark');
@@ -336,7 +356,7 @@ test('related versions use a workspace-scoped ledger lookup', async ({page}) => 
   await expect(page.getByText(/simulated payment is recorded for this invoice/)).toBeVisible();
   if (process.env.UPDATE_SCREENSHOTS === '1') await page.screenshot({path:'docs/screenshots/invoice-lookup.png', animations:'disabled'});
   await page.getByRole('button',{name:'Open record'}).click();
-  await expect(page.getByText('Mock payment recorded')).toBeVisible();
+  await expect(page.getByText('Simulated payment recorded')).toBeVisible();
 });
 
  test('a corrected document is explicitly submitted and linked to the rejected run', async ({page}) => {
@@ -352,7 +372,7 @@ test('related versions use a workspace-scoped ledger lookup', async ({page}) => 
   await button.click();
   expect((await accepted).status()).toBe(202);
   await expect(page.getByText(`Submitted as a correction to run ${original}.`)).toBeVisible();
-  await expect(page.getByText('Mock payment recorded')).toHaveCount(0);
+  await expect(page.getByText('Simulated payment recorded')).toHaveCount(0);
   await page.getByRole('button',{name:'Open original run'}).click();
   await expect(page.getByText('Rejected',{exact:true})).toBeVisible();
 });
@@ -421,13 +441,13 @@ test('decision and activity reports have separate branded print layouts', async 
   await page.goto('/');
   await runSample(page, 'invoice_1007.csv');
   await page.evaluate(() => { window.print = () => {}; });
-  await page.getByRole('button',{name:'Print decision report'}).click();
+  await page.getByRole('button',{name:'Save decision PDF'}).click();
   await page.emulateMedia({media:'print'});
   await expect(page.locator('.decision-report')).toBeVisible();
   await expect(page.locator('.activity-report')).toHaveCount(0);
   await expect(page.locator('.skip-link')).toBeHidden();
   await page.emulateMedia({media:'screen'});
-  await page.getByRole('button',{name:'Print activity report'}).click();
+  await page.getByRole('button',{name:'Save activity PDF'}).click();
   await page.emulateMedia({media:'print'});
   await expect(page.locator('.activity-report')).toBeVisible();
   await expect(page.locator('.decision-report')).toBeHidden();
@@ -449,6 +469,33 @@ test('selected review holds can be assigned without changing rejected runs', asy
   await panel.getByRole('button',{name:'Record handoffs'}).click();
   await expect(panel.getByText(/handoff recorded/)).toBeVisible();
   await expect(panel.getByText(/skipped, not awaiting review/)).toBeVisible();
-  await page.getByRole('button',{name:/^Assigned/}).click();
+  await page.getByRole('group',{name:'Filter invoices'}).getByRole('button',{name:/^Handoffs/}).click();
   await expect(page.getByText('Handoff recorded: procurement')).toBeVisible();
+});
+
+
+test('current analytics deduplicate repeated attempts and open the matching handoff record',async({page})=>{
+  await page.goto('/');
+  await expect(page.getByRole('button',{name:'Start a new invoice'})).toBeEnabled();
+  const original=await runSample(page,'invoice_1012.txt');
+  await page.getByLabel('Review action').selectOption('route');
+  await page.getByRole('combobox',{name:'Department',exact:true}).selectOption('procurement');
+  await page.getByLabel('Decision reason').selectOption('inventory_check');
+  await page.getByRole('button',{name:'Record department handoff'}).click();
+  await expect(page.getByText('Assigned to Procurement',{exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Back to invoices'}).click();
+  await runSample(page,'invoice_1012.txt');
+  await page.getByRole('button',{name:'Invoice analytics',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'Current review backlog'})).toBeVisible();
+  const bar=page.getByRole('button',{name:'View Procurement: 1 records'});
+  await expect(bar).toBeVisible();
+  await bar.click();
+  const matches=page.getByRole('region',{name:'Matching analytics records'});
+  await expect(matches.getByRole('row')).toHaveCount(2);
+  await expect(matches).toContainText('1 of 1 matching current record(s)');
+  if(process.env.UPDATE_SCREENSHOTS==='1') await page.screenshot({path:'docs/screenshots/invoice-analytics.png',fullPage:true,animations:'disabled'});
+  await matches.getByRole('button',{name:'Open record'}).click();
+  await expect(page.locator('.detail-head')).toContainText('INV 1012');
+  await expect(page.getByText('Assigned to Procurement',{exact:true})).toBeVisible();
+  expect(original).toBeTruthy();
 });

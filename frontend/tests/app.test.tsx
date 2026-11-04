@@ -37,7 +37,7 @@ describe('invoice workspace', () => {
     expect(await screen.findByText('Missing total')).toBeInTheDocument();
     expect(screen.getByText('Rejected')).toBeInTheDocument();
     expect(calls.filter((c) => c.path.endsWith('/runs') && c.method === 'POST')).toHaveLength(1);
-    expect(screen.queryByText('Mock payment recorded')).not.toBeInTheDocument();
+    expect(screen.queryByText('Simulated payment recorded')).not.toBeInTheDocument();
   });
   it('uploads a selected file only when processing starts', async () => {
     const user = userEvent.setup(); render(<App />);

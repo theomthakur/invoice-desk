@@ -14,15 +14,16 @@ const labels: Record<string, string> = {
   run_crashed: 'Processing failed', model_retry: 'Model request retried', output_invalid: 'Model output failed validation',
   tool_not_called: 'Required tool was not called', unresolved: 'Review disagreement remains unresolved',
   audit_skipped: 'Decision record could not be saved', extraction_only_finished: 'Document reading finished',
-  model_request: 'A reader request started', model_response: 'A reader response was received', model_error: 'A reader request failed', tool_call: 'A tool call was recorded', run_interrupted: 'Processing was interrupted',
+  model_request: 'Model request started', model_response: 'Model response received', model_error: 'Model request failed', tool_call: 'A tool call was recorded', run_interrupted: 'Processing was interrupted',
 };
 const stages: Record<string, string> = {intake:'Intake', extraction:'Extraction', validation:'Validation', approval:'Approval', critique:'Critique', payment:'Payment', completion:'Completion', error:'Error'};
 export function activitySummary(event: RunEvent) {
   const label = labels[event.type] ?? 'Other recorded activity';
-  const {message, rationale, action, agrees, line_items} = event.payload;
+  const {message, rationale, action, agrees, line_items, label: requestLabel} = event.payload;
   let description = typeof message === 'string' ? message : null;
   if ((event.type === 'proposal' || event.type === 'revision') && typeof rationale === 'string') description = `${typeof action === 'string' ? `Recommendation: ${action}. ` : ''}${rationale}`;
   if (event.type === 'critique' && typeof agrees === 'boolean') description = agrees ? 'The critic agreed with the recommendation.' : 'The critic did not agree with the recommendation.';
   if ((event.type === 'parsed_structured' || event.type === 'extracted') && typeof line_items === 'number') description = `${line_items} line item(s) recorded.`;
+  if (['model_request','model_response','model_error'].includes(event.type) && typeof requestLabel === 'string') description = `Role: ${requestLabel.replaceAll('_',' ')}.`;
   return {label, stage: stages[event.stage] ?? 'Activity', message: description};
 }

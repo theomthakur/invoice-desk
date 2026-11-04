@@ -91,6 +91,9 @@ export interface BatchResult {
 export interface InvoiceLookupVersion { version_id:string; revision:string|null; status:string; identity_flag:string|null; run_id:string|null; run_outcome:Outcome|null }
 export interface InvoiceLookupResult { matches: {payable_id:string; number:string; vendor:string; paid:boolean; payment_version_id:string|null; versions:InvoiceLookupVersion[]; versions_truncated:boolean}[]; truncated:boolean }
 
-export interface AnalyticsOverview { identified_invoices:number; total_runs:number; active_runs:number; failed_runs:number; review_runs:number; flagged_active_versions:number; simulated_receipts:number; paid_by_currency:{currency:string; amount:string; receipts:number}[]; outcomes?:Record<string,number>; daily_runs?:{day:string;count:number}[]; vendor_runs?:{vendor:string;count:number}[]; identity_flags?:{flag:string;count:number}[] }
+export interface AnalyticsGroup {key:string; label:string; count:number}
+export interface AnalyticsRecord {run_id:string;version_id:string|null;invoice_number:string|null;vendor:string|null;filename:string|null;outcome:'needs_review'|'rejected';department:string;department_label:string;reasons:string[];started_at:string}
+export interface AnalyticsRecords {records:AnalyticsRecord[];record_count:number;next_offset:number|null}
+export interface AnalyticsOverview { current_review_count?:number; current_exception_count?:number; backlog_by_department?:AnalyticsGroup[]; exception_reasons?:AnalyticsGroup[]; identified_invoices:number; total_runs:number; active_runs:number; failed_runs:number; review_runs:number; flagged_active_versions:number; simulated_receipts:number; paid_by_currency:{currency:string; amount:string; receipts:number}[]; outcomes?:Record<string,number>; daily_runs?:{day:string;count:number}[]; vendor_runs?:{vendor:string;count:number}[]; identity_flags?:{flag:string;count:number}[] }
 
 export interface AnalyticsFilters { date_from:string; date_to:string; vendor:string; outcome:Outcome | '' }
