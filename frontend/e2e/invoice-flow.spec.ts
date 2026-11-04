@@ -1,0 +1,94 @@
+import { expect, test, type Page } from '@playwright/test';
+
+async function runSample(page: Page, name: string) {
+  await page.getByRole('button', { name: 'Start a new invoice' }).click();
+  await page.getByRole('button', { name: 'Sample invoices', exact: true }).click();
+  await page.getByLabel('Use a sample invoice').selectOption({ label: name });
+  const accepted = page.waitForResponse((response) =>
+    response.url().endsWith('/api/v1/runs') && response.request().method() === 'POST',
+  );
+  await page.getByRole('button', { name: 'Process invoice', exact: true }).click();
+  const response = await accepted;
+  expect(response.status()).toBe(202);
+  const { run_id: runId } = await response.json() as { run_id: string };
+  await expect(page.getByRole('button', { name: 'Export trace' })).toBeEnabled({ timeout: 30_000 });
+  return runId;
+}
+
+test('valid invoice is processed once, traced and isolated from another workspace', async ({ page, browser }) => {
+  await page.goto('/');
+  await expect(page.getByRole('button', { name: 'Start a new invoice' })).toBeEnabled();
+  const runId = await runSample(page, 'invoice_1001.txt');
+  await expect(page.getByText('Mock payment recorded')).toBeVisible();
+  await expect(page.getByText('Simulated model', { exact: true })).toBeVisible();
+  await expect(page.getByText('Widgets Inc.', { exact: true }).first()).toBeVisible();
+  const [download] = await Promise.all([
+    page.waitForEvent('download'), page.getByRole('button', { name: 'Export trace' }).click(),
+  ]);
+  expect(download.suggestedFilename()).toContain(runId);
+  await page.getByRole('button', { name: 'Back to invoices' }).click();
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'INV-1001', exact: true })).toBeVisible();
+
+  const other = await browser.newContext();
+  const second = await other.newPage();
+  await second.goto('http://127.0.0.1:18940/');
+  await expect(second.getByRole('button', { name: 'Start a new invoice' })).toBeEnabled();
+  const status = await second.evaluate(async (id) => (await fetch(`/api/v1/runs/${id}`)).status, runId);
+  expect(status).toBe(404);
+  await other.close();
+});
+
+test('a malformed invoice is rejected with findings and never shows a payment', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByRole('button', { name: 'Start a new invoice' })).toBeEnabled();
+  await runSample(page, 'invoice_1007.csv');
+  await expect(page.getByText('Rejected', { exact: true })).toBeVisible();
+  await expect(page.getByText('Mock payment recorded')).toHaveCount(0);
+  await expect(page.getByText('Payment blocked')).toBeVisible();
+  await expect(page.getByText(/total mismatch/i).first()).toBeVisible();
+});
+
+test('mobile intake supports keyboard dismissal without starting work', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  const newInvoice = page.getByRole('button', { name: 'Start a new invoice' });
+  await expect(newInvoice).toBeEnabled();
+  await newInvoice.click();
+  await expect(page.getByRole('dialog', { name: 'New invoice' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Process invoice', exact: true })).toBeDisabled();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(newInvoice).toBeFocused();
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
+  expect(overflow).toBe(false);
+});
+
+test('a reviewer resolves the vendor-name hold before a simulated payment', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByRole('button', { name: 'Start a new invoice' })).toBeEnabled();
+  await runSample(page, 'invoice_1012.txt');
+  await expect(page.getByText('Needs review', { exact: true }).first()).toBeVisible();
+  await expect(page.getByText('Mock payment recorded')).toHaveCount(0);
+  await expect(page.getByRole('checkbox', { name: /vendor identity change/i })).toBeVisible();
+  if (process.env.UPDATE_SCREENSHOTS === '1') {
+    await page.screenshot({ path: 'docs/screenshots/simulated-review.png', fullPage: true, animations: 'disabled' });
+  }
+  await page.getByRole('checkbox', { name: /vendor identity change/i }).check();
+  await page.getByRole('checkbox', { name: /checked the source/i }).check();
+  await page.getByLabel('Decision note').fill('Verified the simulated vendor name against the available record.');
+  await page.getByRole('button', { name: /approve & simulate payment/i }).click();
+  await expect(page.getByText('Mock payment recorded')).toBeVisible({ timeout: 15_000 });
+});
+
+test('unsupported currency cannot be cleared by the review button', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByRole('button', { name: 'Start a new invoice' })).toBeEnabled();
+  await runSample(page, 'invoice_1014.xml');
+  await expect(page.getByText('Cannot approve yet')).toBeVisible();
+  await expect(page.getByRole('button', { name: /approve & simulate payment/i })).toBeDisabled();
+  await page.getByLabel('Decision note').fill('The currency needs a separate policy.');
+  await page.getByRole('button', { name: 'Reject invoice' }).click();
+  await expect(page.getByText('Rejected', { exact: true })).toBeVisible();
+  await expect(page.getByText('Mock payment recorded')).toHaveCount(0);
+});
