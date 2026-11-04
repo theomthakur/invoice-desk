@@ -278,6 +278,8 @@ class AnalyticsOverview(StrictModel):
     flagged_active_versions: int
     simulated_receipts: int
     paid_by_currency: list[AnalyticsAmount]
+    outcomes: dict[str, int]
+    daily_runs: list[dict[str, str | int]]
 
 
 class InvoiceLookupVersion(StrictModel):

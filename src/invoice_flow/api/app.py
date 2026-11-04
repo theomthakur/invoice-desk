@@ -920,6 +920,22 @@ def create_app(
                 " COUNT(DISTINCT p.payable_id) AS invoices" + joins + " WHERE " + where,
                 params,
             ).fetchone()
+            outcome_rows = conn.execute(
+                "SELECT COALESCE(r.outcome, 'pending') AS outcome, COUNT(*) AS count"
+                + joins
+                + " WHERE "
+                + where
+                + " GROUP BY r.outcome",
+                params,
+            ).fetchall()
+            day_rows = conn.execute(
+                "SELECT date(r.started_at) AS day, COUNT(*) AS count"
+                + joins
+                + " WHERE "
+                + where
+                + " GROUP BY date(r.started_at) ORDER BY day DESC LIMIT 30",
+                params,
+            ).fetchall()
             if filtered:
                 invoice_count = runs["invoices"]
                 flagged = conn.execute(
@@ -958,6 +974,10 @@ def create_app(
                 "review_runs": runs["review"],
                 "flagged_active_versions": flagged,
                 "simulated_receipts": sum(count for _, count in totals.values()),
+                "outcomes": {row["outcome"]: row["count"] for row in outcome_rows},
+                "daily_runs": [
+                    {"day": row["day"], "count": row["count"]} for row in reversed(day_rows)
+                ],
                 "paid_by_currency": [
                     {
                         "currency": currency,

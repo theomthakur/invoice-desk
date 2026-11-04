@@ -18,6 +18,8 @@ def test_overview_counts_runs_and_payments_separately_and_isolates_workspaces(al
     result = alice.get("/analytics/overview").json()
     assert result["total_runs"] == 2
     assert result["identified_invoices"] == 1
+    assert result["outcomes"] == {"paid": 1, "duplicate": 1}
+    assert sum(day["count"] for day in result["daily_runs"]) == 2
     assert result["simulated_receipts"] == 1
     assert result["paid_by_currency"] == [{"currency": "USD", "amount": "5000.00", "receipts": 1}]
     assert bob.get("/analytics/overview").json() == empty
@@ -62,6 +64,7 @@ def test_filters_match_runs_and_never_reuse_duplicate_receipts(alice, bob, ctx):
     assert filtered["simulated_receipts"] == 0
     duplicates = alice.get("/analytics/overview", params={"outcome": "duplicate"}).json()
     assert duplicates["total_runs"] == 1
+    assert duplicates["outcomes"] == {"duplicate": 1}
     assert duplicates["identified_invoices"] == 1
     assert duplicates["simulated_receipts"] == 0
     paid_only = alice.get("/analytics/overview", params={"outcome": "paid"}).json()
