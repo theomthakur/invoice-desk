@@ -5,17 +5,18 @@ import type { HistoryItem } from '../../types/api';
 import { InvoiceIllustration } from '../../components/InvoiceIllustration';
 import { tableCsv } from '../runs/reportCsv';
 
-export type QueueFilter = 'all' | 'attention' | 'processing' | 'completed' | 'blocked' | 'duplicate';
+export type QueueFilter = 'all' | 'attention' | 'assigned' | 'processing' | 'completed' | 'blocked' | 'duplicate';
 const active = (item: HistoryItem) => item.lifecycle === 'queued' || item.lifecycle === 'running';
 export function inQueue(item: HistoryItem, filter: QueueFilter) {
   if (filter === 'attention') return item.outcome === 'needs_review';
+  if (filter === 'assigned') return item.outcome === 'needs_review' && Boolean(item.handoff_department);
   if (filter === 'processing') return active(item);
   if (filter === 'completed') return item.lifecycle === 'completed';
   if (filter === 'blocked') return item.outcome === 'rejected' || item.lifecycle === 'failed' || item.lifecycle === 'interrupted';
   if (filter === 'duplicate') return item.outcome === 'duplicate';
   return true;
 }
-const names: Record<QueueFilter, string> = { all: 'All runs', attention: 'Needs review', processing: 'Processing', completed: 'Processing finished', blocked: 'Blocked', duplicate: 'Duplicates' };
+const names: Record<QueueFilter, string> = { all: 'All runs', attention: 'Needs review', assigned: 'Assigned', processing: 'Processing', completed: 'Processing finished', blocked: 'Blocked', duplicate: 'Duplicates' };
 
 export function InvoiceQueue({ items, filter, onFilter, openRun, newInvoice, trySamples, connected, cursor, loadMore, loading }: {
   items: HistoryItem[]; filter: QueueFilter; onFilter: (filter: QueueFilter) => void;
@@ -64,14 +65,15 @@ export function InvoiceQueue({ items, filter, onFilter, openRun, newInvoice, try
     <div className="queue-card">
       <div className="queue-tabs" role="group" aria-label="Filter invoices">{(Object.keys(names) as QueueFilter[]).map((key) => <button aria-pressed={filter === key} className={filter === key ? 'active' : ''} key={key} onClick={() => onFilter(key)}>{names[key]}<span>{items.filter((item) => inQueue(item, key)).length}</span></button>)}</div>
       {filter === 'duplicate' && <p className="queue-footnote">These runs were identified as duplicate submissions. Open a run to inspect its findings and related invoice records. Counts cover loaded runs only.</p>}
+      {filter === 'assigned' && <p className="queue-footnote">A handoff was recorded for these runs. They remain on hold; no team notification was sent and payment is not approved.</p>}
       <div className="queue-toolbar"><div className="search-field"><Search size={17} /><input aria-label="Search invoices" placeholder="Search invoice, vendor or filename…" value={query} onChange={(event) => setQuery(event.target.value)} />{query && <button aria-label="Clear search" onClick={() => setQuery('')}><X size={14} /></button>}</div>
         <label className="sort-control"><ArrowDown size={14} /><select aria-label="Sort invoices" value={sort} onChange={(event) => setSort(event.target.value)}><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="vendor">Vendor A to Z</option></select></label>
       </div>
-      {selectedItems.length > 0 && <div className="selection-bar" role="status"><span><strong>{selectedItems.length} selected</strong>{selectedItems.length > visibleSelected && ` · ${selectedItems.length - visibleSelected} outside this view`}</span><div><button className="text-button" onClick={() => setSelected(new Set())}>Clear selection</button><button className="button button-outline" onClick={downloadSelected}>Export selected CSV</button></div></div>}
+      {shown.length > 0 && <div className="selection-bar"><span><strong>{selectedItems.length} selected</strong>{selectedItems.length > visibleSelected && ` · ${selectedItems.length - visibleSelected} outside this view`}</span><div><button className="text-button" onClick={() => toggleVisible(!allVisible)}>{allVisible ? 'Deselect visible' : 'Select all visible'}</button>{selectedItems.length > 0 && <><button className="text-button" onClick={() => setSelected(new Set())}>Clear selection</button><button className="button button-outline" onClick={downloadSelected}>Export selected CSV</button></>}</div></div>}
       {shown.length ? <div className="table-wrap queue-table"><table><thead><tr><th className="selection-cell"><input ref={selectAll} type="checkbox" aria-label="Select all visible loaded runs" checked={allVisible} onChange={event => toggleVisible(event.target.checked)} /></th><th>INVOICE</th><th>VENDOR</th><th>AMOUNT</th><th>STATUS</th><th>RECEIVED</th><th aria-label="Action" /></tr></thead><tbody>{shown.map((item) => <tr key={item.run_id}>
         <td className="selection-cell"><input type="checkbox" aria-label={`Select ${item.invoice_number ?? item.filename ?? 'run'} (${item.run_id})`} checked={selected.has(item.run_id)} onChange={event => setSelected(previous => {const next = new Set(previous); if(event.target.checked) next.add(item.run_id); else next.delete(item.run_id); return next;})} /></td><td><div className="invoice-cell"><span className="file-symbol"><FileText size={18} /></span><div><button onClick={() => openRun(item.run_id)}>{item.invoice_number ?? item.filename ?? 'Invoice processing run'}</button><small>{item.filename ?? item.run_id}</small></div></div></td>
         <td>{item.vendor ?? <span className="muted">Not extracted</span>}</td><td className="money-cell">{item.amount != null ? formatAmount(item.amount, item.currency) : <span className="muted">Not available</span>}</td>
-        <td><Status status={item.outcome === 'paid' ? 'reported_paid' : item.outcome ?? item.lifecycle} /></td>
+        <td><Status status={item.outcome === 'paid' ? 'reported_paid' : item.outcome ?? item.lifecycle} />{item.handoff_department && item.outcome === 'needs_review' && <small>Handoff recorded: {item.handoff_department.replaceAll('_',' ')}</small>}</td>
         <td className="date-cell">{new Date(item.started_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}<small>{new Date(item.started_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</small></td>
         <td><button className="row-open" onClick={() => openRun(item.run_id)} aria-label={`Open ${item.invoice_number ?? item.filename ?? item.run_id}`}><ArrowRight size={17} /></button></td>
       </tr>)}</tbody></table></div>

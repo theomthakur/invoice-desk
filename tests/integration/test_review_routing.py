@@ -27,7 +27,7 @@ def body(run, **changes):
 
 
 def test_handoff_is_durable_idempotent_and_does_not_authorize_payment(browsers):
-    ctx, alice, _ = browsers
+    ctx, alice, bob = browsers
     run = alice.run("invoice_1012.txt")
     path = f"/runs/{run['run_id']}/routing"
     first = alice.post(path, json=body(run))
@@ -38,6 +38,11 @@ def test_handoff_is_durable_idempotent_and_does_not_authorize_payment(browsers):
     assert alice.post(path, json=body(run)).json() == first.json()
     assert alice.get(path).json()["assignment"] == first.json()
     assert alice.get(f"/runs/{run['run_id']}").json()["outcome"] == "needs_review"
+    entry = next(
+        item for item in alice.get("/history").json()["items"] if item["run_id"] == run["run_id"]
+    )
+    assert entry["handoff_department"] == body(run)["department"]
+    assert all(item["run_id"] != run["run_id"] for item in bob.get("/history").json()["items"])
     with ctx.db.read() as conn:
         assert conn.execute("SELECT COUNT(*) FROM review_handoffs").fetchone()[0] == 1
         assert conn.execute("SELECT COUNT(*) FROM payments").fetchone()[0] == 0

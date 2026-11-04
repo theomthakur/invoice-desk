@@ -316,6 +316,7 @@ class HistoryItem(StrictModel):
     vendor: str | None = None
     amount: str | None = None
     currency: str | None = None
+    handoff_department: str | None = None
     started_at: datetime
 
 

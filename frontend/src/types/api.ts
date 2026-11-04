@@ -76,6 +76,7 @@ export interface HistoryItem {
   run_id: string; filename?: string | null; lifecycle: Lifecycle; outcome?: Outcome | null;
   invoice_number?: string | null; vendor?: string | null; amount?: string | null;
   currency?: string | null; started_at: string;
+  handoff_department?: string | null;
 }
 export interface HistoryPage { items: HistoryItem[]; next_cursor?: string | null }
 export interface BatchFile {

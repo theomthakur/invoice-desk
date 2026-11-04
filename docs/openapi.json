@@ -1053,6 +1053,17 @@
             ],
             "title": "Filename"
           },
+          "handoff_department": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Handoff Department"
+          },
           "invoice_number": {
             "anyOf": [
               {

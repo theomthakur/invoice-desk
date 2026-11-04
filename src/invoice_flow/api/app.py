@@ -1030,7 +1030,9 @@ def create_app(
         ws: str = Depends(workspace),
     ):
         sql = (
-            "SELECT r.run_id, r.lifecycle, r.outcome, r.started_at, r.result_json, d.filename"
+            "SELECT r.run_id, r.lifecycle, r.outcome, r.started_at, r.result_json, d.filename,"
+            " (SELECT h.department FROM review_handoffs h WHERE h.workspace_id = r.workspace_id"
+            " AND h.run_id = r.run_id ORDER BY h.rowid DESC LIMIT 1) AS handoff_department"
             " FROM runs r LEFT JOIN documents d ON d.workspace_id = r.workspace_id"
             " AND d.document_id = r.document_id WHERE r.workspace_id = ?"
         )
@@ -1063,6 +1065,9 @@ def create_app(
                     vendor=invoice.vendor_name if invoice else None,
                     amount=format_amount(invoice.total) if invoice else None,
                     currency=invoice.currency if invoice else None,
+                    handoff_department=row["handoff_department"]
+                    if row["outcome"] == "needs_review"
+                    else None,
                     started_at=row["started_at"],
                 )
             )
