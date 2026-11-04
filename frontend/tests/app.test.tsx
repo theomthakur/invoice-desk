@@ -59,7 +59,7 @@ describe('invoice workspace', () => {
     await user.click(screen.getByRole('button', { name: /try a sample/i }));
     await screen.findByRole('option', { name: 'Invoice one' });
     await user.click(screen.getByRole('button', { name: 'Close new invoice' }));
-    await user.click(screen.getByRole('button', { name: /run history/i }));
+    await user.click(screen.getByRole('button', { name: 'Invoices' }));
     expect(screen.getByText('A clear view of every invoice')).toBeInTheDocument();
     await waitFor(() => expect(calls.filter((c) => c.path.endsWith('/runs') && c.method === 'POST')).toHaveLength(0));
   });
