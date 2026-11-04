@@ -1,46 +1,54 @@
-import { GitBranch } from 'lucide-react';
+import { ArrowDown, ArrowRight, Database, ShieldCheck } from 'lucide-react';
 import type { ConfigInfo } from '../../types/api';
 import './resources.css';
 
-function ArchitectureDiagram() {
-  return <figure className="architecture-figure"><div className="diagram-scroll" tabIndex={0} aria-label="Architecture diagram. Scroll horizontally on narrow screens.">
-    <svg viewBox="0 0 1080 650" className="architecture-diagram" role="img" aria-labelledby="architecture-title architecture-description">
-      <title id="architecture-title">Invoice Desk current system architecture</title>
-      <desc id="architecture-description">The React browser sends requests to FastAPI, which stores workspace-scoped records in SQLite and queues work for a local worker. The worker runs shared service code and LangGraph. The workflow uses the simulated reader or an explicitly configured OpenRouter model. A code-enforced payment gate rechecks the invoice and records a simulated receipt in SQLite. The browser polls for results. The CLI calls the shared service directly.</desc>
-      <defs><marker id="diagram-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10Z" fill="#6c8959" /></marker></defs>
-      <g className="diagram-edges" markerEnd="url(#diagram-arrow)">
-        <path d="M270 94H330" markerStart="url(#diagram-arrow)" /><path d="M630 94H735" />
-        <path d="M480 152V234" /><path d="M480 348V430" />
-        <path d="M330 490H270" markerStart="url(#diagram-arrow)" /><path d="M630 490H735" />
-        <path d="M885 430V176" /><path d="M630 290H690V143H735" />
-      </g>
-      <g className="diagram-node"><rect x="30" y="35" width="240" height="117" rx="14" /><text x="50" y="69" className="diagram-kicker">OPERATOR</text><text x="50" y="98" className="diagram-name">React web application</text><text x="50" y="123">Upload, inspect, review and export</text></g>
-      <g className="diagram-node"><rect x="330" y="35" width="300" height="117" rx="14" /><text x="352" y="69" className="diagram-kicker">WEB API</text><text x="352" y="98" className="diagram-name">FastAPI + workspace access</text><text x="352" y="123">Session cookie, CSRF, limits and ownership</text></g>
-      <g className="diagram-node diagram-storage"><rect x="735" y="35" width="300" height="141" rx="14" /><text x="757" y="69" className="diagram-kicker">STORED RECORDS</text><text x="757" y="98" className="diagram-name">SQLite</text><text x="757" y="124">Documents, original PDFs, runs and events</text><text x="757" y="148">Inventory, versions, decisions and receipts</text></g>
-      <g className="diagram-node"><rect x="330" y="234" width="300" height="114" rx="14" /><text x="352" y="268" className="diagram-kicker">BACKGROUND WORK</text><text x="352" y="297" className="diagram-name">Local job worker</text><text x="352" y="322">Queued run in SQLite; local thread wakes it</text></g>
-      <g className="diagram-note"><text x="30" y="278" className="diagram-name">The CLI shares the same service</text><text x="30" y="304">It does not need the browser or HTTP API.</text></g>
-      <g className="diagram-node"><rect x="30" y="430" width="240" height="139" rx="14" /><text x="50" y="464" className="diagram-kicker">MODEL</text><text x="50" y="493" className="diagram-name">Mock reader or live model</text><text x="50" y="519">Live requests through OpenRouter</text><text x="50" y="543">Same model, separate role requests</text></g>
-      <g className="diagram-node diagram-workflow"><rect x="330" y="430" width="300" height="139" rx="14" /><text x="352" y="464" className="diagram-kicker">SHARED PROCESSING</text><text x="352" y="493" className="diagram-name">service.py + LangGraph</text><text x="352" y="519">Read, validate, register and gather evidence</text><text x="352" y="543">Approve, critique, revise or hold</text></g>
-      <g className="diagram-node"><rect x="735" y="430" width="300" height="139" rx="14" /><text x="757" y="464" className="diagram-kicker">PAYMENT CHECK</text><text x="757" y="493" className="diagram-name">Payment gate in code</text><text x="757" y="519">Reload version, policy, findings and approval</text><text x="757" y="543">One mock receipt per workspace / payable</text></g>
-      <image href="/tech/react.svg" x="225" y="48" width="25" height="25" />
-      <image href="/tech/fastapi.svg" x="585" y="48" width="25" height="25" />
-      <image href="/tech/sqlite.svg" x="990" y="48" width="25" height="25" />
-      <image href="/tech/python.svg" x="585" y="247" width="25" height="25" />
-      <image href="/tech/openrouter.svg" x="225" y="443" width="25" height="25" />
-      <image href="/tech/langgraph.svg" x="585" y="443" width="25" height="25" />
-      <image href="/tech/python.svg" x="990" y="443" width="25" height="25" />
-      <g className="diagram-labels"><text x="286" y="78">HTTP</text><text x="649" y="78">read / write</text><text x="494" y="199">queued work</text><text x="494" y="392">run workflow</text><text x="46" y="402">Typed model and tool responses</text><text x="655" y="474">decision</text><text x="900" y="321">recheck / receipt</text><text x="642" y="270">source + inventory</text></g>
-      <text x="30" y="621" className="diagram-footnote">The browser polls the API for results and events. The default deployment is one process, not a distributed system.</text>
-    </svg>
-  </div><figcaption>React and FastAPI serve the workspace. A Python worker runs LangGraph. SQLite stores the records. OpenRouter is used only in live mode; payments are simulated.</figcaption></figure>;
-}
+const lanes = [
+  {title:'1. Accept and save the input',steps:[
+    {title:'Choose an invoice',tech:'React',logo:'react',text:'Upload a PDF, TXT, CSV, JSON or XML file, choose a sample, or start a sample batch.'},
+    {title:'Check the request',tech:'FastAPI · Python',logo:'fastapi',text:'Verify the workspace cookie, request origin, CSRF token, permitted mode and input limits.'},
+    {title:'Parse and store the file',tech:'Python parsers · SQLite',logo:'python',text:'Check the content, extract PDF text or parse structured fields, hash the bytes and save the source in this workspace.'},
+    {title:'Queue a run',tech:'SQLite · local worker',logo:'sqlite',text:'Save the run before work starts. A request token prevents a repeated submission from creating another job.'},
+  ]},
+  {title:'2. Read the invoice and check the evidence',steps:[
+    {title:'Prepare the draft',tech:'LangGraph · Python',logo:'langgraph',text:'JSON, CSV and XML map directly to fields. TXT and PDF text use the configured reader. An identical stored reading can be reused.'},
+    {title:'Check the reading',tech:'Source checks · bounded reread',logo:'python',text:'Compare extracted values and quoted repairs with the source. A reader can try once more when its first reading is inconsistent.'},
+    {title:'Validate the invoice',tech:'Python rules · SQLite inventory',logo:'sqlite',text:'Check totals, dates, currency, item names and summed quantities. Record errors, review needs, warnings and information.'},
+    {title:'Register the version',tech:'SQLite invoice records',logo:'sqlite',text:'Match vendor and invoice number, detect duplicate submissions and order explicit revisions. Conflicts stay on hold.'},
+  ]},
+  {title:'3. Reach a decision and enforce it',steps:[
+    {title:'Collect stock evidence',tech:'Validated inventory tool',logo:'python',text:'For an eligible invoice, the validation role requests the inventory tool. Code checks its arguments and reads the stock snapshot.'},
+    {title:'Approve and challenge',tech:'LangGraph · model roles',logo:'langgraph',text:'The approver proposes an action; a separate critic checks it. One revision is allowed. Disagreement can leave the invoice on hold.'},
+    {title:'Check payment again',tech:'Python · SQLite transaction',logo:'python',text:'Reload the invoice, policy and approval. Reject stale versions, unresolved holds, unsupported currency and an existing payment.'},
+    {title:'Record the outcome',tech:'Mock payment · SQLite receipt',logo:'sqlite',text:'Eligible invoices receive a simulated receipt. Others finish as rejected, needs review, duplicate or superseded, with their reasons preserved.'},
+  ]},
+  {title:'4. Return the result and handle follow-up',steps:[
+    {title:'Show progress',tech:'React · FastAPI polling',logo:'react',text:'The browser requests ordered events and the latest result. A disconnected browser does not stop the background job or erase its record.'},
+    {title:'Review or hand off',tech:'Server-checked review actions',logo:'fastapi',text:'A person can resolve only permitted findings, reject, or record a department handoff. Handoffs stay on hold and send no notification.'},
+    {title:'Retry or correct',tech:'Linked runs · same checks',logo:'python',text:'Failed or interrupted runs can be retried. Rejected runs can receive a corrected file. The original stays available and every new attempt reaches the same payment gate.'},
+    {title:'Inspect and share',tech:'React reports · SQLite analytics',logo:'react',text:'Open the original PDF, source text, findings and decisions. Export readable reports or technical JSON; charts query the workspace records.'},
+  ]},
+];
 
-export function SystemDesign({ config }: { config: ConfigInfo | null }) {
+export function SystemDesign({config}:{config:ConfigInfo|null}) {
   return <section className="resources-page" aria-label="System design">
-    <div className="page-heading"><div><span className="page-eyebrow">INSIDE INVOICE DESK</span><h1>System design</h1><p>Follow an invoice from the browser to a checked decision and a recorded outcome.</p></div><span className="version-tag">Current implementation</span></div>
-    <section className="content-card architecture-card"><div className="card-heading"><div><span className="mini-label">HIGH-LEVEL ARCHITECTURE</span><h2>One document, one traceable workflow</h2></div><GitBranch size={20} /></div><ArchitectureDiagram /></section>
-    <div className="resource-section-heading"><h2>Different roles. One controlled decision.</h2><p>The reader extracts the invoice. The validator checks stock and amounts. The approver suggests an action and a critic challenges it. Code checks the final decision again before recording a mock payment. These roles share one configured model in live mode.</p></div>
-    <div className="tech-stack"><img src="/tech/docker.svg" alt="Docker"/><span>Docker packages the React app, FastAPI and Python worker in one service.</span></div>
-    {config && <p className="resource-footnote">Policy {config.policy_version}. The browser keeps asking the API for progress and results. Original files, invoice versions and decisions stay in the same workspace.</p>}
+    <div className="page-heading"><div><span className="page-eyebrow">INSIDE INVOICE DESK</span><h1>System design</h1><p>The complete path from an incoming file to a recorded decision, with the planned Render deployment.</p></div><span className="version-tag">Current code · Render prepared</span></div>
+    <figure className="architecture-board" aria-label="Invoice Desk current system architecture">
+      <div className="architecture-entry"><strong>Operator in a browser</strong><span>Upload, sample invoice or sample batch</span><ArrowDown size={19}/></div>
+      <div className="hosting-boundary"><header className="hosting-title"><img src="/tech/render.svg" alt="Render"/><img src="/tech/docker.svg" alt="Docker"/><div><strong>Render web service · one Docker container</strong><p>Prepared deployment: React static files + FastAPI + Python worker. One process owns the local SQLite database.</p></div><span>render.yaml + Dockerfile</span></header>
+        {lanes.map((lane,index)=><div className="architecture-lane" key={lane.title}><h2>{lane.title}</h2><ol className="architecture-steps">{lane.steps.map((step,i)=><li key={step.title}><span className="flow-number">{index*4+i+1}</span><img src={`/tech/${step.logo}.svg`} alt=""/><h3>{step.title}</h3><strong>{step.tech}</strong><p>{step.text}</p>{i<lane.steps.length-1 && <ArrowRight className="flow-arrow" size={19}/>}</li>)}</ol>{index<lanes.length-1 && <div className="lane-continue"><ArrowDown size={19}/><span>Continue to the next stage</span></div>}</div>)}
+        <div className="architecture-shared"><Database size={22}/><div><h3>Shared stored records · SQLite in DATA_DIR</h3><p>Documents and original PDF bytes, extracted text, invoice versions, inventory, jobs, ordered events, findings, approvals, handoffs and mock receipts. Every read and action is scoped to the workspace. The CLI calls the same processing service and payment gate.</p></div></div>
+      </div>
+      <div className="model-connection"><ArrowDown size={18}/><span>Reading and decision roles call this only in live mode</span></div>
+      <div className="external-model"><img src="/tech/openrouter.svg" alt="OpenRouter"/><div><h3>OpenRouter · external model service</h3><p>The server sends invoice text and role instructions to the configured model, currently Grok 4.7 for live tests. The API key stays on the server. Mock mode runs locally with a simulated reader. A live failure stays visible; it does not switch silently to mock.</p></div></div>
+      <figcaption>Read each row from left to right, then move down. Arrows describe the normal path; validation errors, duplicates and holds can finish earlier without entering approval or payment.</figcaption>
+    </figure>
+    <div className="resource-section-heading"><h2>Different roles. One controlled decision.</h2><p>LangGraph coordinates preparation and decision graphs. The reader, validator, approver and critic have separate jobs; they can share the same model through separate requests. Stock checks, version rules and payment permission stay in code.</p></div>
+    <div className="resource-two-column">
+      <section className="content-card"><h2>What happens during ingestion?</h2><ul className="resource-list"><li>The API reads only up to the file limit, then checks extension and actual content.</li><li>Text-based PDFs are read page by page. Image-only PDFs are rejected because OCR is not included.</li><li>Structured files are parsed directly. A SHA-256 byte hash identifies identical content; this is separate from invoice identity and revision checks.</li><li>The source is saved before a run is queued. The browser then follows the run ID.</li><li>Sample batches prepare files and register their versions before making decisions, so file order cannot choose which revision gets paid.</li></ul></section>
+      <section className="content-card"><h2>What happens when something fails?</h2><ul className="resource-list"><li>A bad upload is rejected with a reason before processing starts.</li><li>Default limits are eight model requests, six tool calls and 90 seconds per run, with at most 1,500 output tokens per response. They are configurable; invalid model output must be repaired or the run stops.</li><li>A restart restores queued individual jobs. Running jobs become interrupted; batches are not automatically recovered.</li><li>A retry is a new linked attempt. It cannot bypass the existing-payment or current-version checks.</li><li>Live mode requires a server-side key and application spending cap. Provider-side key limits are still needed because unknown reported cost is not a reliable spending boundary.</li><li>A successful model response alone cannot release payment. A stored approval and the final code checks are required.</li></ul></section>
+      <section className="content-card"><h2>How Render hosts it</h2><ul className="resource-list"><li>Render builds the root Dockerfile. Node 22 builds React; Python 3.12 runs the application as a non-root user.</li><li>One web service serves the UI and API from the same address. It listens on Render’s PORT and exposes /api/v1/healthz.</li><li>The current Blueprint starts in mock mode with public live inference disabled. It creates a session secret and asks for a demo access code.</li><li>DATA_DIR is /tmp/invoice-flow and STORAGE_PERSISTENCE is ephemeral. Files and SQLite records can disappear when the instance is replaced.</li><li>Deployment is prepared, not yet verified at a hosted URL. Live hosting will need server-side model credentials and spending controls if enabled.</li></ul></section>
+      <section className="content-card"><h2>What would change for production?</h2><ul className="resource-list"><li>Use a shared durable database and job queue with worker ownership and recovery.</li><li>Store original documents in object storage, with tested backups and deletion rules.</li><li>Add company sign-in, reviewer permissions and actual department notifications.</li><li>Use global rate and spending controls. A real payment provider needs its own idempotency and reconciliation design.</li><li>Test larger and unseen invoice sets, concurrent traffic and live-model failures before broader use.</li></ul></section>
+    </div>
+    {config && <div className="resource-config"><ShieldCheck size={16}/><span>Policy {config.policy_version}</span><span>{config.limits.max_pdf_pages} PDF pages</span><span>{(config.limits.max_file_bytes/1000000).toFixed(0)} MB per file</span><span>Simulated payments only</span></div>}
   </section>;
 }
