@@ -210,6 +210,9 @@ test('PDF review preserves the original and the extracted text', async ({ page }
     await page.screenshot({path: 'docs/screenshots/department-handoff.png', fullPage:true, animations:'disabled'});
   }
   await page.reload();
+  await page.getByRole('button',{name:/^Assigned/}).click();
+  await expect(page.getByText('Handoff recorded: procurement')).toBeVisible();
+  await expect(page.getByText(/no team notification was sent and payment is not approved/)).toBeVisible();
   await page.getByRole('button', {name: 'Open INV 1012', exact:true}).click();
   await expect(page.getByText('Assigned to Procurement', {exact:true})).toBeVisible();
   await expect(page.getByText('Needs review', {exact:true}).first()).toBeVisible();
@@ -399,4 +402,21 @@ test('duplicate submissions are clearly marked and can be filtered', async ({pag
   await expect(page.locator('tbody tr')).toHaveCount(1);
   await expect(page.locator('tbody tr').getByText('Duplicate',{exact:true})).toBeVisible();
   await expect(page.getByText(/Counts cover loaded runs only/)).toBeVisible();
+});
+
+test('decision and activity reports have separate branded print layouts', async ({page}) => {
+  await page.goto('/');
+  await runSample(page, 'invoice_1007.csv');
+  await page.evaluate(() => { window.print = () => {}; });
+  await page.getByRole('button',{name:'Print decision report'}).click();
+  await page.emulateMedia({media:'print'});
+  await expect(page.locator('.decision-report')).toBeVisible();
+  await expect(page.locator('.activity-report')).toHaveCount(0);
+  await expect(page.locator('.skip-link')).toBeHidden();
+  await page.emulateMedia({media:'screen'});
+  await page.getByRole('button',{name:'Print activity report'}).click();
+  await page.emulateMedia({media:'print'});
+  await expect(page.locator('.activity-report')).toBeVisible();
+  await expect(page.locator('.decision-report')).toBeHidden();
+  await expect(page.locator('.activity-report')).toContainText('Invoice Desk');
 });
