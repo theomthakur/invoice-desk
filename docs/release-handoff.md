@@ -27,3 +27,7 @@ The latest checks and fresh-ledger regression include this update. Container and
 The sidebar now has Guided walkthrough and an appearance toggle. The 11-step tour highlights real controls, waits for document choice and an explicit processing click, explains the returned result and never submits a review. It preserves existing records and can be closed or restarted. Its mobile layout leaves intake actions above the guide. This is guided onboarding for one user-selected invoice, not an automatic multi-scenario batch demonstration.
 
 Light is the initial look regardless of the operating system. An explicit light/dark choice persists in browser storage and applies before React renders. System design and Presentation use the selected palette; original PDF pages remain unmodified. These frontend changes were checked with 43 unit/interaction tests and 13 real-browser tests, including the existing invoice, review and PDF workflows. No backend source changed in this increment.
+
+## Sidebar resources and account visibility
+
+System design and Presentation moved from the top bar into the sidebar. A user icon and the current demo-workspace label replace the AP badges. The account card remains visible in collapsed and mobile layouts. No identity or authentication flow changed. Local checks passed: 43 frontend tests, 13 browser tests, TypeScript, ESLint and the production build. Navigation, active state, account visibility and overflow were checked across desktop and mobile widths.

@@ -36,7 +36,7 @@ A custom Invoice Desk lettermark is used in the app and browser icons. `public/`
 
 ## Project resources and priority
 
-System design and Presentation are available from the top bar. The architecture view describes the actual local stack, agent roles, storage, security boundaries and future scaling work. The seven-part presentation has slide controls and keyboard navigation; opening it does not start a processing or payment action.
+System design and Presentation are available from the sidebar. The architecture view describes the actual local stack, agent roles, storage, security boundaries and future scaling work. The seven-part presentation has slide controls and keyboard navigation; opening it does not start a processing or payment action.
 
 Held invoices show review controls and findings before extracted details. Rejected invoices put findings first. The source remains alongside the decision content on desktop and below it on mobile. Refresh reloads history only; it does not reprocess documents or make payments.
 
@@ -87,3 +87,9 @@ Open Guided walkthrough near the bottom of the sidebar. On small screens the gui
 Light is always the first-visit default, including on a computer set to dark mode. Use the sidebar appearance button to choose dark or light. The browser remembers that explicit choice. The choice is applied before the first React paint. If browser storage is blocked, the toggle still works for the current page. Dark tokens cover intake, review, history, rules, system design and presentation; original PDF page images keep their document colors.
 
 New screenshots: `dark-workspace.png`, `guided-walkthrough.png` and `guided-mobile.png`. Browser checks cover the manual processing gate, no automatic review mutation, persisted appearance, dark resources, guide cleanup and mobile control placement.
+
+## Sidebar navigation and account
+
+System design and Presentation now sit in the main sidebar with an active-page indicator. The top bar shows the page location and demo status. The bottom account card uses a user icon and identifies Acme workspace as a Demo session. This represents the existing browser workspace, not a personal sign-in. The card remains visible as an icon when the rail is collapsed and as a bottom-left card on phones. Guide and appearance controls remain at the bottom right on phones.
+
+The sidebar and account were checked at 320, 390, 768 and 1440 pixels. The 43 frontend tests and 13 browser checks passed, along with TypeScript, ESLint and the production build. `sidebar-navigation.png` shows the updated light layout.
