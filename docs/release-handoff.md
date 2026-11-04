@@ -2,9 +2,9 @@
 
 The local application has been checked with Python 3.12.2 and Node 22.13.1. Current results:
 
-- Python: 717 passed; four paid-provider tests deselected.
-- Frontend: TypeScript, ESLint and production build passed; 46 tests passed.
-- Browser: thirteen integrated Brave tests passed against an isolated local backend in mock mode, including actual PDF page rendering.
+- Python: 719 passed; four paid-provider tests deselected.
+- Frontend: TypeScript, ESLint and production build passed; 48 tests passed.
+- Browser: fourteen integrated Brave tests passed against an isolated local backend in mock mode, including actual PDF page rendering.
 - Supplied data: all 20 original files retained unchanged; 20 predefined independent-ledger outcomes matched.
 - Previously measured shared-ledger batch: six paid, eight rejected, two held, three duplicate, one superseded; USD 30,375.00 in simulated receipts.
 - Source regression evidence records a source-code and policy fingerprint. No genuine model trace has been produced.
@@ -35,3 +35,9 @@ System design and Presentation moved from the top bar into the sidebar. A user i
 ## Operator workflow increment
 
 Added a copyable correction draft, receipt-aware outcome wording, deterministic activity labels and a browser-printable decision report. The report does not replace the original source PDF or JSON trace. There is no automatic email. Frontend lint, build and 46 tests passed; the integrated suite passed 13 tests and the two affected browser workflows were rerun after the final layout adjustment. Remaining plan work includes linked retry/correction and related-version navigation, comprehensive activity mapping, downloadable CSV, ledger-backed analytics, and full-workspace invoice lookup.
+
+## Invoice lookup and CSV
+
+A workspace-scoped exact invoice-number lookup lists vendor matches, versions, holds, linked runs and whether a simulated payment is recorded. There is no model involved. Results have explicit 50-payable and 100-version limits and omit records without usable identity. The CSV decision report escapes formula-like values and remains separate from the original PDF and JSON trace. Current checks: 719 Python tests with four live tests deselected, 48 frontend tests and 14 browser tests. The 20 supplied cases matched expected outcomes in mock mode.
+
+Outstanding: a linked correction-upload or retry contract with payment/idempotency safeguards, broader event summaries, full-ledger analytics and filters, persisted tour resume and any semantic document questions. No live-model or hosted deployment was verified in this increment.
