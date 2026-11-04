@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.env
+.env.*
+!.env.example
+evidence/live/
+*.db
+*.db-wal
+*.db-shm
+data/runtime/
+logs/
+frontend/node_modules/
+frontend/dist/
+.DS_Store

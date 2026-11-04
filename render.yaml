@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: invoice-desk
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/v1/healthz
+    autoDeployTrigger: "off"
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: DATA_DIR
+        value: /tmp/invoice-flow
+      - key: STORAGE_PERSISTENCE
+        value: ephemeral
+      - key: MODEL_MODE
+        value: mock
+      - key: ALLOW_LIVE_IN_SESSIONS
+        value: "0"
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: DEMO_ACCESS_CODE
+        sync: false

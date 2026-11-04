@@ -1,0 +1,234 @@
+{
+  "files": [
+    {
+      "file": "invoice_1001.txt",
+      "kind": "process",
+      "related_file": null,
+      "reason": "",
+      "outcome": "paid",
+      "run_id": "run_548c03f24e3b4da6bd22",
+      "lifecycle": "completed",
+      "amount": "5000.00",
+      "currency": "USD"
+    },
+    {
+      "file": "invoice_1002.txt",
+      "kind": "process",
+      "related_file": null,
+      "reason": "",
+      "outcome": "rejected",
+      "run_id": "run_863a2446711046339d17",
+      "lifecycle": "completed",
+      "amount": null,
+      "currency": null
+    },
+    {
+      "file": "invoice_1003.txt",
+      "kind": "process",
+      "related_file": null,
+      "reason": "",
+      "outcome": "rejected",
+      "run_id": "run_f92da9b8f0884689bea5",
+      "lifecycle": "completed",
+      "amount": null,
+      "currency": null
+    },
+    {
+      "file": "invoice_1004.json",
+      "kind": "superseded",
+      "related_file": "invoice_1004_revised.json",
+      "reason": "Replaced by revision R1 in invoice_1004_revised.json.",
+      "outcome": "superseded",
+      "run_id": "run_784d5b93318349d1b0f0",
+      "lifecycle": "completed",
+      "amount": null,
+      "currency": null
+    },
+    {
+      "file": "invoice_1004_revised.json",
+      "kind": "process",
+      "related_file": null,
+      "reason": "",
+      "outcome": "paid",
+      "run_id": "run_3a57111b3a4a48aca8c9",
+      "lifecycle": "completed",
+      "amount": "5940.00",
+      "currency": "USD"
+    },
+    {
+      "file": "invoice_1005.json",
+      "kind": "process",
+      "related_file": null,
+      "reason": "",
+      "outcome": "rejected",
+      "run_id": "run_81f402d6eaba4a30b4fc",
+      "lifecycle": "completed",
+      "amount": null,
+      "currency": null
+    },
+    {
+      "file": "invoice_1006.csv",
+      "kind": "process",
+      "related_file": null,
+      "reason": "",
+      "outcome": "paid",
+      "run_id": "run_6a8be3a271404fd09a26",
+      "lifecycle": "completed",
+      "amount": "2750.00",
+      "currency": "USD"
+    },
+    {
+      "file": "invoice_1007.csv",
+      "kind": "process",
+      "related_file": null,
+      "reason": "",
+      "outcome": "rejected",
+      "run_id": "run_986244dbc6ca450d8ab8",
+      "lifecycle": "completed",
+      "amount": null,
+      "currency": null
+    },
+    {
+      "file": "invoice_1008.txt",
+      "kind": "process",
+      "related_file": null,
+      "reason": "",
+      "outcome": "rejected",
+      "run_id": "run_79711910c30047f48e2f",
+      "lifecycle": "completed",
+      "amount": null,
+      "currency": null
+    },
+    {
+      "file": "invoice_1009.json",
+      "kind": "process",
+      "related_file": null,
+      "reason": "",
+      "outcome": "rejected",
+      "run_id": "run_ee433a4f542a4e6fa1c2",
+      "lifecycle": "completed",
+      "amount": null,
+      "currency": null
+    },
+    {
+      "file": "invoice_1010.txt",
+      "kind": "process",
+      "related_file": null,
+      "reason": "",
+      "outcome": "paid",
+      "run_id": "run_22301f21efb445e4a075",
+      "lifecycle": "completed",
+      "amount": "7185.00",
+      "currency": "USD"
+    },
+    {
+      "file": "invoice_1011.pdf",
+      "kind": "process",
+      "related_file": null,
+      "reason": "",
+      "outcome": "paid",
+      "run_id": "run_d2e43599e2914fc8a59c",
+      "lifecycle": "completed",
+      "amount": "3000.00",
+      "currency": "USD"
+    },
+    {
+      "file": "invoice_1011.txt",
+      "kind": "duplicate",
+      "related_file": "invoice_1011.pdf",
+      "reason": "Same invoice content as invoice_1011.pdf.",
+      "outcome": "duplicate",
+      "run_id": "run_68fab086ea3b453cbe53",
+      "lifecycle": "completed",
+      "amount": null,
+      "currency": null
+    },
+    {
+      "file": "invoice_1012.pdf",
+      "kind": "process",
+      "related_file": null,
+      "reason": "",
+      "outcome": "needs_review",
+      "run_id": "run_5e243ef0148e448a9f77",
+      "lifecycle": "completed",
+      "amount": null,
+      "currency": null
+    },
+    {
+      "file": "invoice_1012.txt",
+      "kind": "duplicate",
+      "related_file": "invoice_1012.pdf",
+      "reason": "Same invoice content as invoice_1012.pdf.",
+      "outcome": "duplicate",
+      "run_id": "run_a20080a3d422451fa95a",
+      "lifecycle": "completed",
+      "amount": null,
+      "currency": null
+    },
+    {
+      "file": "invoice_1013.json",
+      "kind": "process",
+      "related_file": null,
+      "reason": "",
+      "outcome": "rejected",
+      "run_id": "run_b4bd46543db144c7b637",
+      "lifecycle": "completed",
+      "amount": null,
+      "currency": null
+    },
+    {
+      "file": "invoice_1013.pdf",
+      "kind": "duplicate",
+      "related_file": "invoice_1013.json",
+      "reason": "Same invoice content as invoice_1013.json.",
+      "outcome": "duplicate",
+      "run_id": "run_3f021ff36e0c4de9902c",
+      "lifecycle": "completed",
+      "amount": null,
+      "currency": null
+    },
+    {
+      "file": "invoice_1014.xml",
+      "kind": "process",
+      "related_file": null,
+      "reason": "",
+      "outcome": "needs_review",
+      "run_id": "run_7c8d1fbaba2c44788d39",
+      "lifecycle": "completed",
+      "amount": null,
+      "currency": null
+    },
+    {
+      "file": "invoice_1015.csv",
+      "kind": "process",
+      "related_file": null,
+      "reason": "",
+      "outcome": "paid",
+      "run_id": "run_8c807900ba55470e9253",
+      "lifecycle": "completed",
+      "amount": "6500.00",
+      "currency": "USD"
+    },
+    {
+      "file": "invoice_1016.json",
+      "kind": "process",
+      "related_file": null,
+      "reason": "",
+      "outcome": "rejected",
+      "run_id": "run_1f29f3bbbd6845549f39",
+      "lifecycle": "completed",
+      "amount": null,
+      "currency": null
+    }
+  ],
+  "counts": {
+    "paid": 6,
+    "rejected": 8,
+    "superseded": 1,
+    "duplicate": 3,
+    "needs_review": 2
+  },
+  "paid_by_currency": {
+    "USD": "30375.00"
+  }
+}

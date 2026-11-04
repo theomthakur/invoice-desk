@@ -1,0 +1,100 @@
+# Invoice Desk
+
+A local invoice-processing prototype for the fictional Acme Corp case. It reads invoices, checks items against SQLite inventory, explains exceptions, runs a simulated approval and critique, and records a **mock** payment only after deterministic checks pass. A React inbox lets an operator inspect source text, findings, decisions and receipts.
+
+![Invoice inbox](frontend/docs/screenshots/inbox-desktop.png)
+
+> **Mode matters:** the default offline `mock` mode uses a deterministic simulated reader, not a language model. An OpenRouter adapter is implemented for a real model, but no live-model run has been verified. OpenRouter needs internet; a local LLM is not configured. The case asks for no internet, so mock mode is the reproducible offline demonstration and does not itself satisfy the genuine offline-LLM portion of that requirement.
+
+## Quick start
+
+Requirements: Python 3.12, [uv](https://docs.astral.sh/uv/), Node 22 and npm. Commands run from the repository root.
+
+```bash
+# Install the locked Python dependencies.
+uv sync --locked --python 3.12
+
+# Process one supplied file. The default mock mode uses no API key.
+MODEL_MODE=mock uv run python main.py --invoice_path=data/invoices/invoice_1001.txt
+
+# Optional: process the supplied files as a batch on the same SQLite ledger.
+MODEL_MODE=mock uv run python main.py --batch=data/invoices
+```
+
+The command prints the run stages, findings, decision and mock receipt. A valid rejection or review hold is a successful execution. Use `--json` for a JSON result on standard output; human-readable logging goes to standard error. On a persistent ledger, running the same invoice again may return a duplicate instead of a new payment. Set `DATA_DIR` to an empty directory for a fresh ledger. Never reset a ledger containing information you need.
+
+## Run the interface
+
+```bash
+cd frontend
+npm ci
+npm run build
+cd ..
+MODEL_MODE=mock uv run python -m invoice_flow.server
+```
+
+Open **http://127.0.0.1:8000**. Select **New invoice**, then upload a file or choose a supplied sample. Open a finished run to see source text, extracted fields, findings, activity and the JSON trace. A simulated reviewer can resolve server-permitted findings with a note; the server checks the content and policy again before recording a mock payment.
+
+For frontend development, run `npm run dev` in `frontend/` while the backend runs on port 8000. The development proxy preserves the browser host for the same-origin check. No invoice is processed just by opening the page.
+
+## What the system does
+
+| Case requirement | Implementation | Evidence and limits |
+| --- | --- | --- |
+| Read invoices in several formats | PDF/TXT text extraction, structured CSV/JSON/XML parsing and a model-provider interface | 20 supplied files exercised in mock mode. Image-only PDFs are rejected; OCR is not included. |
+| Validate against SQLite inventory | Quantity aggregation, item lookup, arithmetic, dates and currency checks | Unit tests and the 20-case regression; inventory is a fixed mock snapshot. |
+| Simulate VP approval and critique | Separate LangGraph preparation and decision graphs, typed tool calls and bounded revision | Controlled-provider and simulated-reader tests. Real model performance is unverified. |
+| Process or reject | Transactional payment gate and simulated receipt; recorded rejection reasons | Duplicate/revision, stale approval and browser tests. No real bank API is called. |
+| LLM integration | Configurable OpenRouter Chat Completions adapter | Implemented and tested with mocked HTTP responses. A genuine Grok call has not been made. |
+| Local CLI and readable interface | `main.py`, FastAPI, React and SQLite | CLI, API and browser tests in mock mode. |
+
+## Architecture
+
+```mermaid
+flowchart LR
+    User["Operator / CLI"] --> UI["React inbox or CLI"]
+    UI --> API["FastAPI + local job worker"]
+    API --> Prep["LangGraph: intake, extract, validate"]
+    Prep --> DB[("SQLite: inventory, invoices, runs, events")]
+    Prep --> Decision["LangGraph: catalog, approval, critique"]
+    Decision --> Gate["Deterministic payment gate"]
+    Gate --> DB
+    Gate --> Mock["Mock payment receipt"]
+    Prep -.-> Provider["Simulated reader or OpenRouter"]
+    Decision -.-> Provider
+```
+
+The CLI and web app share the same service and payment gate. Invoice content is treated as data, not trusted instructions. Invoices are grouped by vendor and invoice number; revisions and duplicate submissions cannot cause a second mock payment for the same payable. See [architecture](docs/architecture.md) and [policy decisions](docs/decisions.md).
+
+## Model modes
+
+- **`mock`**: default, offline and zero-key. A deterministic simulated provider demonstrates extraction and agent flow. It is not an LLM and cannot establish model accuracy.
+- **`live`**: explicitly select `--mode live` or `MODEL_MODE=live`, provide `OPENROUTER_API_KEY` and a positive `MODEL_BUDGET_USD`, and configure `LLM_MODEL` if needed. The candidate default is `x-ai/grok-4.7`. Live access, model capabilities and pricing have not been verified for an account. Live errors never silently fall back to mock. Set a **provider-side key limit**: the application cap only counts reported costs, and missing usage cost is unknown.
+
+Use shell environment variables or your platform's secret store; `.env.example` is a reference and is not automatically loaded. Never commit credentials. Hosted browser sessions only offer mock mode by default.
+
+## Checks and evaluation
+
+```bash
+uv run ruff check .
+uv run ruff format --check .
+uv run python scripts/export_openapi.py --check
+uv run pytest
+uv run python scripts/evaluate_samples.py
+cd frontend
+npm run typecheck && npm run lint && npm test && npm run build
+npx playwright install chromium
+npm run test:e2e
+```
+
+The offline regression compares all 20 supplied files with predefined expected outcomes on a fresh ledger per file. It is a **known regression set using a simulated reader**, not an independent or blind estimate of LLM accuracy. A batch uses a shared ledger and groups revisions/duplicates before payment. See [evaluation results](docs/evaluation.md), including case-level output and known gaps. Live tests are disabled by default and require explicit opt-in, credentials and a budget.
+
+## Container and optional hosting
+
+The [Dockerfile](Dockerfile) builds the React app and Python service into one image. `render.yaml` configures an optional single-instance free Render service with mock mode, a passcode, and **ephemeral storage**. The original case says local operation and no cloud deployment; hosting is an optional supplement, not a replacement for the requested repository and local run. No hosted deployment is claimed here. See [deployment](docs/deployment.md) for a local container test, persistence and rollback details.
+
+## Important limitations
+
+This is a prototype: no real payment, email, ERP, FX or vendor-master integration; no OCR; one server process; and no production load or accessibility conformance claim. The current source endpoint returns extracted text rather than original PDF bytes. Batches interrupted by server restart do not automatically recover. [Full limitations and policy choices](docs/decisions.md) are documented.
+
+The sample files are from the [Galatiq case repository](https://github.com/galatiq-ai/galatiq-case-invoices), as recorded in [SOURCE.md](data/invoices/SOURCE.md). Developed with AI coding assistance; the implementation, tests and limitations are available for review.
