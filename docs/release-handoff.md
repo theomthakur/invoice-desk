@@ -50,8 +50,12 @@ Final checks: 726 Python tests, four live tests deselected, 50 frontend tests an
 
 ## Initial ledger overview
 
-A workspace-scoped read-only overview reports distinct identified payables, run lifecycle counts, historical review-run outcomes, active identity flags and simulated receipts, with amounts separated by currency. Run counts include batch extraction, retries and duplicates. The CSV preserves those labels. This is a first increment: filters, per-metric drill-through and latency/version-aware business measures remain open. Current checks: 729 Python tests (four live tests deselected), 51 frontend tests and 16 browser tests, plus a targeted overview CSV/sidebar check. The known mock sample regression matched 20/20. No live model, paid hosting or external payment was used.
+A workspace-scoped read-only overview reports distinct identified payables, run lifecycle counts, historical review-run outcomes, active identity flags and simulated receipts, with amounts separated by currency. Run counts include batch extraction, retries and duplicates. The CSV preserves those labels. This was a first increment; date, vendor and outcome filters were added subsequently. Per-metric drill-through and latency/version-aware business measures remain open. Current checks: 729 Python tests (four live tests deselected), 51 frontend tests and 16 browser tests, plus a targeted overview CSV/sidebar check. The known mock sample regression matched 20/20. No live model, paid hosting or external payment was used.
 
 ## Multi-select
 
 Loaded runs can be selected individually or all at once for the visible view. Hidden selections remain counted when filters change, and the selected rows can be exported as CSV. This is a browser-side selection and export, not a bulk approval or payment operation. The CSV preserves raw fields with spreadsheet formula escaping. Current checks include 54 frontend tests and 17 browser tests.
+
+## Ledger filters
+
+The overview and CSV support UTC run dates, vendor and outcome. Filtered receipt totals require a matching paid run for the same invoice version. Vendor filters exclude runs without an identifiable vendor. Counts remain workspace-scoped and simulated payments are not real transfers. Per-metric drill-through is not implemented.

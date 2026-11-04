@@ -110,7 +110,7 @@ Failed and interrupted records offer an explicit Retry this invoice action. Reje
 
 ## Ledger overview
 
-Ledger overview shows workspace-wide identified payables, run counts, failures, review outcomes, flagged active versions and simulated receipts grouped by currency. It queries the database, not just the history page. Counts of runs include retries, duplicates and batch extraction. Review runs are historical outcomes, not an outstanding balance. Values can be downloaded as CSV. This initial version has no date, vendor or outcome filters, no reconciled drill-through and no latency percentiles. `ledger-overview.png` shows the local mock view.
+Ledger overview shows workspace-wide identified payables, run counts, failures, review outcomes, flagged active versions and simulated receipts grouped by currency. It queries the database, not just the history page. Counts of runs include retries, duplicates and batch extraction. Review runs are historical outcomes, not an outstanding balance. Values can be downloaded as CSV. Filter by UTC run start date, vendor or run outcome. With filters applied, identified invoices and active flags are linked to matching runs, and receipts require a matching paid run for the same version. Vendor filters exclude runs without an identifiable vendor. Reconciled drill-through and latency percentiles are not implemented. `ledger-overview.png` shows the local mock view.
 
 ## Select multiple entries
 
