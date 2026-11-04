@@ -10,11 +10,14 @@ Every route uses the same service as the CLI. Security rules enforced here:
 
 from __future__ import annotations
 
+import base64
+import binascii
 import hashlib
 import json
-import secrets
+import re
 import uuid
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -44,11 +47,20 @@ from ..api_models import (
     SampleInfo,
     SessionInfo,
 )
-from ..findings import Severity, is_reviewer_resolvable
-from ..ledger import load_document, store_document
+from ..findings import FindingCode, Severity, is_reviewer_resolvable
+from ..identity import content_hash
+from ..ledger import (
+    LedgerError,
+    conflict_selection_available,
+    get_payment,
+    load_document,
+    load_version_state,
+    store_document,
+)
 from ..money import format_amount
 from ..parsers import SourceError, parse_bytes
 from ..parsers.common import safe_filename
+from ..parsers.pdf import pdf_page_count, render_pdf_page
 from ..runtime import App, AppConfig
 from ..schemas import RunEvent, RunLifecycle, RunResult, SourceFormat
 from ..service import process_batch, submit_review
@@ -65,12 +77,14 @@ from .security import (
     SESSION_COOKIE,
     RateLimiter,
     SessionManager,
+    local_session_secret,
     passcode_ok,
     same_origin,
 )
 
 API = "/api/v1"
 PAGE_MAX = 200
+HISTORY_CURSOR_MAX = 256
 
 
 class ApiError(Exception):
@@ -90,6 +104,47 @@ def _error_body(request: Request, code: str, message: str, retryable: bool) -> d
     }
 
 
+def _history_cursor(started_at: str, run_id: str) -> str:
+    payload = json.dumps([started_at, run_id], separators=(",", ":")).encode("ascii")
+    return "h1." + base64.urlsafe_b64encode(payload).decode("ascii").rstrip("=")
+
+
+def _history_position(cursor: str) -> tuple[str, str | None]:
+    """Validate bounded composite cursors, accepting legacy UTC timestamp boundaries."""
+    try:
+        run_id = None
+        if cursor.startswith("h1."):
+            encoded = cursor[3:].encode("ascii")
+            payload = json.loads(
+                base64.b64decode(
+                    encoded + b"=" * (-len(encoded) % 4), altchars=b"-_", validate=True
+                )
+            )
+            if not isinstance(payload, list) or len(payload) != 2:
+                raise ValueError
+            timestamp, run_id = payload
+            if (
+                not isinstance(run_id, str)
+                or re.fullmatch(r"run_[A-Za-z0-9_-]{1,76}", run_id) is None
+            ):
+                raise ValueError
+        else:
+            timestamp = cursor
+        if (
+            not isinstance(timestamp, str)
+            or re.fullmatch(
+                r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})",
+                timestamp,
+            )
+            is None
+        ):
+            raise ValueError
+        moment = datetime.fromisoformat(timestamp)
+        return moment.astimezone(UTC).isoformat(timespec="microseconds"), run_id
+    except (ValueError, TypeError, UnicodeError, OverflowError, binascii.Error) as exc:
+        raise ApiError(422, "invalid_request", "Invalid history cursor.") from exc
+
+
 def create_app(
     app_ctx: App | None = None,
     *,
@@ -103,7 +158,7 @@ def create_app(
     if not secret:
         if config.app_env == "production":
             raise RuntimeError("SESSION_SECRET is required in production.")
-        secret = secrets.token_urlsafe(32)  # per-process: sessions end when the server restarts
+        secret = local_session_secret(config.data_dir)
     sessions = SessionManager(secret, config.session_ttl_seconds)
     limiter = RateLimiter(config.rate_limit_per_minute)
     runner = JobRunner(ctx)
@@ -450,12 +505,70 @@ def create_app(
         if doc is None:
             raise ApiError(404, "not_found", "No such document.")
         # Always text/plain: an uploaded file is never rendered as HTML, SVG or script.
+        headers = {
+            "Content-Disposition": f'attachment; filename="{safe_filename(doc.filename)}.txt"'
+        }
+        if doc.original_pdf is not None:
+            headers["X-Original-Available"] = "pdf"
         return PlainTextResponse(
             doc.text,
+            headers=headers,
+        )
+
+    def _original_document(run_id: str, ws: str):
+        result = runner.result(ws, run_id)
+        if result is None or not result.document_id:
+            raise ApiError(404, "not_found", "No such run.")
+        with ctx.db.read() as conn:
+            doc = load_document(conn, ws, result.document_id)
+        if doc is None or doc.format is not SourceFormat.PDF or doc.original_pdf is None:
+            raise ApiError(404, "not_found", "The original PDF is not available for this run.")
+        if (
+            len(doc.original_pdf) != doc.size_bytes
+            or hashlib.sha256(doc.original_pdf).hexdigest() != doc.byte_hash
+        ):
+            raise ApiError(409, "source_changed", "The stored original failed its integrity check.")
+        return doc
+
+    @api.get(
+        f"{API}/runs/{{run_id}}/original",
+        responses={200: {"content": {"application/pdf": {}}, "description": "Original PDF bytes."}},
+        response_class=Response,
+    )
+    async def get_original(run_id: str, ws: str = Depends(workspace)):
+        doc = _original_document(run_id, ws)
+        try:
+            pages = pdf_page_count(doc.original_pdf)
+        except SourceError as exc:
+            raise ApiError(422, exc.code, exc.message) from exc
+        return Response(
+            doc.original_pdf,
+            media_type="application/pdf",
             headers={
-                "Content-Disposition": f'attachment; filename="{safe_filename(doc.filename)}.txt"'
+                "Content-Disposition": f'attachment; filename="{safe_filename(doc.filename)}"',
+                "Content-Security-Policy": "default-src 'none'; sandbox",
+                "X-PDF-Pages": str(pages),
             },
         )
+
+    @api.get(
+        f"{API}/runs/{{run_id}}/preview",
+        responses={
+            200: {"content": {"image/png": {}}, "description": "Original PDF page preview."}
+        },
+        response_class=Response,
+    )
+    async def get_preview(
+        run_id: str, page: int = Query(1, ge=1, le=20), ws: str = Depends(workspace)
+    ):
+        doc = _original_document(run_id, ws)
+        try:
+            preview = render_pdf_page(doc.original_pdf, page, ctx.policy)
+        except SourceError as exc:
+            raise ApiError(
+                404 if exc.code == "page_not_found" else 422, exc.code, exc.message
+            ) from exc
+        return Response(preview, media_type="image/png")
 
     @api.get(f"{API}/runs/{{run_id}}/export", response_model=ExportReport)
     async def export_run(run_id: str, ws: str = Depends(workspace)):
@@ -488,21 +601,51 @@ def create_app(
             raise ApiError(404, "not_found", "No such run.")
         if current.outcome != "needs_review":
             raise ApiError(409, "not_reviewable", "This run is not waiting for review.")
-        review_findings = [f for f in current.findings if f.severity == Severity.REVIEW]
-        resolvable = sorted(
-            {f.code.value for f in review_findings if is_reviewer_resolvable(f.code)}
-        )
-        blocked = sorted(
-            {f.code.value for f in review_findings if not is_reviewer_resolvable(f.code)}
-        )
-        has_error = any(f.severity == Severity.ERROR for f in current.findings)
         has_version = bool(current.version_id and current.content_hash)
+        findings = list(current.findings)
+        can_select_conflict = False
+        version_approvable = False
+        if has_version:
+            with ctx.db.read() as conn:
+                try:
+                    state = load_version_state(
+                        conn, ws, current.version_id, ctx.policy, ctx.db.clock().date()
+                    )
+                except LedgerError:
+                    state = None
+                if state is not None:
+                    can_select_conflict = conflict_selection_available(conn, ws, state)
+                    paid = get_payment(conn, ws, state.payable_id) if state.payable_id else None
+                    version_approvable = (
+                        state.status == "active"
+                        and (not state.identity_flag or can_select_conflict)
+                        and paid is None
+                        and state.report.normalized is not None
+                        and content_hash(state.report.normalized) == current.content_hash
+                    )
+                    # Selection persists even if the bank fails. The stored run may still
+                    # describe the earlier conflict; offer a normal retry for the winner.
+                    if state.identity_flag != "revision_conflict":
+                        findings = [f for f in findings if f.code != FindingCode.REVISION_CONFLICT]
+                    findings.extend(state.report.findings)
+        review_codes = {f.code for f in findings if f.severity == Severity.REVIEW}
+        resolvable = {
+            code
+            for code in review_codes
+            if (
+                can_select_conflict
+                if code == FindingCode.REVISION_CONFLICT
+                else is_reviewer_resolvable(code)
+            )
+        }
+        blocked = review_codes - resolvable
+        has_error = any(f.severity == Severity.ERROR for f in findings)
         return ReviewOptions(
             version_id=current.version_id,
             content_hash=current.content_hash,
-            resolvable_codes=resolvable,
-            blocked_codes=blocked,
-            can_approve=has_version and not blocked and not has_error,
+            resolvable_codes=sorted(code.value for code in resolvable),
+            blocked_codes=sorted(code.value for code in blocked),
+            can_approve=version_approvable and not blocked and not has_error,
             can_reject=has_version,
         )
 
@@ -630,7 +773,7 @@ def create_app(
     @api.get(f"{API}/history", response_model=HistoryPage)
     async def history(
         limit: int = Query(25, ge=1, le=100),
-        cursor: str | None = Query(None, max_length=60),
+        cursor: str | None = Query(None, max_length=HISTORY_CURSOR_MAX),
         ws: str = Depends(workspace),
     ):
         sql = (
@@ -639,10 +782,15 @@ def create_app(
             " AND d.document_id = r.document_id WHERE r.workspace_id = ?"
         )
         params: list[Any] = [ws]
-        if cursor:
-            sql += " AND r.started_at < ?"
-            params.append(cursor)
-        sql += " ORDER BY r.started_at DESC LIMIT ?"
+        if cursor is not None:
+            started_at, run_id = _history_position(cursor)
+            if run_id is None:  # Timestamp-only cursors emitted by older servers.
+                sql += " AND r.started_at < ?"
+                params.append(started_at)
+            else:
+                sql += " AND (r.started_at, r.run_id) < (?, ?)"
+                params.extend((started_at, run_id))
+        sql += " ORDER BY r.started_at DESC, r.run_id DESC LIMIT ?"
         params.append(limit + 1)
         with ctx.db.read() as conn:
             rows = conn.execute(sql, params).fetchall()
@@ -666,7 +814,12 @@ def create_app(
                 )
             )
         return HistoryPage(
-            items=items, next_cursor=page[-1]["started_at"] if len(rows) > limit and page else None
+            items=items,
+            next_cursor=(
+                _history_cursor(page[-1]["started_at"], page[-1]["run_id"])
+                if len(rows) > limit and page
+                else None
+            ),
         )
 
     @api.post(f"{API}/workspace/reset")

@@ -26,6 +26,8 @@ EXPECTED = {
     ("get", "/api/v1/runs/{run_id}"),
     ("get", "/api/v1/runs/{run_id}/events"),
     ("get", "/api/v1/runs/{run_id}/source"),
+    ("get", "/api/v1/runs/{run_id}/original"),
+    ("get", "/api/v1/runs/{run_id}/preview"),
     ("get", "/api/v1/runs/{run_id}/export"),
     ("get", "/api/v1/runs/{run_id}/review-options"),
     ("post", "/api/v1/runs/{run_id}/review"),

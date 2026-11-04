@@ -13,11 +13,17 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import os
+import re
 import secrets
+import stat
+import tempfile
 import threading
 import time
 from collections import defaultdict, deque
+from contextlib import suppress
 from dataclasses import dataclass
+from pathlib import Path
 from urllib.parse import urlparse
 
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
@@ -25,6 +31,62 @@ from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 SESSION_COOKIE = "invoice_flow_session"
 CSRF_HEADER = "x-csrf-token"
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
+
+
+def _read_local_secret(path: Path) -> str:
+    """Read only a bounded, private regular file; never silently replace a bad key."""
+    if path.is_symlink():
+        raise RuntimeError("The local session secret must not be a symbolic link.")
+    flags = (
+        os.O_RDONLY
+        | getattr(os, "O_NOFOLLOW", 0)
+        | getattr(os, "O_NONBLOCK", 0)
+        | getattr(os, "O_BINARY", 0)
+    )
+    with os.fdopen(os.open(path, flags), "rb") as stream:
+        info = os.fstat(stream.fileno())
+        if not stat.S_ISREG(info.st_mode):
+            raise RuntimeError("The local session secret must be a regular file.")
+        if os.name == "posix" and stat.S_IMODE(info.st_mode) & 0o077:
+            raise RuntimeError("The local session secret must have private owner permissions.")
+        raw = stream.read(128)
+    if re.fullmatch(rb"[A-Za-z0-9_-]{43}\n?", raw) is None:
+        raise RuntimeError(
+            "Invalid local session secret in DATA_DIR; restore it or configure SESSION_SECRET."
+        )
+    return raw.rstrip(b"\n").decode("ascii")
+
+
+def local_session_secret(data_dir: Path) -> str:
+    """Keep local cookie signatures stable across restarts and concurrent startups.
+
+    Publish a fully written, owner-only temporary file with an atomic create-if-absent link.
+    A competing process then reads the winner's key, never a partially written file.
+    An explicit SESSION_SECRET bypasses this helper; production must require one.
+    """
+    path = data_dir / ".session-secret"
+    try:
+        data_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            return _read_local_secret(path)
+        except FileNotFoundError:
+            pass
+        descriptor, temporary = tempfile.mkstemp(prefix=".session-secret-", dir=data_dir)
+        temporary_path = Path(temporary)
+        try:
+            with os.fdopen(descriptor, "wb") as stream:
+                stream.write((secrets.token_urlsafe(32) + "\n").encode("ascii"))
+                stream.flush()
+                os.fsync(stream.fileno())
+            with suppress(FileExistsError):  # A competing startup may publish its key first.
+                os.link(temporary_path, path)
+        finally:
+            temporary_path.unlink()
+        return _read_local_secret(path)
+    except OSError as exc:
+        raise RuntimeError(
+            "Cannot access the local session secret in DATA_DIR; check file access and permissions."
+        ) from exc
 
 
 @dataclass(frozen=True)
