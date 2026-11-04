@@ -1,6 +1,6 @@
 import type {
   BatchResult, ConfigInfo, DocumentInfo, EventsPage, HistoryPage, Mode, RunAccepted, RunResult,
-  ReviewOptions, SampleInfo, SessionInfo,
+  DepartmentAssignment, DepartmentHandoffRequest, DepartmentRouting, ReviewOptions, SampleInfo, SessionInfo,
 } from '../types/api';
 
 export class ApiError extends Error {
@@ -92,6 +92,12 @@ export class ApiClient {
   }
   review(id: string, body: { version_id: string; content_hash: string; decision: 'approve' | 'reject'; comment: string; resolved_codes: string[]; idempotency_token: string }) {
     return this.json<{ run: RunResult; accepted: boolean; message: string }>(`/runs/${encodeURIComponent(id)}/review`, { method: 'POST', body: JSON.stringify(body) });
+  }
+  routing(id: string, signal?: AbortSignal) {
+    return this.json<DepartmentRouting>(`/runs/${encodeURIComponent(id)}/routing`, { signal });
+  }
+  routeReview(id: string, body: DepartmentHandoffRequest) {
+    return this.json<DepartmentAssignment>(`/runs/${encodeURIComponent(id)}/routing`, { method: 'POST', body: JSON.stringify(body) });
   }
   async source(id: string, signal?: AbortSignal) {
     const response = await this.response(`/runs/${encodeURIComponent(id)}/source`, { signal });

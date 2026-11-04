@@ -140,7 +140,7 @@ test('a reviewer resolves the vendor-name hold before a simulated payment', asyn
   }
   await page.getByRole('checkbox', { name: /vendor identity change/i }).check();
   await page.getByRole('checkbox', { name: /checked the source/i }).check();
-  await page.getByLabel('Decision note').fill('Verified the simulated vendor name against the available record.');
+  await page.getByLabel('Decision reason').selectOption('vendor_verified');
   await page.getByRole('button', { name: /approve & simulate payment/i }).click();
   await expect(page.getByText('Mock payment recorded')).toBeVisible({ timeout: 15_000 });
 });
@@ -150,8 +150,8 @@ test('unsupported currency cannot be cleared by the review button', async ({ pag
   await expect(page.getByRole('button', { name: 'Start a new invoice' })).toBeEnabled();
   await runSample(page, 'invoice_1014.xml');
   await expect(page.getByText('Cannot approve yet')).toBeVisible();
-  await expect(page.getByRole('button', { name: /approve & simulate payment/i })).toBeDisabled();
-  await page.getByLabel('Decision note').fill('The currency needs a separate policy.');
+  await expect(page.getByRole('option', { name: 'Approve and simulate payment' })).toHaveAttribute('disabled', '');
+  await page.getByLabel('Decision reason').selectOption('payment_policy');
   await page.getByRole('button', { name: 'Reject invoice' }).click();
   await expect(page.getByText('Rejected', { exact: true })).toBeVisible();
   await expect(page.getByText('Mock payment recorded')).toHaveCount(0);
@@ -174,4 +174,33 @@ test('PDF review preserves the original and the extracted text', async ({ page }
   await expect(page.getByAltText('Original invoice PDF page 1')).toHaveCount(0);
   await page.getByRole('button', { name: 'Original PDF', exact: true }).click();
   await expect(page.getByAltText('Original invoice PDF page 1')).toBeVisible();
+});
+
+ test('department handoff persists on reload and keeps payment on hold', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByRole('button', { name: 'Start a new invoice' })).toBeEnabled();
+  await runSample(page, 'invoice_1012.txt');
+  await expect(page.getByLabel('Review action')).toBeVisible();
+  await expect(page.getByRole('option', {name: 'Assign to a department'})).not.toHaveAttribute('disabled');
+  await page.getByLabel('Review action').selectOption('route');
+  await page.getByRole('combobox', {name: 'Department', exact:true}).selectOption('procurement');
+  await page.getByLabel('Decision reason').selectOption('inventory_check');
+  await page.getByRole('button', { name: 'Record department handoff' }).click();
+  await expect(page.getByText('Assigned to Procurement', {exact:true})).toBeVisible();
+  await expect(page.getByText('Mock payment recorded')).toHaveCount(0);
+  if (process.env.UPDATE_SCREENSHOTS === '1') {
+    await page.screenshot({path: 'docs/screenshots/department-handoff.png', fullPage:true, animations:'disabled'});
+  }
+  await page.reload();
+  await page.getByRole('button', {name: 'Open INV 1012', exact:true}).click();
+  await expect(page.getByText('Assigned to Procurement', {exact:true})).toBeVisible();
+  await expect(page.getByText('Needs review', {exact:true}).first()).toBeVisible();
+  await expect(page.getByText('Internal workspace record only. No department notification was sent.')).toBeVisible();
+  await page.getByRole('combobox', {name: 'Review action', exact:true}).selectOption('route');
+  for (const width of [320, 390, 768, 1440]) {
+    await page.setViewportSize({width, height:1000});
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+  }
+  await page.getByRole('tab', {name: /^Activity/}).click();
+  await expect(page.getByText('Assigned to Procurement for review. Payment remains on hold. No notification was sent.', {exact:true})).toBeVisible();
 });

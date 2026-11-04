@@ -369,3 +369,12 @@ td small { display: block; color: #646d5c; font-size: 10px; margin-top: 4px; }
   .drawer-head { padding: 25px 22px; } .drawer-body { padding: 23px 22px; } .drawer-footer { padding: 16px 22px 22px; } .drawer-head h2 { font-size: 27px; } .detail-head { align-items: flex-start; flex-direction: column; } .detail-head h1 { font-size: 28px; flex-wrap: wrap; } .detail-head > .button { align-self: flex-end; margin-top: -6px; } .record-metadata { gap: 12px; font-size: 9px; } .record-date { margin-left: 0; } .stage-row { padding: 13px; gap: 4px; } .stage-item { flex-direction: column; font-size: 8px; gap: 7px; } .stage-item:last-child { flex: 1; } .stage-connector { display: none; } .stage-icon { width: 23px; height: 23px; } .tabs { gap: 24px; } .tabs button { font-size: 11px; } .content-card { padding: 20px; } .document-sheet { margin: 14px; padding: 17px; } .document-sheet pre { font-size: 10px; } .record-pane { gap: 17px; } .result-note p { font-size: 11px; } .field-grid { gap: 17px; } .timeline time { font-size: 9px; } .document-caption { font-size: 8px; } .review-actions .button { font-size: 10px; padding: 0 12px; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }
+
+.review-form-grid { display: grid; grid-template-columns: 1fr; gap: 15px; margin-top: 23px; }
+.review-select-label { display: grid; gap: 9px; font-size: 12px; font-weight: 600; color: #4b6540; min-width: 0; }
+.review-select-label select { width: 100%; min-width: 0; max-width: 100%; padding: 11px 30px 11px 11px; border: 1px solid #d9e2ca; border-radius: 8px; background: #fffef9; color: #3d5633; font-size: 12px; font-weight: 400; }
+.handoff-summary { display: flex; align-items: flex-start; gap: 11px; margin-top: 20px; padding: 15px; border: 1px solid #d5e4c6; border-radius: 9px; background: #eff5e6; color: #426237; }
+.handoff-summary strong { font-size: 12px; font-weight: 600; }
+.handoff-summary p { margin-top: 6px; font-size: 11px; line-height: 1.8; overflow-wrap: anywhere; }
+.handoff-summary small { display: block; margin-top: 8px; font-size: 10px; color: #5e7052; line-height: 1.8; }
+.routing-explanation { margin-top: 15px; font-size: 11px; line-height: 1.8; color: #5e7052; }

@@ -54,6 +54,19 @@ export interface ReviewOptions {
   version_id: string | null; content_hash: string | null; resolvable_codes: string[];
   blocked_codes: string[]; can_approve: boolean; can_reject: boolean;
 }
+export interface HandoffChoice { value: string; label: string }
+export interface DepartmentAssignment {
+  handoff_id: string; department: string; department_label: string; reason_code: string;
+  reason: string; note: string; created_at: string; active: boolean; notification_sent: false;
+}
+export interface DepartmentRouting {
+  assignment: DepartmentAssignment | null; can_route: boolean;
+  departments: HandoffChoice[]; reasons: HandoffChoice[];
+}
+export interface DepartmentHandoffRequest {
+  version_id: string | null; content_hash: string | null; department: string;
+  reason_code: string; note: string; idempotency_token: string;
+}
 export interface RunEvent {
   seq: number; timestamp: string; stage: string; type: string; payload: Record<string, unknown>;
 }
