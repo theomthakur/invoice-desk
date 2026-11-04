@@ -6,13 +6,14 @@ runtime filename rules are involved. Exit nonzero if an outcome differs or a run
 
 from __future__ import annotations
 
+import hashlib
 import json
 import platform
 import sys
 import tempfile
 import time
 from collections import Counter
-from datetime import date
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -52,14 +53,19 @@ def main() -> int:
                     "elapsed_seconds": round(time.monotonic() - started, 3),
                 }
             )
+    source_hash = hashlib.sha256()
+    for path in sorted((ROOT / "src").rglob("*.py")) + [ROOT / "config/policy.yaml"]:
+        source_hash.update(path.relative_to(ROOT).as_posix().encode() + b"\0")
+        source_hash.update(path.read_bytes() + b"\0")
     out = {
         "description": "Known supplied cases, simulated reader, fresh ledger for each file",
         "provider": "simulated; not an LLM",
         "python": platform.python_version(),
-        "evaluation_date": "2026-11-03",
+        "evaluated_at_utc": datetime.now(UTC).isoformat(),
         "calendar_assumption": "2026-11-03",
         "commit": None,
-        "commit_note": "Uncommitted working tree at evaluation time; see release handoff.",
+        "commit_note": "Source snapshot identified by source_tree_sha256; no Git history required.",
+        "source_tree_sha256": source_hash.hexdigest(),
         "cases": len(rows),
         "matched": sum(row["match"] for row in rows),
         "outcome_counts": dict(Counter(str(row["actual"]) for row in rows)),

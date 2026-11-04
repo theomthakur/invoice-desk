@@ -4,7 +4,7 @@ A local invoice-processing prototype for the fictional Acme Corp case. It reads 
 
 ![Invoice inbox](frontend/docs/screenshots/inbox-desktop.png)
 
-> **Mode matters:** the default offline `mock` mode uses a deterministic simulated reader, not a language model. An OpenRouter adapter is implemented for a real model, but no live-model run has been verified. OpenRouter needs internet; a local LLM is not configured. The case asks for no internet, so mock mode is the reproducible offline demonstration and does not itself satisfy the genuine offline-LLM portion of that requirement.
+> **Mode matters:** the default offline `mock` mode uses a deterministic simulated reader, not a language model. An OpenRouter adapter is implemented for a real model, but no live-model run has been verified. Mock mode demonstrates the case's local simulated workflow; it does not measure genuine LLM reasoning or extraction accuracy. OpenRouter needs internet, and a local LLM is not configured.
 
 ## Quick start
 
@@ -34,6 +34,8 @@ MODEL_MODE=mock uv run python -m invoice_flow.server
 ```
 
 Open **http://127.0.0.1:8000**. Select **New invoice**, then upload a file or choose a supplied sample. Open a finished run to see source text, extracted fields, findings, activity and the JSON trace. A simulated reviewer can resolve server-permitted findings with a note; the server checks the content and policy again before recording a mock payment.
+
+Local browser sessions retain their signing key in the data directory, so a restart preserves access while the cookie remains valid. Keep that private key with any database backup; deleting it or changing `SESSION_SECRET` invalidates existing sessions. Newly loaded PDFs retain their original bytes as well as extracted text. The invoice record can switch between those views and locate finding evidence in the text.
 
 For frontend development, run `npm run dev` in `frontend/` while the backend runs on port 8000. The development proxy preserves the browser host for the same-origin check. No invoice is processed just by opening the page.
 
@@ -66,6 +68,8 @@ flowchart LR
 
 The CLI and web app share the same service and payment gate. Invoice content is treated as data, not trusted instructions. Invoices are grouped by vendor and invoice number; revisions and duplicate submissions cannot cause a second mock payment for the same payable. See [architecture](docs/architecture.md) and [policy decisions](docs/decisions.md).
 
+Batch preparation is reused for decisions using the same document hash. Conflicting versions stay held across later submissions until a simulated reviewer explicitly selects a valid unpaid version; selecting one supersedes its alternatives. Validation checks source support for dates/revisions and nonnegative tax. Cancellation and the run deadline are checked again before payment.
+
 ## Model modes
 
 - **`mock`**: default, offline and zero-key. A deterministic simulated provider demonstrates extraction and agent flow. It is not an LLM and cannot establish model accuracy.
@@ -87,7 +91,7 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-The offline regression compares all 20 supplied files with predefined expected outcomes on a fresh ledger per file. It is a **known regression set using a simulated reader**, not an independent or blind estimate of LLM accuracy. A batch uses a shared ledger and groups revisions/duplicates before payment. See [evaluation results](docs/evaluation.md), including case-level output and known gaps. Live tests are disabled by default and require explicit opt-in, credentials and a budget.
+The offline regression compares all 20 supplied files with predefined expected outcomes on a fresh ledger per file. It is a **known regression set using a simulated reader**, not an independent or blind estimate of LLM accuracy. Additional authored fixtures check fields and outcomes for new layouts, an unknown item, arithmetic errors, and above-threshold scrutiny. A batch uses a shared ledger and groups revisions/duplicates before payment. See [evaluation results](docs/evaluation.md), including case-level output and known gaps. Live tests are disabled by default and require explicit opt-in, credentials and a budget. The positive live test requires a successful paid clean invoice, actual inventory tool use, and approval/critique records; provider failures cannot count as success.
 
 ## Container and optional hosting
 
@@ -95,6 +99,6 @@ The [Dockerfile](Dockerfile) builds the React app and Python service into one im
 
 ## Important limitations
 
-This is a prototype: no real payment, email, ERP, FX or vendor-master integration; no OCR; one server process; and no production load or accessibility conformance claim. The current source endpoint returns extracted text rather than original PDF bytes. Batches interrupted by server restart do not automatically recover. [Full limitations and policy choices](docs/decisions.md) are documented.
+This is a prototype: no real payment, email, ERP, FX or vendor-master integration; no OCR; one server process; and no production load or accessibility conformance claim. Historical PDF records created before original-byte retention keep their extracted text; recovering their originals requires loading those documents again. Batches interrupted by server restart do not automatically recover. [Full limitations and policy choices](docs/decisions.md) are documented.
 
 The sample files are from the [Galatiq case repository](https://github.com/galatiq-ai/galatiq-case-invoices), as recorded in [SOURCE.md](data/invoices/SOURCE.md). Developed with AI coding assistance; the implementation, tests and limitations are available for review.

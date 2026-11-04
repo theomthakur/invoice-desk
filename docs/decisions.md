@@ -35,7 +35,7 @@ The test and evidence details are in [evaluation.md](evaluation.md). A check mar
 | Multiple agents, tool calls, structured outputs and correction | `agents/`, `workflow.py`, `llm.py` | Controlled tests and simulated tool calls; real-provider tool and schema behavior unverified. |
 | CLI, structured logs and result | `main.py`, `cli.py`, `storage.py` | CLI and event tests; commands in the root README. |
 | UI and human review | `frontend/`, workspace API | Browser tests cover actual mock workflows, including review and blocked currency. |
-| Public repository | User-controlled GitHub publication | Not yet published. |
+| Public repository | [Invoice Desk](https://github.com/theomthakur/invoice-desk) | The repository is public; verification of unpushed changes is local. |
 
 ## 3. Policy decisions
 
@@ -51,13 +51,13 @@ The test and evidence details are in [evaluation.md](evaluation.md). A check mar
 | 8 | **Document text is data.** Text that tries to instruct the system is a REVIEW finding. | Prompt-injection defense. The rules run in code, so the text cannot switch them off. |
 | 9 | **Payable identity = normalized vendor + normalized invoice number**, stable across revisions. | One payment per payable, enforced by a database UNIQUE constraint. |
 | 10 | **Identity normalization is conservative.** Case, spacing and punctuation are ignored. `Widgets Inc.` and `Widgets LLC` stay different. `INV-1002` and `1002` stay different. Leading zeros are kept. | Wrongly merging two vendors is worse than holding a duplicate. |
-| 11 | **Revisions.** An explicit newer revision of an unpaid invoice supersedes the older one. A revision after payment is held for reconciliation. Two versions with no usable order are all held. We never pay a difference automatically. | Credits, tax and partial payments are not specified by the brief. |
+| 11 | **Revisions.** An explicit source-supported newer revision of an unpaid invoice supersedes the older one. A revision after payment is held for reconciliation. Versions with no usable order remain held across resubmission until a reviewer explicitly selects an eligible unpaid version using its content hash. We never pay a difference automatically. | Credits, tax and partial payments are not specified by the brief. Other errors and identity holds still block selection. |
 | 12 | **Batch preflight decides versions before any payment.** Filename order alone never selects what is paid. | Sorting by name could pay the wrong version. |
 | 13 | **Overdue is INFO.** The clock is injected. | Every sample due date is in the past today. Rejecting them all would hide real problems. |
 | 14 | **Unresolved dates stay unknown.** Evidence-backed extraction corrections are recorded; unsupported guesses such as `yesterday` are not accepted. Numeric `NN/NN/YYYY` dates get a WARNING when the order is ambiguous. | Wrong dates are worse than missing dates. |
 | 15 | **Stated totals are never rewritten.** A wrong total is a finding. Only absent values are derived. | We report what the invoice says, not what we wish it said. |
 | 16 | **Tolerance: 1 minor unit** (one cent for USD). | Absorbs rounding only. Tested at the boundary. |
-| 17 | **Model repairs need evidence.** A correction must quote the source. It is accepted as a plain repair only if it differs by look-alike characters (`O`/`0`). A change of magnitude (`3,500.O0` to `350,000`) is held. Every extracted number must appear in the source. | A model repeating itself is not proof. |
+| 17 | **Model repairs need evidence.** A correction must quote the source. It is accepted as a plain repair only if it differs by look-alike characters (`O`/`0`). A change of magnitude (`3,500.O0` to `350,000`) is held. Extracted numbers and field-specific dates/revisions need source support; supported date normalization and grounded payment-term derivation are allowed. | A model repeating itself is not proof. |
 | 18 | **Approvals bind to invoice content and policy.** Changing either voids the approval. | Prevents approving one thing and paying another. |
 | 19 | **The payment gate reloads and re-validates everything inside one transaction.** The caller passes identifiers only. | A UI boolean or a model's say-so is never authorization. |
 | 20 | **Demo limits are ours:** 2 MB per file, 200,000 characters of text, 20 PDF pages, 1,000 CSV rows, 200 lines. | Not requirements of the brief. They are policy values and can be changed. |
@@ -103,8 +103,10 @@ Verified by running the code, not only by reading:
 
 - The no-key, no-network mode uses a deterministic simulated reader. It demonstrates the control flow but is not an LLM. The OpenRouter adapter is implemented and unit-tested with mock transport, but live model access, accuracy, cost and latency were not measured. It needs internet, which is at odds with the case's no-internet constraint. A real local model is future work.
 - Tests that use hand-written TXT/PDF drafts prove deterministic checks, not real model extraction accuracy. The 20 supplied examples are a known regression set, not a blind test.
+- Older held batch records with no version are reconciled when their original sources are submitted again. Until unknown legacy identities are accounted for, the workspace remains blocked from new payment; an explicit content-bound review is then required. Reconciliation records no invented historical approval.
+- Default local sessions created before persistent signing keys cannot regain access if their old process-only key has already been lost. The database is retained; new sessions persist their signing key alongside it.
 - The evidence checks look for source quotes and values, but do not prove every field's semantic meaning. Prompt-injection detection uses patterns and is not a complete security boundary.
-- No OCR. A scanned PDF without a text layer is refused. The web API serves extracted text, not original PDF bytes.
+- No OCR. A scanned PDF without a text layer is refused. New PDF records retain original bytes plus text; historical text-only records need the source loaded again to recover the original.
 - No vendor master, authoritative price list or FX source was supplied, so none is checked. A reviewer can only clear a finding if its policy marks it resolvable.
 - Payments, inventory and review identities are simulated. A mock receipt is not proof of bank settlement. Workspaces are sandboxed by a signed session cookie, not enterprise authentication.
 - Run exactly one server process. A running job is marked interrupted after a restart. Batches are not automatically recovered after restart. Free hosted storage is ephemeral.

@@ -1,0 +1,42 @@
+{
+  "deployment": "local image only; no cloud service provisioned",
+  "real_model_calls": 0,
+  "startup_seconds": 65.28,
+  "batch_counts": {
+    "paid": 6,
+    "rejected": 8,
+    "superseded": 1,
+    "duplicate": 3,
+    "needs_review": 2
+  },
+  "result": "passed",
+  "platform": "linux/amd64",
+  "image_id": "sha256:649dfc077ada70e69e7c6a10cf42c0facc2d7ad9ef1122c26c0a59085a66b521",
+  "memory_limit_bytes": 512000000,
+  "cpu_limit": 0.1,
+  "peak_memory_bytes": 213676032,
+  "oom_killed": false,
+  "nonroot_uid": 10001,
+  "custom_port": 10042,
+  "elapsed_seconds": 194.53,
+  "checks": [
+    "health",
+    "static frontend",
+    "required access code",
+    "mock-only sessions",
+    "clean invoice",
+    "rejected invoice",
+    "original PDF byte match",
+    "native PNG preview",
+    "simulated review",
+    "trace export",
+    "workspace isolation",
+    "20-file batch",
+    "CLI",
+    "browser production cookie",
+    "browser PDF inspection"
+  ],
+  "source_tree_sha256": "1a96a80506f3b1cfff59997ca2ad9485e73920ac787f3bb3e4242d4f171f4dbc",
+  "hosted_https_verified": false,
+  "limitations": "Single active operator; not a concurrency or production load test. Browser used loopback; hosted HTTPS and sleep/wake remain unverified."
+}

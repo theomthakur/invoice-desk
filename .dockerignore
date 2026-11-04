@@ -20,3 +20,12 @@ data/runtime
 logs
 evidence
 .DS_Store
+**/.DS_Store
+**/.session-secret*
+__MACOSX
+.codex
+.agents
+review
+delivery
+*.zip
+*.patch

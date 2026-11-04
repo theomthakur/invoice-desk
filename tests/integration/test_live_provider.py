@@ -24,7 +24,7 @@ import pytest
 
 from invoice_flow.providers import OpenRouterProvider
 from invoice_flow.runtime import DEFAULT_MODEL
-from invoice_flow.schemas import Outcome, RunLifecycle
+from invoice_flow.schemas import ApprovalStage, Outcome, RunLifecycle
 from workflow_helpers import events, make_app, payments, run
 
 EVIDENCE = Path(__file__).resolve().parents[2] / "evidence" / "live"
@@ -57,6 +57,11 @@ def live_app(tmp_path):
 
 def save_trace(app, result, name: str) -> None:
     EVIDENCE.mkdir(parents=True, exist_ok=True)
+    with app.db.read() as conn:
+        document = conn.execute(
+            "SELECT byte_hash FROM documents WHERE workspace_id = ? AND document_id = ?",
+            (result.workspace_id, result.document_id),
+        ).fetchone()
     payload = {
         "model": result.model,
         "provider": result.provider,
@@ -64,6 +69,9 @@ def save_trace(app, result, name: str) -> None:
         "outcome": result.outcome.value if result.outcome else None,
         "usage": result.usage.model_dump(),
         "reason": result.terminal_reason,
+        "input_sha256": document["byte_hash"] if document else None,
+        "policy_version": result.policy_version,
+        "decisions": [approval.model_dump(mode="json") for approval in result.approval],
         "events": events(app, result),
     }
     (EVIDENCE / f"{name}.json").write_text(json.dumps(payload, indent=2, default=str))
@@ -73,21 +81,29 @@ def test_genuine_tool_calling_and_structured_output(tmp_path):
     app = live_app(tmp_path)
     result = run(app, "invoice_1001.txt", mode="live")
     save_trace(app, result, "clean_text_invoice")
-    assert result.lifecycle in (RunLifecycle.COMPLETED, RunLifecycle.FAILED)
-    if result.lifecycle is RunLifecycle.COMPLETED:
-        assert result.usage.model_calls >= 1
+    assert result.lifecycle is RunLifecycle.COMPLETED, result.terminal_reason
+    assert result.outcome is Outcome.PAID, result.terminal_reason
+    assert result.usage.model_calls >= 1
+    assert result.invoice is not None
+    assert result.invoice.invoice_number == "INV-1001"
+    assert result.invoice.vendor_name == "Widgets Inc."
+    assert str(result.invoice.total) == "5000.00"
     tool_events = [e for e in events(app, result) if e["type"] == "tool_call"]
-    # A real model should call the catalog tool. Record it either way; do not fake it.
+    assert tool_events, "The model must actually call the inventory tool."
     assert all(e["payload"]["tool"] == "lookup_inventory" for e in tool_events)
-    if result.outcome is Outcome.PAID:
-        assert len(payments(app)) == 1
+    assert any(e["payload"]["outcome"] == "ok" for e in tool_events)
+    stages = {approval.stage for approval in result.approval}
+    assert {ApprovalStage.APPROVAL, ApprovalStage.CRITIQUE, ApprovalStage.FINAL} <= stages
+    assert result.receipt is not None and str(result.receipt.amount) == "5000.00"
+    assert len(payments(app)) == 1
 
 
 def test_messy_invoice_never_pays_without_a_person(tmp_path):
     app = live_app(tmp_path)
     result = run(app, "invoice_1012.txt", mode="live")
     save_trace(app, result, "messy_ocr_invoice")
-    assert result.outcome is not Outcome.PAID  # the vendor-rename hold is enforced in code
+    assert result.lifecycle is RunLifecycle.COMPLETED, result.terminal_reason
+    assert result.outcome is Outcome.NEEDS_REVIEW
     assert payments(app) == []
 
 
@@ -95,13 +111,15 @@ def test_fraudulent_invoice_is_never_paid(tmp_path):
     app = live_app(tmp_path)
     result = run(app, "invoice_1003.txt", mode="live")
     save_trace(app, result, "fraudulent_invoice")
-    assert result.outcome in (Outcome.REJECTED, None) and payments(app) == []
+    assert result.lifecycle is RunLifecycle.COMPLETED, result.terminal_reason
+    assert result.outcome is Outcome.REJECTED and payments(app) == []
 
 
 def test_reported_usage_is_recorded_not_invented(tmp_path):
     app = live_app(tmp_path)
     result = run(app, "invoice_1002.txt", mode="live")
     save_trace(app, result, "usage_report")
-    if result.usage.model_calls:
-        # either the provider reported usage, or we say it is incomplete. Never a silent zero.
-        assert result.usage.usage_complete or result.usage.estimated_cost_usd is None
+    assert result.lifecycle is RunLifecycle.COMPLETED, result.terminal_reason
+    assert result.usage.model_calls > 0
+    # Either the provider reported usage, or we say it is incomplete. Never a silent zero.
+    assert result.usage.usage_complete or result.usage.estimated_cost_usd is None

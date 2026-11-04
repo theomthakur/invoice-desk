@@ -6,7 +6,7 @@
       "related_file": null,
       "reason": "",
       "outcome": "paid",
-      "run_id": "run_548c03f24e3b4da6bd22",
+      "run_id": "run_dc8700fafd7a4bef9b84",
       "lifecycle": "completed",
       "amount": "5000.00",
       "currency": "USD"
@@ -17,7 +17,7 @@
       "related_file": null,
       "reason": "",
       "outcome": "rejected",
-      "run_id": "run_863a2446711046339d17",
+      "run_id": "run_209a389dc93940098afd",
       "lifecycle": "completed",
       "amount": null,
       "currency": null
@@ -28,7 +28,7 @@
       "related_file": null,
       "reason": "",
       "outcome": "rejected",
-      "run_id": "run_f92da9b8f0884689bea5",
+      "run_id": "run_dd48d43e4e814ab3acd7",
       "lifecycle": "completed",
       "amount": null,
       "currency": null
@@ -39,7 +39,7 @@
       "related_file": "invoice_1004_revised.json",
       "reason": "Replaced by revision R1 in invoice_1004_revised.json.",
       "outcome": "superseded",
-      "run_id": "run_784d5b93318349d1b0f0",
+      "run_id": "run_b950ce66476c413ca0e3",
       "lifecycle": "completed",
       "amount": null,
       "currency": null
@@ -50,7 +50,7 @@
       "related_file": null,
       "reason": "",
       "outcome": "paid",
-      "run_id": "run_3a57111b3a4a48aca8c9",
+      "run_id": "run_97156fa7c2314038b8f0",
       "lifecycle": "completed",
       "amount": "5940.00",
       "currency": "USD"
@@ -61,7 +61,7 @@
       "related_file": null,
       "reason": "",
       "outcome": "rejected",
-      "run_id": "run_81f402d6eaba4a30b4fc",
+      "run_id": "run_a72b57d36e8b440db9c3",
       "lifecycle": "completed",
       "amount": null,
       "currency": null
@@ -72,7 +72,7 @@
       "related_file": null,
       "reason": "",
       "outcome": "paid",
-      "run_id": "run_6a8be3a271404fd09a26",
+      "run_id": "run_ed97b33c136741d5acdd",
       "lifecycle": "completed",
       "amount": "2750.00",
       "currency": "USD"
@@ -83,7 +83,7 @@
       "related_file": null,
       "reason": "",
       "outcome": "rejected",
-      "run_id": "run_986244dbc6ca450d8ab8",
+      "run_id": "run_f15d3b25c90f4c0bbd98",
       "lifecycle": "completed",
       "amount": null,
       "currency": null
@@ -94,7 +94,7 @@
       "related_file": null,
       "reason": "",
       "outcome": "rejected",
-      "run_id": "run_79711910c30047f48e2f",
+      "run_id": "run_e5c30b490d884d76a759",
       "lifecycle": "completed",
       "amount": null,
       "currency": null
@@ -105,7 +105,7 @@
       "related_file": null,
       "reason": "",
       "outcome": "rejected",
-      "run_id": "run_ee433a4f542a4e6fa1c2",
+      "run_id": "run_790dac9b2c104706ad04",
       "lifecycle": "completed",
       "amount": null,
       "currency": null
@@ -116,7 +116,7 @@
       "related_file": null,
       "reason": "",
       "outcome": "paid",
-      "run_id": "run_22301f21efb445e4a075",
+      "run_id": "run_8dbf319f029243408692",
       "lifecycle": "completed",
       "amount": "7185.00",
       "currency": "USD"
@@ -127,7 +127,7 @@
       "related_file": null,
       "reason": "",
       "outcome": "paid",
-      "run_id": "run_d2e43599e2914fc8a59c",
+      "run_id": "run_e1255165a57040238e71",
       "lifecycle": "completed",
       "amount": "3000.00",
       "currency": "USD"
@@ -138,7 +138,7 @@
       "related_file": "invoice_1011.pdf",
       "reason": "Same invoice content as invoice_1011.pdf.",
       "outcome": "duplicate",
-      "run_id": "run_68fab086ea3b453cbe53",
+      "run_id": "run_7494c09425de41adb621",
       "lifecycle": "completed",
       "amount": null,
       "currency": null
@@ -149,7 +149,7 @@
       "related_file": null,
       "reason": "",
       "outcome": "needs_review",
-      "run_id": "run_5e243ef0148e448a9f77",
+      "run_id": "run_6f842406fe8442f28658",
       "lifecycle": "completed",
       "amount": null,
       "currency": null
@@ -160,7 +160,7 @@
       "related_file": "invoice_1012.pdf",
       "reason": "Same invoice content as invoice_1012.pdf.",
       "outcome": "duplicate",
-      "run_id": "run_a20080a3d422451fa95a",
+      "run_id": "run_021ff21781d34f8bb889",
       "lifecycle": "completed",
       "amount": null,
       "currency": null
@@ -171,7 +171,7 @@
       "related_file": null,
       "reason": "",
       "outcome": "rejected",
-      "run_id": "run_b4bd46543db144c7b637",
+      "run_id": "run_e797c156b2cc43688c6e",
       "lifecycle": "completed",
       "amount": null,
       "currency": null
@@ -182,7 +182,7 @@
       "related_file": "invoice_1013.json",
       "reason": "Same invoice content as invoice_1013.json.",
       "outcome": "duplicate",
-      "run_id": "run_3f021ff36e0c4de9902c",
+      "run_id": "run_dcb1ff39df2740538345",
       "lifecycle": "completed",
       "amount": null,
       "currency": null
@@ -193,7 +193,7 @@
       "related_file": null,
       "reason": "",
       "outcome": "needs_review",
-      "run_id": "run_7c8d1fbaba2c44788d39",
+      "run_id": "run_000deaba2a554ecfaba4",
       "lifecycle": "completed",
       "amount": null,
       "currency": null
@@ -204,7 +204,7 @@
       "related_file": null,
       "reason": "",
       "outcome": "paid",
-      "run_id": "run_8c807900ba55470e9253",
+      "run_id": "run_c842e2901c8c4a648563",
       "lifecycle": "completed",
       "amount": "6500.00",
       "currency": "USD"
@@ -215,7 +215,7 @@
       "related_file": null,
       "reason": "",
       "outcome": "rejected",
-      "run_id": "run_1f29f3bbbd6845549f39",
+      "run_id": "run_56889cf1961242828580",
       "lifecycle": "completed",
       "amount": null,
       "currency": null
@@ -230,5 +230,8 @@
   },
   "paid_by_currency": {
     "USD": "30375.00"
-  }
+  },
+  "provider": "simulated; not an LLM",
+  "calendar_assumption": "2026-11-03",
+  "source_tree_sha256": "1a96a80506f3b1cfff59997ca2ad9485e73920ac787f3bb3e4242d4f171f4dbc"
 }

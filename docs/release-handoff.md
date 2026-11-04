@@ -1,24 +1,17 @@
-# Integration handoff
+# Verification status
 
-The application can be run locally in mock mode. The API, frontend, reviewer decisions, simulated payment ledger and container have been exercised together. See [evaluation.md](evaluation.md) for results and their scope.
+The local application has been checked with Python 3.12.2 and Node 22.13.1. Current results:
 
-Checks completed on 3 November 2026:
+- Python: 713 passed; four paid-provider tests deselected.
+- Frontend: TypeScript, ESLint and production build passed; 36 tests passed.
+- Browser: six integrated Chrome tests passed against an isolated local backend in mock mode, including actual PDF page rendering.
+- Supplied data: all 20 original files retained unchanged; 20 predefined independent-ledger outcomes matched.
+- Shared-ledger batch: six paid, eight rejected, two held, three duplicate, one superseded; USD 30,375.00 in simulated receipts.
+- Source regression evidence records a source-code and policy fingerprint. No genuine model trace has been produced.
+- Render container: Linux amd64 image passed a sequential API/browser/CLI workflow with 512 MB RAM and 0.1 CPU; peak memory 213,676,032 bytes, no OOM. PDF original/preview and full sample batch were included. Evidence is in `evidence/offline/render-container.json`.
 
-- Python: Ruff passed; 596 tests passed and 4 live tests were deselected.
-- Frontend: TypeScript, ESLint and build passed; 31 tests passed.
-- Browser: 5 Playwright tests passed against an isolated local backend in mock mode.
-- Supplied data: 20 of 20 predefined outcomes matched on fresh independent ledgers. A separate batch used a shared ledger and exercised duplicates and revisions.
-- Safeguards: 52 of 52 selected deliberate mutations were caught by the test suite.
-- Docker: the image built and passed the isolated container smoke test, including custom port, access gate, simulated processing, export and workspace isolation.
+The public repository's successful CI run on commit `e6cc9d83f668991edc755162c3f3f1ea0a3762e9` predates these corrections. Local verification does not establish hosted CI for a later commit. Earlier mutation results belong to the baseline and were not rerun for this source. Container verification is local; the eventual hosted HTTPS domain and Render sleep/wake behavior still require checking after deployment.
 
-These results do not measure live-model performance or general accuracy. The app's payments are simulations. The case data and expected outcomes were available during development.
+Current safeguards include persistent conflict holds and explicit version selection, source-supported dates/revisions, nonnegative tax and derived charges, cancellation checks inside the payment transaction, local session-key persistence, stable history pagination, and original PDF byte retention with bounded page previews. Legacy unknown holds remain conservative until their sources are accounted for.
 
-Still to do before claiming a live demonstration or submission:
-
-1. Configure an authorized OpenRouter key and a spending limit, then run and record live-model checks. No live calls were made for this handoff.
-2. Resolve the brief's offline requirement: the deterministic mock runs without a provider, but it is not a local AI model. OpenRouter requires network access.
-3. Create or connect the intended repository and confirm hosted CI on its actual commit. A workflow file alone is not a CI result.
-4. If a hosted supplement is wanted, deploy the prepared Render blueprint and verify the hosted flow. Free-tier local storage is ephemeral. A shared passcode is a demo gate, not enterprise authentication.
-5. Review the README and any AI-assistance disclosure, then send only the requested repository link when ready. No submission has been sent.
-
-The prototype is not a production payment system. It has no real bank integration, enterprise identity, distributed workers, durable hosted storage on the free tier, or independent security and accessibility audit. Scanned PDFs without extractable text require OCR, which is not included.
+This remains a local prototype with simulated payments. Actual model accuracy, provider availability, real banking, production identity, distributed workers, hosted durability, OCR, formal accessibility conformance, and production load behavior are unverified or outside its scope.
