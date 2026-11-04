@@ -4,6 +4,8 @@ import { formatAmount, Status } from '../../components/Status';
 import type { HistoryItem } from '../../types/api';
 import { InvoiceIllustration } from '../../components/InvoiceIllustration';
 import { tableCsv } from '../runs/reportCsv';
+import { BulkHandoff } from './BulkHandoff';
+import { ApiClient } from '../../api/client';
 
 export type QueueFilter = 'all' | 'attention' | 'assigned' | 'processing' | 'completed' | 'blocked' | 'duplicate';
 const active = (item: HistoryItem) => item.lifecycle === 'queued' || item.lifecycle === 'running';
@@ -18,12 +20,13 @@ export function inQueue(item: HistoryItem, filter: QueueFilter) {
 }
 const names: Record<QueueFilter, string> = { all: 'All runs', attention: 'Needs review', assigned: 'Assigned', processing: 'Processing', completed: 'Processing finished', blocked: 'Blocked', duplicate: 'Duplicates' };
 
-export function InvoiceQueue({ items, filter, onFilter, openRun, newInvoice, trySamples, connected, cursor, loadMore, loading }: {
+export function InvoiceQueue({ items, filter, onFilter, openRun, newInvoice, trySamples, connected, cursor, loadMore, loading, api, refresh }: {
   items: HistoryItem[]; filter: QueueFilter; onFilter: (filter: QueueFilter) => void;
   openRun: (id: string) => void; newInvoice: () => void; trySamples: () => void;
-  connected: boolean; cursor: string | null; loadMore: () => void; loading: boolean;
+  connected: boolean; cursor: string | null; loadMore: () => void; loading: boolean; api?: ApiClient; refresh?: () => void;
 }) {
   const [query, setQuery] = useState('');
+  const [bulkOpen, setBulkOpen] = useState(false);
   const [sort, setSort] = useState('newest');
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const selectAll = useRef<HTMLInputElement>(null);
@@ -69,7 +72,8 @@ export function InvoiceQueue({ items, filter, onFilter, openRun, newInvoice, try
       <div className="queue-toolbar"><div className="search-field"><Search size={17} /><input aria-label="Search invoices" placeholder="Search invoice, vendor or filename…" value={query} onChange={(event) => setQuery(event.target.value)} />{query && <button aria-label="Clear search" onClick={() => setQuery('')}><X size={14} /></button>}</div>
         <label className="sort-control"><ArrowDown size={14} /><select aria-label="Sort invoices" value={sort} onChange={(event) => setSort(event.target.value)}><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="vendor">Vendor A to Z</option></select></label>
       </div>
-      {shown.length > 0 && <div className="selection-bar"><span><strong>{selectedItems.length} selected</strong>{selectedItems.length > visibleSelected && ` · ${selectedItems.length - visibleSelected} outside this view`}</span><div><button className="text-button" onClick={() => toggleVisible(!allVisible)}>{allVisible ? 'Deselect visible' : 'Select all visible'}</button>{selectedItems.length > 0 && <><button className="text-button" onClick={() => setSelected(new Set())}>Clear selection</button><button className="button button-outline" onClick={downloadSelected}>Export selected CSV</button></>}</div></div>}
+      {shown.length > 0 && <div className="selection-bar"><span><strong>{selectedItems.length} selected</strong>{selectedItems.length > visibleSelected && ` · ${selectedItems.length - visibleSelected} outside this view`}</span><div><button className="text-button" onClick={() => toggleVisible(!allVisible)}>{allVisible ? 'Deselect visible' : 'Select all visible'}</button>{selectedItems.length > 0 && <><button className="text-button" onClick={() => setSelected(new Set())}>Clear selection</button><button className="button button-outline" onClick={downloadSelected}>Export selected CSV</button>{api && <button className="button button-outline" onClick={()=>setBulkOpen(true)}>Assign selected</button>}</>}</div></div>}
+      {bulkOpen && api && <BulkHandoff api={api} items={selectedItems} close={()=>setBulkOpen(false)} refresh={()=>refresh?.()} />}
       {shown.length ? <div className="table-wrap queue-table"><table><thead><tr><th className="selection-cell"><input ref={selectAll} type="checkbox" aria-label="Select all visible loaded runs" checked={allVisible} onChange={event => toggleVisible(event.target.checked)} /></th><th>INVOICE</th><th>VENDOR</th><th>AMOUNT</th><th>STATUS</th><th>RECEIVED</th><th aria-label="Action" /></tr></thead><tbody>{shown.map((item) => <tr key={item.run_id}>
         <td className="selection-cell"><input type="checkbox" aria-label={`Select ${item.invoice_number ?? item.filename ?? 'run'} (${item.run_id})`} checked={selected.has(item.run_id)} onChange={event => setSelected(previous => {const next = new Set(previous); if(event.target.checked) next.add(item.run_id); else next.delete(item.run_id); return next;})} /></td><td><div className="invoice-cell"><span className="file-symbol"><FileText size={18} /></span><div><button onClick={() => openRun(item.run_id)}>{item.invoice_number ?? item.filename ?? 'Invoice processing run'}</button><small>{item.filename ?? item.run_id}</small></div></div></td>
         <td>{item.vendor ?? <span className="muted">Not extracted</span>}</td><td className="money-cell">{item.amount != null ? formatAmount(item.amount, item.currency) : <span className="muted">Not available</span>}</td>

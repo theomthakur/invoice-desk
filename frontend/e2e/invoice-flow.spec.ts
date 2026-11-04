@@ -420,3 +420,22 @@ test('decision and activity reports have separate branded print layouts', async 
   await expect(page.locator('.decision-report')).toBeHidden();
   await expect(page.locator('.activity-report')).toContainText('Invoice Desk');
 });
+
+test('selected review holds can be assigned without changing rejected runs', async ({page}) => {
+  await page.goto('/');
+  await runSample(page,'invoice_1012.txt');
+  await page.getByRole('button',{name:'Back to invoices'}).click();
+  await runSample(page,'invoice_1007.csv');
+  await page.getByRole('button',{name:'Back to invoices'}).click();
+  await page.getByRole('button',{name:'Select all visible'}).click();
+  await page.getByRole('button',{name:'Assign selected'}).click();
+  const panel=page.getByRole('region',{name:'Assign selected invoices'});
+  await panel.getByLabel('Department').selectOption('procurement');
+  await panel.getByLabel('Reason').selectOption('inventory_check');
+  await panel.getByRole('checkbox').check();
+  await panel.getByRole('button',{name:'Record handoffs'}).click();
+  await expect(panel.getByText(/handoff recorded/)).toBeVisible();
+  await expect(panel.getByText(/skipped, not awaiting review/)).toBeVisible();
+  await page.getByRole('button',{name:/^Assigned/}).click();
+  await expect(page.getByText('Handoff recorded: procurement')).toBeVisible();
+});
