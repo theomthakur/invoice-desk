@@ -78,6 +78,22 @@ describe('invoice queue', () => {
     await user.selectOptions(screen.getByLabelText('Sort invoices'),'oldest');
     expect(screen.getByText(/Showing 1–10 of 24/)).toBeVisible();
   });
+  it('fills the partially loaded page before moving to the next page', async () => {
+    const many: HistoryItem[] = Array.from({length: 50}, (_, i) => ({ run_id:`run_boundary${i}`, invoice_number:`INV-B${String(i).padStart(2,'0')}`, vendor:'Pager', lifecycle:'completed', outcome:'paid', started_at:new Date(Date.UTC(2026,10,4,0,0,50-i)).toISOString() }));
+    const loadMore=vi.fn();
+    const props={filter:'all' as const,onFilter:vi.fn(),openRun:vi.fn(),newInvoice:vi.fn(),trySamples:vi.fn(),connected:true,loadMore,loading:false};
+    const view=render(<InvoiceQueue {...props} items={many.slice(0,25)} cursor="next"/>);
+    const user=userEvent.setup();
+    await user.click(screen.getByRole('button',{name:'Page 3'}));
+    expect(screen.getByText(/Showing 21–25 of 25/)).toBeVisible();
+    await user.click(screen.getByRole('button',{name:'Next'}));
+    expect(loadMore).toHaveBeenCalledOnce();
+    view.rerender(<InvoiceQueue {...props} items={many} cursor={null}/>);
+    expect(screen.getByText(/Showing 21–30 of 50/)).toBeVisible();
+    expect(screen.getByRole('button',{name:'INV-B29'})).toBeVisible();
+    await user.click(screen.getByRole('button',{name:'Next'}));
+    expect(screen.getByText(/Showing 31–40 of 50/)).toBeVisible();
+  });
   it('removes a selected run when it disappears from loaded history', async () => {
     const props={filter:'all' as const,onFilter:vi.fn(),openRun:vi.fn(),newInvoice:vi.fn(),trySamples:vi.fn(),connected:true,cursor:null,loadMore:vi.fn(),loading:false};
     const view=render(<InvoiceQueue {...props} items={items}/>); const user=userEvent.setup();

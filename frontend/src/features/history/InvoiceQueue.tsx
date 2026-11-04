@@ -52,8 +52,13 @@ export function InvoiceQueue({ items, filter, onFilter, openRun, newInvoice, try
   const pageItems = shown.slice(pageStart, pageStart + PAGE_SIZE);
   const canFetchNext = currentPage === pageCount && Boolean(cursor);
   function nextPage() {
-    setPage(currentPage + 1);
-    if (currentPage === pageCount && cursor) loadMore();
+    if (canFetchNext) {
+      // Fill an incomplete current page before moving on, or newly loaded rows would be skipped.
+      if (pageItems.length === PAGE_SIZE) setPage(currentPage + 1);
+      loadMore();
+    } else {
+      setPage(currentPage + 1);
+    }
   }
   const selectedItems = items.filter(item => selected.has(item.run_id));
   const visibleSelected = pageItems.filter(item => selected.has(item.run_id)).length;
