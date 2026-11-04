@@ -59,19 +59,21 @@ class RunBudget:
         if self.cancel_event.is_set():
             raise RunCancelled("The run was cancelled.")
 
+    def check_active(self) -> None:
+        """Check boundaries without reserving another model or tool request."""
+        self.check_cancelled()
+        if self.remaining_seconds() <= 0:
+            raise BudgetExceeded("deadline", f"Run time limit reached ({self.timeout_seconds:g}s).")
+
     def before_request(self) -> float:
         """Reserve one request. Returns the seconds this request may take at most."""
         with self._lock:
-            self.check_cancelled()
+            self.check_active()
             if self.requests >= self.max_requests:
                 raise BudgetExceeded(
                     "requests", f"Model request limit reached ({self.max_requests})."
                 )
             remaining = self.remaining_seconds()
-            if remaining <= 0:
-                raise BudgetExceeded(
-                    "deadline", f"Run time limit reached ({self.timeout_seconds:g}s)."
-                )
             total = self.prompt_tokens + self.completion_tokens
             if self.max_total_tokens is not None and total >= self.max_total_tokens:
                 raise BudgetExceeded("tokens", f"Token limit reached ({self.max_total_tokens}).")
@@ -80,7 +82,7 @@ class RunBudget:
 
     def before_tool(self) -> None:
         with self._lock:
-            self.check_cancelled()
+            self.check_active()
             if self.tool_calls >= self.max_tool_calls:
                 raise BudgetExceeded(
                     "requests", f"Tool call limit reached ({self.max_tool_calls})."

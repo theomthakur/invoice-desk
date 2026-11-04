@@ -68,6 +68,7 @@ ACTOR = "simulated_vp"
 
 class Flow(TypedDict, total=False):
     draft: InvoiceDraft | None
+    prepared_source_hash: str
     extraction: ExtractionResult | None
     report: ValidationReport | None
     registration: Registration | None
@@ -195,6 +196,17 @@ def build_prepare_graph(env: RunEnv):
                 "pages": len(s.pages) or None,
             },
         )
+        if state.get("draft") is not None and state.get("prepared_source_hash"):
+            if state["prepared_source_hash"] != s.byte_hash:
+                raise SourceError(
+                    "prepared_source_mismatch", "Prepared reading is for another file."
+                )
+            env.emit(
+                "intake",
+                "reused_prepared_extraction",
+                {"reason": "batch reading bound to this document", "model_used": False},
+            )
+            return {"draft": state["draft"]}
         draft = draft_from_source(s, env.app.policy)
         if draft is not None:
             env.emit(
@@ -383,6 +395,7 @@ def build_decide_graph(env: RunEnv):
         return {"review": outcome}
 
     def gate(state: Flow) -> Flow:
+        env.budget.check_active()
         review_out, reg = state["review"], state["registration"]
         db = env.app.db
 
@@ -454,6 +467,7 @@ def build_decide_graph(env: RunEnv):
                 },
             )
             env.emit("payment", "payment_attempt", {"version_id": reg.version_id})
+            env.budget.check_active()
             try:
                 receipt = execute_mock_payment(
                     db,
@@ -462,6 +476,7 @@ def build_decide_graph(env: RunEnv):
                     version_id=reg.version_id,
                     approval_id=final.approval_id,
                     mock_payment=env.app.mock_payment,
+                    check_active=env.budget.check_active,
                 )
             except LedgerError as exc:
                 env.emit("payment", "payment_refused", {"code": exc.code, "message": exc.message})

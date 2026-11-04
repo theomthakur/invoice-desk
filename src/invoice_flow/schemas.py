@@ -97,6 +97,7 @@ class SourceDocument(StrictModel):
     text: str
     pages: list[PageText] = Field(default_factory=list)
     notes: list[str] = Field(default_factory=list)
+    original_pdf: bytes | None = Field(default=None, exclude=True, repr=False)
 
 
 # ---------------------------------------------------------------------------------------

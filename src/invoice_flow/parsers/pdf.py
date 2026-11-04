@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import math
 
 import pdfplumber
 from pdfminer.pdfdocument import PDFPasswordIncorrect
@@ -11,6 +12,39 @@ from pdfminer.pdfparser import PDFSyntaxError
 from ..config import Policy
 from ..schemas import PageText
 from .common import SourceError
+
+
+def pdf_page_count(data: bytes) -> int:
+    try:
+        with pdfplumber.open(io.BytesIO(data)) as pdf:
+            return len(pdf.pages)
+    except Exception as exc:
+        raise SourceError("corrupt_pdf", "The original PDF could not be inspected.") from exc
+
+
+def render_pdf_page(data: bytes, page_number: int, policy: Policy) -> bytes:
+    """Rasterize one original page with bounded dimensions; never embed PDF scripts."""
+    try:
+        with pdfplumber.open(io.BytesIO(data)) as pdf:
+            if len(pdf.pages) > policy.limits.max_pdf_pages:
+                raise SourceError("too_many_pages", "The PDF exceeds the page limit.")
+            if not 1 <= page_number <= len(pdf.pages):
+                raise SourceError("page_not_found", "No such page in this PDF.")
+            page = pdf.pages[page_number - 1]
+            if not all(math.isfinite(v) and v > 0 for v in (page.width, page.height)):
+                raise SourceError("invalid_page_size", "The PDF page has invalid dimensions.")
+            resolution = min(120.0, 1440 * 72 / page.width, 1920 * 72 / page.height)
+            image = page.to_image(resolution=resolution, force_mediabox=True)
+            try:
+                output = io.BytesIO()
+                image.original.save(output, format="PNG")
+                return output.getvalue()
+            finally:
+                image.original.close()
+    except SourceError:
+        raise
+    except Exception as exc:
+        raise SourceError("preview_failed", "The PDF page could not be rendered.") from exc
 
 
 def extract_pdf_text(data: bytes, policy: Policy) -> tuple[str, list[PageText]]:

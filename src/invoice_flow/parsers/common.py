@@ -143,6 +143,7 @@ def make_source(
         text=text,
         pages=pages or [],
         notes=notes or [],
+        original_pdf=data if fmt is SourceFormat.PDF else None,
     )
 
 

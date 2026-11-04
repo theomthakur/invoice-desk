@@ -67,6 +67,14 @@ CREATE TABLE IF NOT EXISTS documents (
     created_at   TEXT NOT NULL,
     PRIMARY KEY (workspace_id, document_id)
 );
+CREATE TABLE IF NOT EXISTS document_assets (
+    workspace_id TEXT NOT NULL,
+    document_id  TEXT NOT NULL,
+    original_pdf BLOB NOT NULL,
+    PRIMARY KEY (workspace_id, document_id),
+    FOREIGN KEY (workspace_id, document_id) REFERENCES documents(workspace_id, document_id)
+        ON DELETE CASCADE
+);
 CREATE TABLE IF NOT EXISTS payables (
     workspace_id TEXT NOT NULL REFERENCES workspaces(workspace_id) ON DELETE CASCADE,
     payable_id   TEXT NOT NULL,

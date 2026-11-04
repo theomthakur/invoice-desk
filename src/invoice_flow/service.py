@@ -16,6 +16,8 @@ from pathlib import Path
 
 from .budget import RunBudget
 from .config import Policy, load_policy
+from .findings import FindingCode
+from .identity import content_hash
 from .ledger import (
     LedgerError,
     Registration,
@@ -50,6 +52,7 @@ from .storage import (
     ensure_workspace,
     init_database,
     load_inventory_index,
+    save_findings,
     update_run,
 )
 from .tools.registry import ToolContext
@@ -212,12 +215,21 @@ def execute_run(
     cancel: threading.Event | None = None,
     hold_reason: str | None = None,
     attempt_of: str | None = None,
+    prepared_draft: InvoiceDraft | None = None,
+    prepared_source_hash: str | None = None,
 ) -> RunResult:
     """Run the full workflow for one stored document and persist the result.
 
     ``run_id`` may name a run row created earlier by the API (state ``queued``); otherwise a new
     row is created. Any failure is recorded on the run. Nothing is paid unless every gate passes.
     """
+    if prepared_draft is not None and prepared_source_hash != source.byte_hash:
+        exc = SourceError(
+            "prepared_source_mismatch", "The prepared reading belongs to a different source."
+        )
+        if run_id is not None:
+            return _finish_failed(app, workspace_id, run_id, source, mode, exc)
+        return _fail_before_start(app, workspace_id, source, mode, exc)
     try:
         provider = _provider_for(app, mode)
     except (ProviderError, ValueError) as exc:
@@ -264,10 +276,37 @@ def execute_run(
         },
     )
     try:
-        state: Flow = build_prepare_graph(env).invoke({})
+        initial: Flow = {}
+        if prepared_draft is not None:
+            initial = {"draft": prepared_draft, "prepared_source_hash": prepared_source_hash}
+        state: Flow = build_prepare_graph(env).invoke(initial)
         if not state.get("failure"):
             state = build_decide_graph(env).invoke(state)
         result = build_result(env, state, attempt_of)
+        if result.outcome is Outcome.NEEDS_REVIEW and result.version_id:
+            # Semantic duplicates can share a version while differing in revision metadata.
+            # A review must display and hash the actual stored version, not the new claim.
+            with app.db.transaction() as conn:
+                current = load_version_state(
+                    conn, workspace_id, result.version_id, app.policy, env.today
+                )
+                registration = state.get("registration")
+                review_findings = [
+                    *current.report.findings,
+                    *(registration.findings if registration else []),
+                ]
+                save_findings(conn, workspace_id, result.run_id, result.version_id, review_findings)
+            result = result.model_copy(
+                update={
+                    "draft": current.draft,
+                    "invoice": current.report.normalized,
+                    "findings": review_findings,
+                    "requires_scrutiny": current.report.requires_scrutiny,
+                    "content_hash": content_hash(current.report.normalized)
+                    if current.report.normalized
+                    else None,
+                }
+            )
     except Exception as exc:  # noqa: BLE001 - the worker must survive and the run must say why
         failure = failure_from(exc)
         env.emit("error", "run_crashed", failure)
@@ -339,6 +378,7 @@ class BatchFile:
     draft: InvoiceDraft | None = None
     error: str | None = None
     extraction_run: str | None = None
+    report: ValidationReport | None = None
 
 
 def process_batch(
@@ -385,8 +425,46 @@ def process_batch(
         provider.close()
 
     ready = [f for f in files if f.draft is not None]
-    plan = plan_batch([BatchEntry(f.name, f.draft) for f in ready], app.policy)
+    with app.db.read() as conn:
+        index = load_inventory_index(conn)
+    entries = []
+    for f in ready:
+        f.report = validate_invoice(
+            f.draft, f.source.text, index, app.policy, today or app.db.clock().date()
+        )
+        unsupported_revision = any(
+            finding.code is FindingCode.VALUE_NOT_IN_SOURCE and finding.field == "revision"
+            for finding in f.report.findings
+        )
+        # An unsupported claim is unorderable, rather than an original (revision rank 0).
+        planning_draft = (
+            f.draft.model_copy(update={"revision": "unverified"})
+            if unsupported_revision
+            else f.draft
+        )
+        entries.append(BatchEntry(f.name, planning_draft))
+    plan = plan_batch(entries, app.policy)
     unresolved = [f for f in files if f.draft is None]
+
+    # Make every prepared version visible to the payment authority before any decision.
+    # Registering only a winning file would let later submissions forget batch conflicts.
+    with app.db.transaction() as conn:
+        ensure_workspace(
+            conn,
+            workspace_id,
+            "local" if workspace_id == LOCAL_WORKSPACE else "session",
+            app.db.now(),
+        )
+        for f in ready:
+            register_version(
+                conn,
+                workspace_id=workspace_id,
+                source=f.source,
+                draft=f.draft,
+                report=f.report,
+                policy=app.policy,
+                now=app.db.now(),
+            )
 
     results: dict[str, dict] = {}
     for f in files:
@@ -437,6 +515,8 @@ def process_batch(
                 today=today,
                 cancel=cancel,
                 hold_reason=hold,
+                prepared_draft=f.draft,
+                prepared_source_hash=f.source.byte_hash,
             )
         row.update(
             {
@@ -487,8 +567,8 @@ def _extract_only(app, workspace_id, entry, mode, provider, today, cancel):
         result = build_result(env, state)
         persist_result(env, result)
         return None, f"{failure['code']}: {failure['message']}"
-    # The run row is closed when the decide phase re-runs this document; mark the extraction
-    # run as superseded by that run so history is not left half-open.
+    # Keep the extraction's usage and events as a completed audit run. The decision run
+    # reuses this draft and validates it again without another extraction request.
     update_run(
         app.db,
         run_id,
@@ -512,6 +592,16 @@ def _record_disposition_run(app, workspace_id, f, mode, outcome, reason) -> RunR
             app.db.now(),
         )
         store_document(conn, workspace_id, f.source, app.db.now())
+        registration = register_version(
+            conn,
+            workspace_id=workspace_id,
+            source=f.source,
+            draft=f.draft,
+            report=f.report,
+            policy=app.policy,
+            now=app.db.now(),
+        )
+        findings = [*f.report.findings, *registration.findings]
         run_id = create_run(
             conn,
             workspace_id=workspace_id,
@@ -521,6 +611,11 @@ def _record_disposition_run(app, workspace_id, f, mode, outcome, reason) -> RunR
             policy_version=app.policy.policy_version,
             lifecycle="completed",
         )
+        conn.execute(
+            "UPDATE runs SET version_id = ? WHERE run_id = ?",
+            (registration.version_id, run_id),
+        )
+        save_findings(conn, workspace_id, run_id, registration.version_id, findings)
     result = RunResult(
         run_id=run_id,
         workspace_id=workspace_id,
@@ -529,6 +624,13 @@ def _record_disposition_run(app, workspace_id, f, mode, outcome, reason) -> RunR
         terminal_reason=reason,
         document_id=f.source.document_id,
         filename=f.source.filename,
+        version_id=registration.version_id,
+        payable_id=registration.payable_id,
+        draft=f.draft,
+        invoice=f.report.normalized,
+        findings=findings,
+        requires_scrutiny=f.report.requires_scrutiny,
+        content_hash=content_hash(f.report.normalized) if f.report.normalized else None,
         mode=mode,
         policy_version=app.policy.policy_version,
     )

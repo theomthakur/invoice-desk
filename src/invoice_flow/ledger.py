@@ -10,8 +10,10 @@ This module is where the money rules are enforced, in SQL transactions:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import sqlite3
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import date
 from enum import StrEnum
@@ -29,11 +31,13 @@ from .schemas import (
     InvoiceDraft,
     Outcome,
     PaymentReceipt,
+    RunLifecycle,
+    RunResult,
     SourceDocument,
     SourceFormat,
     ValidationReport,
 )
-from .storage import Database, load_inventory_index, new_id, parse_iso
+from .storage import Database, append_event, load_inventory_index, new_id, parse_iso, save_findings
 from .textnorm import revision_rank
 
 
@@ -54,6 +58,7 @@ class Registration:
     related_version_id: str | None = None
     original_outcome: str | None = None
     findings: list[Finding] = field(default_factory=list)
+    hold_reason: str | None = None
 
 
 @dataclass(frozen=True)
@@ -89,7 +94,7 @@ def route_after_validation(registration: Registration, report: ValidationReport)
         why = (
             "Revision after payment needs reconciliation."
             if d is Disposition.REVISION_AFTER_PAYMENT
-            else "Conflicting versions need a person to decide."
+            else registration.hold_reason or "Conflicting versions need a person to decide."
         )
         return Route(Outcome.NEEDS_REVIEW, why, findings)
     if report.eligibility is Eligibility.NEEDS_REVIEW:
@@ -112,6 +117,12 @@ class LedgerError(Exception):
 
 
 def _store_document(conn: sqlite3.Connection, workspace_id: str, source: SourceDocument, now: str):
+    if source.original_pdf is not None and (
+        source.format is not SourceFormat.PDF
+        or len(source.original_pdf) != source.size_bytes
+        or hashlib.sha256(source.original_pdf).hexdigest() != source.byte_hash
+    ):
+        raise LedgerError("source_changed", "The original PDF does not match this document.")
     conn.execute(
         "INSERT OR IGNORE INTO documents (workspace_id, document_id, filename, format, size_bytes,"
         " byte_hash, source_text, created_at) VALUES (?,?,?,?,?,?,?,?)",
@@ -126,6 +137,12 @@ def _store_document(conn: sqlite3.Connection, workspace_id: str, source: SourceD
             now,
         ),
     )
+    if source.original_pdf is not None:
+        conn.execute(
+            "INSERT OR IGNORE INTO document_assets (workspace_id, document_id, original_pdf)"
+            " VALUES (?,?,?)",
+            (workspace_id, source.document_id, source.original_pdf),
+        )
 
 
 def store_document(
@@ -140,7 +157,9 @@ def load_document(
 ) -> SourceDocument | None:
     """A document the workspace owns, or ``None``. Never returns another workspace's file."""
     row = conn.execute(
-        "SELECT * FROM documents WHERE workspace_id = ? AND document_id = ?",
+        "SELECT d.*, a.original_pdf FROM documents d LEFT JOIN document_assets a"
+        " ON a.workspace_id = d.workspace_id AND a.document_id = d.document_id"
+        " WHERE d.workspace_id = ? AND d.document_id = ?",
         (workspace_id, document_id),
     ).fetchone()
     if row is None:
@@ -152,6 +171,7 @@ def load_document(
         size_bytes=row["size_bytes"],
         byte_hash=row["byte_hash"],
         text=row["source_text"],
+        original_pdf=row["original_pdf"],
     )
 
 
@@ -175,6 +195,103 @@ def _original_outcome(conn: sqlite3.Connection, workspace_id: str, version_id: s
     return row["outcome"] if row else None
 
 
+_LEGACY_HOLD_REASON = (
+    "Historical held invoices have an unresolved identity. Reprocess the original held "
+    "source files before selecting any payable version."
+)
+
+
+def _has_unbound_legacy_holds(conn: sqlite3.Connection, workspace_id: str) -> bool:
+    return (
+        conn.execute(
+            "SELECT 1 FROM runs WHERE workspace_id = ?"
+            " AND outcome = 'needs_review' AND version_id IS NULL LIMIT 1",
+            (workspace_id,),
+        ).fetchone()
+        is not None
+    )
+
+
+def _bind_legacy_holds(
+    conn: sqlite3.Connection,
+    *,
+    workspace_id: str,
+    legacy: list[sqlite3.Row],
+    version_id: str,
+    payable_id: str | None,
+    source: SourceDocument,
+    policy: Policy,
+    now: str,
+) -> None:
+    """Bind old unversioned holds only when their exact source is submitted again.
+
+    Historical source text is never extracted here. Without a payable identity, the old
+    hold remains unbound and therefore continues to block an unsafe identity assumption.
+    """
+    matching = [row for row in legacy if row["legacy_byte_hash"] == source.byte_hash]
+    if payable_id is None or not matching:
+        return
+    state = load_version_state(conn, workspace_id, version_id, policy, parse_iso(now).date())
+    draft, report = state.draft, state.report
+    findings = [
+        *report.findings,
+        make_finding(
+            FindingCode.REVISION_CONFLICT,
+            "This historical hold is now bound to a checked version. A person must select "
+            "the payable version before payment.",
+        ),
+    ]
+    for row in matching:
+        try:
+            previous = RunResult.model_validate_json(row["result_json"] or "")
+        except ValueError:
+            previous = RunResult(
+                run_id=row["run_id"],
+                workspace_id=workspace_id,
+                lifecycle=RunLifecycle.COMPLETED,
+                outcome=Outcome.NEEDS_REVIEW,
+                document_id=row["document_id"],
+                filename=row["legacy_filename"],
+                mode=row["mode"],
+                provider=row["provider"],
+                model=row["model"],
+            )
+        result = previous.model_copy(
+            update={
+                "version_id": version_id,
+                "payable_id": payable_id,
+                "draft": draft,
+                "invoice": report.normalized,
+                "findings": findings,
+                "requires_scrutiny": report.requires_scrutiny,
+                "content_hash": content_hash(report.normalized) if report.normalized else None,
+                "policy_version": policy.policy_version,
+                "terminal_reason": "Historical hold reprocessed; explicit review is required.",
+            }
+        )
+        conn.execute(
+            "UPDATE runs SET version_id = ?, policy_version = ?, terminal_reason = ?,"
+            " result_json = ? WHERE workspace_id = ? AND run_id = ? AND version_id IS NULL",
+            (
+                version_id,
+                policy.policy_version,
+                result.terminal_reason,
+                result.model_dump_json(),
+                workspace_id,
+                row["run_id"],
+            ),
+        )
+        save_findings(conn, workspace_id, row["run_id"], version_id, findings)
+        append_event(
+            conn,
+            row["run_id"],
+            "validation",
+            "legacy_hold_registered",
+            {"version_id": version_id, "policy_version": policy.policy_version},
+            now,
+        )
+
+
 def register_version(
     conn: sqlite3.Connection,
     *,
@@ -194,13 +311,67 @@ def register_version(
     """
     _store_document(conn, workspace_id, source, now)
     fingerprint = report.semantic_fingerprint or ""
+    legacy = conn.execute(
+        "SELECT r.*, d.byte_hash AS legacy_byte_hash, d.filename AS legacy_filename"
+        " FROM runs r LEFT JOIN documents d"
+        " ON d.workspace_id = r.workspace_id AND d.document_id = r.document_id"
+        " WHERE r.workspace_id = ? AND r.outcome = 'needs_review' AND r.version_id IS NULL",
+        (workspace_id,),
+    ).fetchall()
 
     same = conn.execute(
-        "SELECT version_id, payable_id FROM invoice_versions"
+        "SELECT version_id, payable_id, status, identity_flag FROM invoice_versions"
         " WHERE workspace_id = ? AND semantic_fingerprint = ?",
         (workspace_id, fingerprint),
     ).fetchone()
     if same is not None:
+        if legacy:
+            conn.execute(
+                "UPDATE invoice_versions SET identity_flag = 'revision_conflict'"
+                " WHERE workspace_id = ? AND payable_id = ? AND status = 'active'"
+                " AND identity_flag IS NULL"
+                " AND version_id NOT IN (SELECT version_id FROM payments WHERE workspace_id = ?)",
+                (workspace_id, same["payable_id"], workspace_id),
+            )
+            _bind_legacy_holds(
+                conn,
+                workspace_id=workspace_id,
+                legacy=legacy,
+                version_id=same["version_id"],
+                payable_id=same["payable_id"],
+                source=source,
+                policy=policy,
+                now=now,
+            )
+            same = conn.execute(
+                "SELECT version_id, payable_id, status, identity_flag FROM invoice_versions"
+                " WHERE workspace_id = ? AND version_id = ?",
+                (workspace_id, same["version_id"]),
+            ).fetchone()
+        if same["status"] == "active" and same["identity_flag"] == "revision_conflict":
+            legacy_reason = (
+                _LEGACY_HOLD_REASON if _has_unbound_legacy_holds(conn, workspace_id) else None
+            )
+            return Registration(
+                version_id=same["version_id"],
+                payable_id=same["payable_id"],
+                disposition=Disposition.REVISION_CONFLICT,
+                findings=[
+                    make_finding(
+                        FindingCode.REVISION_CONFLICT,
+                        legacy_reason
+                        or "This invoice still has conflicting versions. A person "
+                        "must select the payable version before any payment.",
+                    )
+                ],
+                hold_reason=legacy_reason,
+            )
+        if same["status"] == "superseded":
+            return Registration(
+                version_id=same["version_id"],
+                payable_id=same["payable_id"],
+                disposition=Disposition.SUPERSEDED,
+            )
         return Registration(
             version_id=same["version_id"],
             payable_id=same["payable_id"],
@@ -218,7 +389,10 @@ def register_version(
         )
 
     key = payable_key(draft)
-    rank = revision_rank(draft.revision)
+    unsupported_revision = any(
+        f.code is FindingCode.VALUE_NOT_IN_SOURCE and f.field == "revision" for f in report.findings
+    )
+    rank = None if unsupported_revision else revision_rank(draft.revision)
     version_id = new_id("ver")
     payable_id = key.payable_id if key else None
     total_minor = None
@@ -229,6 +403,8 @@ def register_version(
             total_minor = None
 
     status, flag, disposition, related = "active", None, Disposition.NEW, None
+    if legacy:
+        flag, disposition = "revision_conflict", Disposition.REVISION_CONFLICT
     extra: list[Finding] = []
 
     if key is not None:
@@ -246,7 +422,7 @@ def register_version(
             ),
         )
         others = conn.execute(
-            "SELECT version_id, revision_rank, status FROM invoice_versions"
+            "SELECT version_id, revision_rank, status, identity_flag FROM invoice_versions"
             " WHERE workspace_id = ? AND payable_id = ?",
             (workspace_id, payable_id),
         ).fetchall()
@@ -259,11 +435,14 @@ def register_version(
         )
 
         if others:
+            unresolved_conflict = bool(legacy) or any(
+                o["status"] == "active" and o["identity_flag"] is not None for o in others
+            )
             other_ranks = [o["revision_rank"] for o in others]
             orderable = rank is not None and all(r is not None for r in other_ranks)
             newest = max((r for r in other_ranks if r is not None), default=None)
             related = others[0]["version_id"]
-            if not orderable or rank == newest:
+            if unresolved_conflict or not orderable or rank == newest:
                 disposition, flag = Disposition.REVISION_CONFLICT, "revision_conflict"
                 extra.append(
                     make_finding(
@@ -341,7 +520,28 @@ def register_version(
             now,
         ),
     )
-    return Registration(version_id, payable_id, disposition, related, None, extra)
+    _bind_legacy_holds(
+        conn,
+        workspace_id=workspace_id,
+        legacy=legacy,
+        version_id=version_id,
+        payable_id=payable_id,
+        source=source,
+        policy=policy,
+        now=now,
+    )
+    legacy_reason = _LEGACY_HOLD_REASON if _has_unbound_legacy_holds(conn, workspace_id) else None
+    if legacy:
+        extra = [f for f in extra if f.code is not FindingCode.REVISION_CONFLICT]
+        extra.append(
+            make_finding(
+                FindingCode.REVISION_CONFLICT,
+                legacy_reason
+                or "A historical hold requires explicit selection of the "
+                "payable version before payment.",
+            )
+        )
+    return Registration(version_id, payable_id, disposition, related, None, extra, legacy_reason)
 
 
 # ---------------------------------------------------------------------------------------
@@ -358,6 +558,39 @@ class VersionState:
     draft: InvoiceDraft
     source_text: str
     report: ValidationReport
+
+
+def conflict_selection_available(
+    conn: sqlite3.Connection, workspace_id: str, state: VersionState
+) -> bool:
+    """Whether a reviewer can select this version to resolve an unpaid identity conflict.
+
+    Selection resolves only the competing-version hold. Other identity holds, an existing
+    payment, supersession, incomplete content, and deterministic errors still block it.
+    """
+    if (
+        state.status != "active"
+        or state.identity_flag != "revision_conflict"
+        or state.payable_id is None
+        or state.report.normalized is None
+        or state.report.eligibility is Eligibility.REJECTED
+        or _has_unbound_legacy_holds(conn, workspace_id)
+    ):
+        return False
+    if conn.execute(
+        "SELECT 1 FROM payments WHERE workspace_id = ? AND payable_id = ?",
+        (workspace_id, state.payable_id),
+    ).fetchone():
+        return False
+    return (
+        conn.execute(
+            "SELECT 1 FROM invoice_versions WHERE workspace_id = ? AND payable_id = ?"
+            " AND status = 'active' AND identity_flag IS NOT NULL"
+            " AND identity_flag != 'revision_conflict'",
+            (workspace_id, state.payable_id),
+        ).fetchone()
+        is None
+    )
 
 
 def load_version_state(
@@ -459,13 +692,25 @@ def record_approval(
                 raise LedgerError(
                     "not_approvable", "Invoices with ERROR findings cannot be approved."
                 )
-            if state.status != "active" or state.identity_flag:
+            if _has_unbound_legacy_holds(conn, workspace_id):
+                raise LedgerError("legacy_identity_hold", _LEGACY_HOLD_REASON)
+            selecting_conflict = (
+                stage is ApprovalStage.REVIEW
+                and FindingCode.REVISION_CONFLICT.value in resolved
+                and expected_content_hash is not None
+                and conflict_selection_available(conn, workspace_id, state)
+            )
+            if state.status != "active" or (state.identity_flag and not selecting_conflict):
                 raise LedgerError(
                     "not_approvable", "This version cannot be approved (identity hold)."
                 )
             pending = _unresolved_review_codes(report.findings)
+            if selecting_conflict:
+                pending.add(FindingCode.REVISION_CONFLICT)
             if stage is ApprovalStage.REVIEW:
                 valid_codes = {c for c in pending if is_reviewer_resolvable(c)}
+                if selecting_conflict:
+                    valid_codes.add(FindingCode.REVISION_CONFLICT)
                 bad = set(resolved) - {c.value for c in valid_codes}
                 if bad:
                     raise LedgerError(
@@ -482,6 +727,21 @@ def record_approval(
             if report.requires_scrutiny and not scrutiny_completed:
                 raise LedgerError(
                     "scrutiny_required", "This amount needs completed additional scrutiny."
+                )
+            if selecting_conflict:
+                # Selection and its content-bound approval are one transaction. A stale
+                # sibling review cannot reactivate an alternative after this choice.
+                conn.execute(
+                    "UPDATE invoice_versions SET status = 'superseded'"
+                    " WHERE workspace_id = ? AND payable_id = ? AND version_id != ?"
+                    " AND status = 'active'",
+                    (workspace_id, state.payable_id, version_id),
+                )
+                conn.execute(
+                    "UPDATE invoice_versions SET identity_flag = NULL"
+                    " WHERE workspace_id = ? AND version_id = ?"
+                    " AND identity_flag = 'revision_conflict'",
+                    (workspace_id, version_id),
                 )
 
         approval_id = new_id("apr")
@@ -562,6 +822,7 @@ def execute_mock_payment(
     version_id: str,
     approval_id: str,
     mock_payment=None,
+    check_active: Callable[[], None] | None = None,
 ) -> PaymentReceipt:
     """Pay a version once, or refuse with a :class:`LedgerError`.
 
@@ -574,6 +835,8 @@ def execute_mock_payment(
 
     pay = mock_payment or default_mock_payment
     with db.transaction() as conn:
+        if check_active is not None:
+            check_active()
         state = load_version_state(conn, workspace_id, version_id, policy, db.clock().date())
         if state.payable_id is None:
             raise LedgerError("no_identity", "An invoice without vendor and number cannot be paid.")
@@ -586,6 +849,9 @@ def execute_mock_payment(
                 "already_paid_other_version",
                 "This invoice was already paid for a different version. No second payment.",
             )
+
+        if _has_unbound_legacy_holds(conn, workspace_id):
+            raise LedgerError("legacy_identity_hold", _LEGACY_HOLD_REASON)
 
         if state.status != "active":
             raise LedgerError("not_active", "This version was superseded by a newer revision.")
@@ -662,6 +928,8 @@ def execute_mock_payment(
             )
         except sqlite3.IntegrityError as exc:  # lost a race that the checks above could not see
             raise LedgerError("already_paid", "A payment already exists for this invoice.") from exc
+        if check_active is not None:
+            check_active()
         result = pay(invoice.vendor_name, invoice.total)
         if not isinstance(result, dict) or result.get("status") != "success":
             raise LedgerError("payment_failed", "The payment function did not report success.")

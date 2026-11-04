@@ -137,6 +137,7 @@ class ModelClient:
                     "usage_reported": response.prompt_tokens is not None,
                 },
             )
+            self.budget.check_active()
             return response
 
     # ------------------------------------------------------------------ structured answers
