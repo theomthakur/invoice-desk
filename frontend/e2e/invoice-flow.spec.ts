@@ -21,6 +21,9 @@ test('sidebar can collapse, keep navigation usable and remember the choice', asy
   await page.goto('/');
   if (process.env.UPDATE_SCREENSHOTS === '1') await page.screenshot({path:'docs/screenshots/sidebar-navigation.png', animations:'disabled'});
   const sidebar = page.getByRole('complementary');
+  await expect(sidebar.getByRole('button',{name:'Handoffs',exact:true})).toBeVisible();
+  await expect(sidebar.getByRole('button',{name:'Run history',exact:true})).toHaveCount(0);
+  await expect(sidebar.getByRole('button',{name:'Find invoice',exact:true})).toHaveCount(0);
   await expect(sidebar.getByRole('button', {name:'System design', exact:true})).toBeVisible();
   await expect(sidebar.getByRole('button', {name:'Presentation', exact:true})).toBeVisible();
   await expect(page.getByRole('region', {name:'Workspace account'})).toBeVisible();
@@ -60,6 +63,10 @@ test('project resources explain the real system without starting invoice work', 
   await expect(page.getByRole('heading', { name: 'Upload. Check. Decide.' })).toBeVisible();
   await page.getByRole('button', { name: 'Previous slide' }).click();
   await expect(page.getByText('Slide 1 of 7')).toBeVisible();
+  await page.getByRole('button',{name:'Full screen',exact:true}).click();
+  await expect(page.locator('.presentation-page')).toHaveClass(/presentation-fullscreen/);
+  await page.getByRole('button',{name:'Exit full screen',exact:true}).click();
+  await expect(page.locator('.presentation-page')).not.toHaveClass(/presentation-fullscreen/);
   await page.getByRole('button', { name: 'Open invoice workspace' }).click();
   await page.getByRole('button', { name: 'Refresh invoices' }).click();
   expect(processingRequests).toEqual([]);
@@ -349,8 +356,8 @@ test('ledger overview counts records beyond the inbox as separate runs and recei
   await page.goto('/');
   await expect(page.getByRole('button',{name:'Start a new invoice'})).toBeEnabled();
   await runSample(page,'invoice_1001.txt');
-  await page.getByRole('button',{name:'Ledger overview',exact:true}).click();
-  await expect(page.getByRole('heading',{name:'Ledger overview',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Invoice analytics',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'Invoice analytics',exact:true})).toBeVisible();
   await expect(page.getByText('USD · 1 receipt(s)')).toBeVisible();
   await expect(page.getByText('$5,000.00')).toBeVisible();
   await expect(page.getByRole('heading',{name:'Activity by vendor'})).toBeVisible();
