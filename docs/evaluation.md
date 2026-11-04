@@ -4,9 +4,9 @@
 
 | Check | Result | Scope |
 | --- | --- | --- |
-| Python tests | 729 passed, 4 live tests deselected | Deterministic rules, controlled providers, API, security, workflow, CLI, conflict persistence, legacy holds, grounding, cancellation, original PDF inspection and internal department routing. |
-| Frontend unit and interaction tests | 54 passed | Controlled HTTP responses; no live model. |
-| Browser tests | 17 passed | Real local backend in mock mode; valid invoice, rejection, workspace isolation, mobile intake, simulated review, optional notes, persistent department handoffs, rendered original PDF pages, manual guided onboarding and saved appearance in light/dark modes. |
+| Python tests | 730 passed, 4 live tests deselected | Deterministic rules, controlled providers, API, security, workflow, CLI, conflict persistence, legacy holds, grounding, cancellation, original PDF inspection and internal department routing. |
+| Frontend unit and interaction tests | 56 passed | Controlled HTTP responses; no live model. |
+| Browser tests | 18 passed | Real local backend in mock mode; valid invoice, rejection, workspace isolation, mobile intake, simulated review, optional notes, persistent department handoffs, rendered original PDF pages, manual guided onboarding and saved appearance in light/dark modes. |
 | Mutation checks | Historical baseline: 52/52 caught | Measured before the corrections; not rerun for the current source. Current safeguard regressions are included in the Python suite. |
 | Container smoke | Historical packaging check: passed on Linux amd64, 512 MB RAM / 0.1 CPU | Non-root image, custom port, access gate, browser production cookie on loopback, invoice outcomes, native PDF preview, review, export, isolation, full batch and CLI. Peak memory 213,676,032 bytes; no OOM. |
 | Supplied-file regression | 20/20 expected outcomes matched | Each file on a fresh isolated ledger, simulated reader, fixed processing date 3 Nov 2026. Known examples, not a blind set or LLM accuracy estimate. |
@@ -75,3 +75,7 @@ Selection applies to loaded runs. Select all affects only currently visible load
 ## Ledger filters
 
 The overview can filter by UTC run start date, vendor substring and outcome. Filtered invoice and flag counts are distinct records linked to matching runs. A receipt is included only when its own version has a matching paid run, so a duplicate or rejection is not presented as a payment. Vendor filters exclude runs without an identifiable vendor. CSV includes the applied filters. Automated tests cover workspace isolation, date boundaries, duplicate and rejected outcomes, and invalid dates. The 20 supplied samples matched expected outcomes in mock mode; live model and hosted deployment were not tested for this increment.
+
+## Duplicate inbox and current batch check
+
+The inbox labels the backend duplicate outcome and has a Duplicates filter for loaded runs. It does not guess duplicates from filenames or invoice numbers. In a fresh shared ledger on 4 November 2026, all 20 supplied files completed: 6 paid, 8 rejected, 2 held, 3 duplicates and 1 superseded. The USD 30,375 total is simulated. The browser check processes the same invoice twice and checks the duplicate filter. These known samples and offline tests do not establish real-model accuracy. The four live-provider tests remain unrun.
