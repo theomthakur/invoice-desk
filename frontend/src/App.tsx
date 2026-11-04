@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, CircleAlert, Clock3, Compass, Moon, Sun, FileStack, FileText, GitBranch, Inbox, LoaderCircle, LockKeyhole, PanelLeftClose, PanelLeftOpen, Plus, Presentation as PresentationIcon, RefreshCw, Settings2, ShieldCheck, UserRound, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CircleAlert, Clock3, Compass, Moon, Sun, Search, FileStack, FileText, GitBranch, Inbox, LoaderCircle, LockKeyhole, PanelLeftClose, PanelLeftOpen, Plus, Presentation as PresentationIcon, RefreshCw, Settings2, ShieldCheck, UserRound, X } from 'lucide-react';
 import { ApiClient, ApiError } from './api/client';
 import { Status, formatAmount } from './components/Status';
 import { RunDetails } from './features/runs/RunDetails';
@@ -11,6 +11,7 @@ import type { BatchResult, ConfigInfo, HistoryItem, Mode, RunEvent, RunResult, S
 import './styles/app.css';
 import './styles/theme.css';
 import { Walkthrough } from './features/walkthrough/Walkthrough';
+import { InvoiceLookup } from './features/history/InvoiceLookup';
 import { applyTheme, readTheme } from './theme';
 
 const api = new ApiClient();
@@ -40,7 +41,8 @@ function App() {
   const [samples, setSamples] = useState<SampleInfo[]>([]);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [historyCursor, setHistoryCursor] = useState<string | null>(null);
-  const [screen, setScreen] = useState<'workspace' | 'history' | 'rules' | 'architecture' | 'presentation'>('workspace');
+  const [screen, setScreen] = useState<'workspace' | 'history' | 'rules' | 'architecture' | 'presentation' | 'lookup'>('workspace');
+  const [lookupNumber, setLookupNumber] = useState('');
   const [initializing, setInitializing] = useState(true);
   const [accessRequired, setAccessRequired] = useState(false);
   const [passcode, setPasscode] = useState('');
@@ -235,10 +237,12 @@ function App() {
     finally { setHistoryLoading(false); }
   }
   const attentionCount = history.filter((item) => item.outcome === 'needs_review').length;
-  const currentTitle = screen === 'architecture' ? 'System design' : screen === 'presentation' ? 'Presentation' : screen === 'rules' ? 'Processing rules' : screen === 'history' ? 'Run history' : runId ? 'Invoice record' : batchId ? 'Batch results' : 'Invoices';
+  const currentTitle = screen === 'lookup' ? 'Find invoice' : screen === 'architecture' ? 'System design' : screen === 'presentation' ? 'Presentation' : screen === 'rules' ? 'Processing rules' : screen === 'history' ? 'Run history' : runId ? 'Invoice record' : batchId ? 'Batch results' : 'Invoices';
   function openResource(value: 'architecture' | 'presentation') {
     setRunId(null); setRun(null); setBatchId(null); setBatch(null); setScreen(value); setPollError(null);
   }
+
+  function showLookup(number = '') { setRunId(null); setRun(null); setBatchId(null); setBatch(null); setLookupNumber(number); setScreen('lookup'); }
 
   return <div className={`app-shell ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${tourOpen ? 'tour-active' : ''}`}>
     <a className="skip-link" href="#main-content">Skip to content</a>
@@ -249,6 +253,7 @@ function App() {
         <button className={`nav-item ${screen === 'workspace' && queueFilter !== 'attention' ? 'active' : ''}`} aria-label="Invoices" title="Invoices" onClick={() => showInbox()}><Inbox size={18} /><span>Invoices</span><span className="nav-count">{history.length}</span></button>
         <button className={`nav-item ${screen === 'workspace' && queueFilter === 'attention' ? 'active' : ''}`} aria-label="Needs review" title="Needs review" onClick={() => showInbox('attention')}><CircleAlert size={18} /><span>Needs review</span>{attentionCount > 0 && <span className="nav-count amber">{attentionCount}</span>}</button>
         <button className={`nav-item ${screen === 'history' ? 'active' : ''}`} aria-label="Run history" title="Run history" onClick={() => { setRunId(null); setBatchId(null); setScreen('history'); }}><Clock3 size={18} /><span>Run history</span></button>
+        <button className={`nav-item ${screen === 'lookup' ? 'active' : ''}`} aria-label="Find invoice" title="Find invoice" onClick={() => showLookup()}><Search size={18} /><span>Find invoice</span></button>
         <button className={`nav-item ${screen === 'rules' ? 'active' : ''}`} aria-label="Processing rules" title="Processing rules" onClick={() => { setRunId(null); setBatchId(null); setScreen('rules'); }}><Settings2 size={18} /><span>Processing rules</span></button>
         <div className="sidebar-resources" data-tour="resources"><button className={`nav-item ${screen === 'architecture' ? 'active' : ''}`} aria-label="System design" title="System design" aria-current={screen === 'architecture' ? 'page' : undefined} onClick={() => openResource('architecture')}><GitBranch size={18}/><span>System design</span></button><button className={`nav-item ${screen === 'presentation' ? 'active' : ''}`} aria-label="Presentation" title="Presentation" aria-current={screen === 'presentation' ? 'page' : undefined} onClick={() => openResource('presentation')}><PresentationIcon size={18}/><span>Presentation</span></button></div>
       </nav>
@@ -262,9 +267,10 @@ function App() {
         {accessRequired && <form className="access-panel" onSubmit={(event) => { event.preventDefault(); void connect(passcode); }}><LockKeyhole size={19} /><label htmlFor="passcode">Workspace access code</label><input id="passcode" type="password" value={passcode} onChange={(event) => setPasscode(event.target.value)} required /><button className="button button-primary" disabled={initializing}>Connect</button></form>}
         {error && !intakeOpen && <div className="inline-error global-error" role="alert"><span>{error}</span><button aria-label="Dismiss error" onClick={() => setError(null)}><X size={17} /></button></div>}
         {pollError && <div className="inline-warning" role="status">{pollError}</div>}
-        {screen === 'architecture' ? <SystemDesign config={config} />
+        {screen === 'lookup' ? <InvoiceLookup api={api} initialNumber={lookupNumber} openRun={openRun} />
+        : screen === 'architecture' ? <SystemDesign config={config} />
         : screen === 'presentation' ? <ProjectPresentation openInvoices={() => showInbox()} />
-        : runId ? <><button className="back-link" onClick={() => showInbox()}><ArrowLeft size={15} />Back to invoices</button>{!run ? <div className="loading-card"><LoaderCircle size={20} className="spin" />Loading invoice record…</div> : <RunDetails key={run.run_id} run={run} events={events} source={source} pdfUrl={pdfUrl} pdfPages={pdfPages} sourceError={sourceError} onExport={() => void exportRun()} exporting={exporting} api={api} onReviewed={reviewCompleted} />}</>
+        : runId ? <><button className="back-link" onClick={() => showInbox()}><ArrowLeft size={15} />Back to invoices</button>{!run ? <div className="loading-card"><LoaderCircle size={20} className="spin" />Loading invoice record…</div> : <RunDetails key={run.run_id} run={run} events={events} source={source} pdfUrl={pdfUrl} pdfPages={pdfPages} sourceError={sourceError} onExport={() => void exportRun()} exporting={exporting} api={api} onReviewed={reviewCompleted} onFindRelated={showLookup} />}</>
         : batchId ? <section><button className="back-link" onClick={() => showInbox()}><ArrowLeft size={15} />Back to invoices</button><div className="page-heading"><div><h1>Batch results</h1><p>Duplicate files and revisions are grouped before payment.</p></div><button className="button button-primary" onClick={newInvoice}><Plus size={16} />New invoice</button></div>
           {!batch ? <div className="loading-card"><LoaderCircle size={20} className="spin" />Loading batch…</div> : <div className="content-card"><div className="card-heading"><div><h3>Sample batch</h3><p>{batch.files.length} files in this batch</p></div><Status status={batch.lifecycle} /></div><div className="batch-summary">{Object.entries(batch.counts).map(([label, count]) => <div key={label}><span>{label.replaceAll('_', ' ')}</span><strong>{count}</strong></div>)}{Object.entries(batch.paid_by_currency).map(([currency, amount]) => <div key={currency}><span>Mock paid · {currency}</span><strong>{formatAmount(amount, currency)}</strong></div>)}</div><div className="table-wrap"><table><thead><tr><th>FILE</th><th>DISPOSITION</th><th>RESULT</th><th>REASON</th><th /></tr></thead><tbody>{batch.files.map((file) => <tr key={file.file}><td><strong>{file.file}</strong></td><td>{file.kind}</td><td><Status status={file.outcome === 'paid' ? 'completed' : file.outcome} /></td><td>{file.reason}{file.related_file && <small>Related file: {file.related_file}</small>}</td><td>{file.run_id && <button className="text-button" onClick={() => openRun(file.run_id!)}>Open<ArrowRight size={14} /></button>}</td></tr>)}</tbody></table></div></div>}</section>
         : screen === 'rules' ? <section className="rules-page"><div className="page-heading"><div><span className="page-eyebrow">WORKSPACE SETTINGS</span><h1>Processing rules</h1><p>The server’s current limits and approval settings.</p></div>{config && <span className="version-tag">Policy {config.policy_version}</span>}</div>{config ? <div className="rules-grid"><div className="content-card"><span className="rules-icon"><ShieldCheck size={22} /></span><h2>Approvals & payments</h2><dl><div><dt>Additional scrutiny above</dt><dd>{formatAmount(config.approval_threshold, config.approval_currency)}</dd></div><div><dt>Automatic payment currencies</dt><dd>{config.payment_currencies.join(', ')}</dd></div><div><dt>Payment integration</dt><dd>Simulated only</dd></div></dl><p>Findings and current policy are checked again before a mock payment is recorded. A model’s approval does not bypass these checks.</p></div><div className="content-card"><span className="rules-icon"><FileText size={22} /></span><h2>Document intake</h2><dl><div><dt>Supported formats</dt><dd>{config.supported_extensions.join(', ').toUpperCase()}</dd></div><div><dt>Maximum file size</dt><dd>{(config.limits.max_file_bytes / 1024 / 1024).toFixed(0)} MB</dd></div><div><dt>Maximum PDF pages</dt><dd>{config.limits.max_pdf_pages}</dd></div><div><dt>Maximum line items</dt><dd>{config.limits.max_line_items}</dd></div></dl><p>Original source text is preserved with the run. Unknown or invalid fields are recorded as findings.</p></div></div> : <div className="loading-card">Connect to the workspace to load processing rules.</div>}</section>

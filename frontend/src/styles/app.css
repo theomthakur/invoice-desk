@@ -425,3 +425,13 @@ td small { display: block; color: var(--theme-muted, #646d5c); font-size: 10px; 
   .decision-report dd { margin:0 0 .6em; overflow-wrap:anywhere; }
   .decision-report li { margin-bottom:.5em; overflow-wrap:anywhere; }
 }
+.lookup-form { max-width:760px; }
+.lookup-form label { display:block; font-size:12px; font-weight:600; margin-bottom:10px; }
+.lookup-form > div { display:flex; gap:10px; }
+.lookup-form input { flex:1; min-width:0; padding:11px; border:1px solid var(--line); border-radius:8px; background:var(--surface); color:var(--ink); }
+.lookup-form p, .lookup-result p { font-size:12px; line-height:1.7; color:var(--muted); margin-top:12px; }
+.lookup-result { max-width:760px; margin-top:18px; }
+.lookup-result h2 { font-size:17px; overflow-wrap:anywhere; }
+.lookup-result ul { list-style:none; padding:0; margin:18px 0 0; }
+.lookup-result li { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:14px 0; border-top:1px solid var(--line); font-size:12px; }
+.lookup-result li small { display:block; color:var(--muted); margin-top:6px; }

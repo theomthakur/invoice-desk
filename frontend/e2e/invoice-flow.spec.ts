@@ -18,6 +18,7 @@ async function runSample(page: Page, name: string) {
 test('sidebar can collapse, keep navigation usable and remember the choice', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto('/');
+  if (process.env.UPDATE_SCREENSHOTS === '1') await page.screenshot({path:'docs/screenshots/sidebar-navigation.png', animations:'disabled'});
   const sidebar = page.getByRole('complementary');
   await expect(sidebar.getByRole('button', {name:'System design', exact:true})).toBeVisible();
   await expect(sidebar.getByRole('button', {name:'Presentation', exact:true})).toBeVisible();
@@ -93,6 +94,8 @@ test('valid invoice is processed once, traced and isolated from another workspac
   await expect(page.getByText('Mock payment recorded')).toBeVisible();
   await expect(page.getByText('Simulated model', { exact: true })).toBeVisible();
   await expect(page.getByText('Widgets Inc.', { exact: true }).first()).toBeVisible();
+  const [report] = await Promise.all([page.waitForEvent('download'), page.getByRole('button',{name:'Download report CSV'}).click()]);
+  expect(report.suggestedFilename()).toContain(runId);
   await page.emulateMedia({media:'print'});
   await expect(page.getByRole('heading', {name:'Invoice decision report'})).toBeVisible();
   await expect(page.locator('.decision-report')).toContainText('Simulated receipt');
@@ -225,6 +228,7 @@ test('light is the first look even on a dark computer; a saved choice persists o
   await expect(page.locator('html')).toHaveAttribute('data-theme','light');
   await page.getByRole('button',{name:'Switch to dark mode'}).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme','dark');
+  if (process.env.UPDATE_SCREENSHOTS === '1') await page.screenshot({path:'docs/screenshots/dark-workspace.png', animations:'disabled'});
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('data-theme','dark');
   await page.getByRole('button',{name:'System design',exact:true}).click();
@@ -304,4 +308,17 @@ test('guide and theme controls work on mobile with the sidebar collapsed', async
     expect(rect!.y+rect!.height).toBeLessThanOrEqual(844);
     expect(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth)).toBe(false);
   }
+});
+
+test('related versions use a workspace-scoped ledger lookup', async ({page}) => {
+  await page.goto('/');
+  await expect(page.getByRole('button',{name:'Start a new invoice'})).toBeEnabled();
+  await runSample(page,'invoice_1001.txt');
+  await page.getByRole('button',{name:'Find related versions'}).click();
+  await expect(page.getByRole('heading',{name:'Find invoice',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'INV-1001 · Widgets Inc.'})).toBeVisible();
+  await expect(page.getByText(/simulated payment is recorded for this invoice/)).toBeVisible();
+  if (process.env.UPDATE_SCREENSHOTS === '1') await page.screenshot({path:'docs/screenshots/invoice-lookup.png', animations:'disabled'});
+  await page.getByRole('button',{name:'Open record'}).click();
+  await expect(page.getByText('Mock payment recorded')).toBeVisible();
 });

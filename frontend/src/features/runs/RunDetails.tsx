@@ -4,6 +4,7 @@ import { formatAmount, Status } from '../../components/Status';
 import { ApiClient } from '../../api/client';
 import { ReviewPanel } from '../review/ReviewPanel';
 import { activitySummary } from './activity';
+import { downloadDecisionCsv } from './reportCsv';
 import type { Finding, RunEvent, RunResult } from '../../types/api';
 
 const stages = [{ key: 'intake', title: 'Received' }, { key: 'extraction', title: 'Extracted' }, { key: 'validation', title: 'Checked' }, { key: 'approval', title: 'Reviewed' }, { key: 'payment', title: 'Payment' }];
@@ -16,10 +17,10 @@ function Findings({ findings, onViewEvidence }: { findings: Finding[]; onViewEvi
     </div></div>)}</div>;
 }
 
-export function RunDetails({ run, events, source, pdfUrl, pdfPages = 1, sourceError, onExport, exporting, api, onReviewed }: {
+export function RunDetails({ run, events, source, pdfUrl, pdfPages = 1, sourceError, onExport, exporting, api, onReviewed, onFindRelated }: {
   run: RunResult; events: RunEvent[]; source: string | null; pdfUrl?: string | null; pdfPages?: number; sourceError: string | null;
   onExport: () => void; exporting: boolean;
-  api?: ApiClient; onReviewed?: (run: RunResult) => void;
+  api?: ApiClient; onReviewed?: (run: RunResult) => void; onFindRelated?: (number: string) => void;
 }) {
   const [tab, setTab] = useState<'details' | 'source' | 'activity'>('details');
   const [evidence, setEvidence] = useState<string | null>(null);
@@ -39,7 +40,7 @@ export function RunDetails({ run, events, source, pdfUrl, pdfPages = 1, sourceEr
   const sourceContent = sourceError ? <div className="source-message"><AlertCircle size={20} /><p>{sourceError}</p></div> : pdfUrl && documentView === 'original' ? <>{previewFailed ? <p role="alert">Preview unavailable. Download the original PDF or use extracted text.</p> : <img className="pdf-preview" alt={`Original invoice PDF page ${pdfPage}`} src={api?.previewUrl(run.run_id, pdfPage) ?? `/api/v1/runs/${encodeURIComponent(run.run_id)}/preview?page=${pdfPage}`} onError={() => setPreviewFailed(true)} />}{pdfPages > 1 && <div className="pdf-pages"><button className="text-button" disabled={pdfPage <= 1} onClick={() => { setPreviewFailed(false); setPdfPage((page) => page - 1); }}>Previous page</button><span>Page {pdfPage} of {pdfPages}</span><button className="text-button" disabled={pdfPage >= pdfPages} onClick={() => { setPreviewFailed(false); setPdfPage((page) => page + 1); }}>Next page</button></div>}<a className="text-button" href={pdfUrl} download={run.filename ?? 'invoice.pdf'}>Download original PDF</a></> : source === null ? <div className="source-message"><FileSearch size={25} /><p>{active ? 'Reading your document…' : 'Loading source text…'}</p></div> : <>{evidence && !source.includes(evidence) && <p className="help-copy">The quoted text could not be located exactly in this source.</p>}<pre>{evidence && source.includes(evidence) ? <>{source.slice(0, source.indexOf(evidence))}<mark ref={mark}>{evidence}</mark>{source.slice(source.indexOf(evidence) + evidence.length)}</> : source}</pre></>;
   const findingsCard = <div className="content-card findings-card"><div className="card-heading"><div><span className="mini-label">VALIDATION</span><h2>Checks & findings</h2></div><span className="count-pill">{run.findings.length}</span></div><Findings findings={run.findings} onViewEvidence={(value) => { setEvidence(value); setDocumentView('text'); setTab('source'); }} /></div>;
   return <section className="run-view" aria-label="Invoice details">
-    <div className="detail-head"><div><div className="detail-kicker">INVOICE RECORD</div><h1>{invoice?.invoice_number ?? run.filename ?? 'Processing invoice'}{status}</h1><p>{invoice?.vendor_name ?? 'Vendor not extracted'}<span className="detail-separator">·</span>{run.filename ?? 'Uploaded document'}</p></div><div className="report-actions"><button className="button button-outline" disabled={active} onClick={() => window.print()}>Print decision report</button><button className="button button-outline" disabled={exporting || active} data-tour="export" onClick={onExport}><ArrowDownToLine size={16} />{exporting ? 'Preparing…' : 'Export trace'}</button></div></div>
+    <div className="detail-head"><div><div className="detail-kicker">INVOICE RECORD</div><h1>{invoice?.invoice_number ?? run.filename ?? 'Processing invoice'}{status}</h1><p>{invoice?.vendor_name ?? 'Vendor not extracted'}<span className="detail-separator">·</span>{run.filename ?? 'Uploaded document'}</p></div><div className="report-actions">{invoice?.invoice_number && onFindRelated && <button className="button button-outline" onClick={() => onFindRelated(invoice.invoice_number)}>Find related versions</button>}<button className="button button-outline" disabled={active} onClick={() => downloadDecisionCsv(run)}>Download report CSV</button><button className="button button-outline" disabled={active} onClick={() => window.print()}>Print decision report</button><button className="button button-outline" disabled={exporting || active} data-tour="export" onClick={onExport}><ArrowDownToLine size={16} />{exporting ? 'Preparing…' : 'Export trace'}</button></div></div>
     <div className="record-metadata"><span><span className="mode-dot" />{run.mode === 'mock' ? 'Simulated model' : run.mode === 'live' ? 'Live model' : 'Model mode unavailable'}</span>{run.model && <span>{run.model}</span>}<span>Mock payments only</span>{run.started_at && <span className="record-date">Received {new Date(run.started_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>}</div>
     <div className="stage-row">{stages.map((stage, index) => {
       const isCurrent = active && (current === stage.key || (stage.key === 'approval' && current === 'critique'));

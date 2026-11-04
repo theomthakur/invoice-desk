@@ -86,3 +86,6 @@ export interface BatchResult {
   batch_id: string; lifecycle: Lifecycle; files: BatchFile[]; counts: Record<string, number>;
   paid_by_currency: Record<string, string>;
 }
+
+export interface InvoiceLookupVersion { version_id:string; revision:string|null; status:string; identity_flag:string|null; run_id:string|null; run_outcome:Outcome|null }
+export interface InvoiceLookupResult { matches: {payable_id:string; number:string; vendor:string; paid:boolean; payment_version_id:string|null; versions:InvoiceLookupVersion[]; versions_truncated:boolean}[]; truncated:boolean }
