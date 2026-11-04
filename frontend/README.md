@@ -43,7 +43,7 @@ Held invoices show review controls and findings before extracted details. Reject
 ## Verification on 4 November 2026
 
 - Node 22; TypeScript and ESLint passed.
-- Vitest: 36 tests passed. Coverage includes error bodies and status codes, CSRF and access-code headers, cancellation, exact decimal display, receipt gating, original PDF retrieval, text/preview switching, evidence location, explicit processing, duplicate clicks, queue search/sort and status grouping.
+- Vitest: 38 tests passed. Coverage includes error bodies and status codes, CSRF and access-code headers, cancellation, exact decimal display, receipt gating, original PDF retrieval, text/preview switching, evidence location, explicit processing, duplicate clicks, queue search/sort and status grouping.
 - Production build passed.
 - Real Brave browser against the local backend in **mock mode**, using a separate temporary database: a TXT sample reached a stored mock-payment receipt; an invalid CSV sample was rejected with findings; an uploaded JSON file was processed; its JSON trace downloaded with stored events; history survived refresh; and the 20-file sample batch completed. These are workflow checks, not live-model quality measurements.
 - Desktop at 1512×1050 and mobile at 390×844 were inspected. Queue search, the rules page, Escape to close intake and page-level horizontal overflow were checked. No browser JavaScript errors were observed.
@@ -54,12 +54,12 @@ Screenshots in `docs/screenshots/` show actual local simulated runs, not interce
 - `new-invoice-upload.png`, `new-invoice.png`, `new-invoice-mobile.png`
 - `invoice-record.png`, `invoice-exception.png`, `simulated-review.png`, `batch-results.png`, `processing-rules.png`
 
-The current simulated review screen is shown in `docs/screenshots/simulated-review.png`; `pdf-review.png` shows the original PDF preview. `system-design.png` and `presentation.png` show the project resources. The screenshots use actual local mock runs. Nine Playwright tests exercise the integrated workflow, including sidebar persistence, resource navigation, review priority, controls and original PDF inspection.
+The current simulated review screen is shown in `docs/screenshots/simulated-review.png`; `pdf-review.png` shows the original PDF preview. `system-design.png` and `presentation.png` show the project resources. The screenshots use actual local mock runs. Ten Playwright tests exercise the integrated workflow, including sidebar persistence, resource navigation, review priority, controls and original PDF inspection.
 
 ## Remaining integration boundaries
 
 - Live OpenRouter execution was not tested. No paid provider calls were made during this UI work.
-- A simulated reviewer can approve a held invoice only after checking all server-designated resolvable findings, confirming the source and providing a note. The backend revalidates the content hash, policy, workspace and payment gate. Unsupported currency cannot be cleared through this review.
+- A simulated reviewer can approve a held invoice only after checking all server-designated resolvable findings, confirming the source and selecting a reason. Extra notes are optional. The backend revalidates the content hash, policy, workspace and payment gate. Unsupported currency cannot be cleared through this review.
 - Original PDFs are retained for newly loaded documents and served by an owner-scoped download endpoint. The inline viewer uses bounded page images, keeping document scripts out of the application. Historical records without original bytes retain extracted text and need the original loaded again for PDF inspection.
 - This is an invoice-processing prototype with mock payments, not a production bank or ERP integration. Formal accessibility auditing, deployment and broader device testing remain release work.
 
@@ -72,4 +72,10 @@ npm test
 npm run build
 ```
 
-The production build is served by the same backend origin. Frontend changes are confined to `frontend/`; no payment rules or model code were changed for this redesign.
+The production build is served by the same backend origin. The review update adds owner-scoped internal handoff endpoints and storage. Payment rules and model behavior remain unchanged.
+
+## Structured review
+
+Choose a Review action, then a predefined Decision reason. Approval still requires every permitted finding to be confirmed and the source acknowledgment checked. A typed Decision note is optional. Rejection saves the chosen reason and any extra note as the rationale.
+
+Assign to a department records a durable internal handoff to Accounts payable, Procurement, Vendor management or Finance operations. Payment stays on hold. The latest assignment and its reason appear when the invoice is reopened. No email or external notification is sent. See `docs/screenshots/department-handoff.png`.

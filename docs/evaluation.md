@@ -4,18 +4,18 @@
 
 | Check | Result | Scope |
 | --- | --- | --- |
-| Python tests | 713 passed, 4 live tests deselected | Deterministic rules, controlled providers, API, security, workflow, CLI, conflict persistence, legacy holds, grounding, cancellation and original PDF inspection. |
-| Frontend unit and interaction tests | 36 passed | Controlled HTTP responses; no live model. |
-| Browser tests | 9 passed | Real local backend in mock mode; valid invoice, rejection, workspace isolation, mobile intake, simulated review and rendered original PDF pages. |
+| Python tests | 717 passed, 4 live tests deselected | Deterministic rules, controlled providers, API, security, workflow, CLI, conflict persistence, legacy holds, grounding, cancellation, original PDF inspection and internal department routing. |
+| Frontend unit and interaction tests | 38 passed | Controlled HTTP responses; no live model. |
+| Browser tests | 10 passed | Real local backend in mock mode; valid invoice, rejection, workspace isolation, mobile intake, simulated review, optional notes, persistent department handoffs and rendered original PDF pages. |
 | Mutation checks | Historical baseline: 52/52 caught | Measured before the corrections; not rerun for the current source. Current safeguard regressions are included in the Python suite. |
-| Container smoke | Passed on Linux amd64, 512 MB RAM / 0.1 CPU | Non-root image, custom port, access gate, browser production cookie on loopback, invoice outcomes, native PDF preview, review, export, isolation, full batch and CLI. Peak memory 213,676,032 bytes; no OOM. |
+| Container smoke | Historical packaging check: passed on Linux amd64, 512 MB RAM / 0.1 CPU | Non-root image, custom port, access gate, browser production cookie on loopback, invoice outcomes, native PDF preview, review, export, isolation, full batch and CLI. Peak memory 213,676,032 bytes; no OOM. |
 | Supplied-file regression | 20/20 expected outcomes matched | Each file on a fresh isolated ledger, simulated reader, fixed processing date 3 Nov 2026. Known examples, not a blind set or LLM accuracy estimate. |
-| Supplied batch | 20 files completed: 6 paid, 8 rejected, 2 held, 3 duplicate, 1 superseded | Fresh shared ledger; USD 30,375.00 in **mock** receipts. No real payments or savings. |
+| Supplied batch | Prior fingerprinted source: 20 files completed: 6 paid, 8 rejected, 2 held, 3 duplicate, 1 superseded | Fresh shared ledger; USD 30,375.00 in **mock** receipts. No real payments or savings. |
 | Live OpenRouter | Not run | No measured real-model accuracy, tool calling, latency or cost. |
 
-Per-file results, flags and elapsed times for the fresh-ledger regression are in [`sample-regression.json`](../evidence/offline/sample-regression.json); the batch output is [`batch-regression.json`](../evidence/offline/batch-regression.json). Both record a source-code/policy fingerprint without requiring Git history. Do not sum the fresh-ledger payments: those separate runs intentionally include alternate copies and revisions. The shared-ledger batch groups them first.
+Per-file results, flags and elapsed times for the fresh-ledger regression are in [`sample-regression.json`](../evidence/offline/sample-regression.json); the batch output is [`batch-regression.json`](../evidence/offline/batch-regression.json). Both record a source-code/policy fingerprint without requiring Git history. The fresh-ledger regression was rerun after department routing was added; the batch artifact remains a historical measurement of its recorded source. Do not sum the fresh-ledger payments: those separate runs intentionally include alternate copies and revisions. The shared-ledger batch groups them first.
 
-The local Docker verification is recorded in [`render-container.json`](../evidence/offline/render-container.json). It used the current application source, a Linux amd64 image, a 512,000,000-byte memory limit without extra swap, and 0.1 CPU. The workload was sequential with one operator. The actual hosted Render HTTPS URL, sleep/wake behavior and concurrent load remain unverified; no cloud deployment is claimed.
+The local Docker verification is recorded in [`render-container.json`](../evidence/offline/render-container.json). It predates the department-routing update and used its recorded source fingerprint, a Linux amd64 image, a 512,000,000-byte memory limit without extra swap, and 0.1 CPU. The workload was sequential with one operator. The actual hosted Render HTTPS URL, sleep/wake behavior and concurrent load remain unverified; no cloud deployment is claimed.
 
 Re-run from the repository root:
 

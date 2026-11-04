@@ -36,7 +36,7 @@ A `prepare` graph reads and validates, then a `decide` graph registers the versi
 
 The gate reloads the stored invoice, findings and approval within a SQLite transaction. It checks workspace, active version, policy fingerprint, content hash, review holds and currency. The workflow checks cancellation and its deadline after model responses and just before calling the payment gate. A uniqueness constraint limits each workspace/payable to one mock receipt. This protects the simulation from duplicate requests; it is not an exactly-once guarantee for a real payment provider.
 
-A human review is explicitly simulated. The UI retrieves server-designated resolvable findings and must send the displayed version and content hash with a note. The server revalidates on submission. A reviewer can explicitly select an eligible unpaid conflicting version, atomically superseding its alternatives. Unsupported currency, deterministic errors, other identity holds, existing payments, and stale selections still block approval.
+A human review is explicitly simulated. The UI retrieves server-designated resolvable findings and must send the displayed version and content hash with a rationale built from the selected reason and any optional note. The server revalidates on submission. A reviewer can explicitly select an eligible unpaid conflicting version, atomically superseding its alternatives. Unsupported currency, deterministic errors, other identity holds, existing payments, and stale selections still block approval.
 
 Batches prepare each document once and bind the resulting draft to its source hash. All prepared versions are registered before decisions begin, so conflicts remain in the ledger across later submissions. The decision graph revalidates the same prepared reading rather than calling extraction again.
 
@@ -51,3 +51,9 @@ The worker uses one process. Queued runs are recovered after restart; runs that 
 ## Provider boundary
 
 Mock mode uses a deterministic simulated reader, not a model. Live mode uses OpenRouter over HTTPS with an operator-provided key and configured model. It does not fall back to mock on a live failure. The case requires no internet for external APIs; an actual offline LLM is not implemented. See [evaluation](evaluation.md) for what has and has not been measured.
+
+## Internal department review
+
+A reviewer can select Accounts payable, Procurement, Vendor management or Finance operations, choose a reason and optionally add context. The API stores the handoff and an audit event in one SQLite transaction. The invoice remains on hold. This is an internal workspace assignment, not a notification, department inbox or real payment authorization.
+
+Handoffs use the same workspace ownership and CSRF checks as other mutations. The server rejects stale invoice hashes, ineligible versions and paid invoices. A request token prevents duplicate handoffs, and reuse with different content is rejected. The latest assignment survives reload. A later approval or rejection closes its active status while preserving its audit history. The existing approval checks remain unchanged.
