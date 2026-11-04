@@ -38,6 +38,9 @@ export function AnalyticsPage({api,openHistory}:{api:ApiClient;openHistory:()=>v
       ['Runs marked for review',data.review_runs,'Recorded run outcomes, not an outstanding balance'],
       ['Flagged active versions',data.flagged_active_versions,filtered?'Current flags on versions linked to matching runs':'Identity or version flags'],
     ].map(([title,value,note])=><div className="content-card analytics-card" key={title}><span>{title}</span><strong>{value}</strong><small>{note}</small></div>)}</div>
+      <div className="content-card analytics-visual"><h2>Run activity</h2><p>Counts of processing attempts, not unique invoices. Categories may overlap.</p>{[
+        ['Recorded runs',data.total_runs],['Active',data.active_runs],['Failed or interrupted',data.failed_runs],['Marked for review',data.review_runs],
+      ].map(([label,value]) => <div className="analytics-bar-row" key={label}><span>{label}</span><div className="analytics-bar-track"><div className="analytics-bar-fill" style={{width:`${data.total_runs ? Math.min(100,Number(value)/data.total_runs*100) : 0}%`}} /></div><strong>{value}</strong></div>)}</div>
       <div className="content-card analytics-payments"><h2>Simulated receipts</h2><p>{data.simulated_receipts} recorded receipt(s). Amounts are kept separate by currency; no real money moved.</p>{data.paid_by_currency.length ? <ul>{data.paid_by_currency.map(row=><li key={row.currency}><span>{row.currency} · {row.receipts} receipt(s)</span><strong>{formatAmount(row.amount,row.currency)}</strong></li>)}</ul> : <p>No simulated receipts recorded.</p>}</div>
       <div className="content-card analytics-note"><p>These are ledger counts, not savings, proven fraud or a list of currently payable invoices. Records without a usable identity are not counted as identified invoices. History below is not filtered to these totals.</p><button className="text-button" onClick={openHistory}>Open full run history</button></div></>}
   </section>;
