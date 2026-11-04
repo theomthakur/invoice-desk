@@ -10,6 +10,14 @@ export class ApiError extends Error {
   }
 }
 
+function pageCount(response: Response) {
+  const count = Number(response.headers.get('x-pdf-pages') ?? '1');
+  if (!Number.isSafeInteger(count) || count < 1 || count > 1000) {
+    throw new ApiError('The original PDF page count is invalid.', response.status, 'invalid_response');
+  }
+  return count;
+}
+
 export class ApiClient {
   private csrf: string | null = null;
   constructor(private readonly base = '/api/v1') {}
@@ -90,12 +98,24 @@ export class ApiClient {
     const type = response.headers.get('content-type') ?? '';
     if (type.includes('application/json')) {
       const json = await response.json() as { text?: string; source_text?: string };
-      return { text: json.text ?? json.source_text ?? 'Source text is not available.', pdf: null };
+      return { text: json.text ?? json.source_text ?? 'Source text is not available.', pdf: null, pages: 0 };
     }
-    if (type.includes('application/pdf')) return { text: null, pdf: await response.blob() };
-    if (!type.startsWith('text/')) return { text: 'Source text is not available for this file.', pdf: null };
-    return { text: await response.text(), pdf: null };
+    if (type.includes('application/pdf')) return { text: null, pdf: await response.blob(), pages: pageCount(response) };
+    if (!type.startsWith('text/')) return { text: 'Source text is not available for this file.', pdf: null, pages: 0 };
+    const text = await response.text();
+    let pdf: Blob | null = null;
+    let pages = 0;
+    if (response.headers.get('x-original-available') === 'pdf') {
+      const original = await this.response(`/runs/${encodeURIComponent(id)}/original`, { signal });
+      if (!original.headers.get('content-type')?.startsWith('application/pdf')) {
+        throw new ApiError('The original document response was not a PDF.', original.status, 'invalid_response');
+      }
+      pdf = await original.blob();
+      pages = pageCount(original);
+    }
+    return { text, pdf, pages };
   }
+  previewUrl(id: string, page: number) { return `${this.base}/runs/${encodeURIComponent(id)}/preview?page=${page}`; }
   async export(id: string) {
     const response = await this.response(`/runs/${encodeURIComponent(id)}/export`);
     return response.blob();

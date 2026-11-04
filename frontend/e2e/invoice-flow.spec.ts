@@ -92,3 +92,22 @@ test('unsupported currency cannot be cleared by the review button', async ({ pag
   await expect(page.getByText('Rejected', { exact: true })).toBeVisible();
   await expect(page.getByText('Mock payment recorded')).toHaveCount(0);
 });
+
+test('PDF review preserves the original and the extracted text', async ({ page }, testInfo) => {
+  await page.goto('/');
+  await expect(page.getByRole('button', { name: 'Start a new invoice' })).toBeEnabled();
+  const runId = await runSample(page, 'invoice_1011.pdf');
+  await expect(page.getByAltText('Original invoice PDF page 1')).toBeVisible();
+  const original = await page.request.get(`/api/v1/runs/${runId}/original`);
+  expect(original.status()).toBe(200);
+  expect(original.headers()['content-type']).toBe('application/pdf');
+  expect((await original.body()).subarray(0, 4).toString()).toBe('%PDF');
+  await expect(page.getByAltText('Original invoice PDF page 1')).toHaveJSProperty('complete', true);
+  await expect.poll(() => page.getByAltText('Original invoice PDF page 1').evaluate((img) => (img as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+  await page.screenshot({ path: testInfo.outputPath('pdf-review.png'), fullPage: true, animations: 'disabled' });
+  await page.getByRole('button', { name: 'Extracted text', exact: true }).click();
+  await expect(page.locator('.document-sheet pre')).toContainText('INV-1011');
+  await expect(page.getByAltText('Original invoice PDF page 1')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Original PDF', exact: true }).click();
+  await expect(page.getByAltText('Original invoice PDF page 1')).toBeVisible();
+});

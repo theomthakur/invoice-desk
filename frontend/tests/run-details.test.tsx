@@ -46,4 +46,20 @@ describe('run details', () => {
     await userEvent.click(screen.getByRole('button', { name: /find in source/i }));
     expect(screen.getByText('Total: 10.00').tagName).toBe('MARK');
   });
+  it('lets an operator switch between the original PDF and extracted text', async () => {
+    render(<RunDetails run={{ ...base, filename: 'invoice.pdf' }} events={[]} source="Extracted PDF text" pdfUrl="blob:test-pdf" sourceError={null} onExport={vi.fn()} exporting={false} />);
+    expect(screen.getByAltText('Original invoice PDF page 1')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Extracted text' }));
+    expect(screen.getByText('Extracted PDF text')).toBeInTheDocument();
+    expect(screen.queryByAltText('Original invoice PDF page 1')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Original PDF' }));
+    expect(screen.getByAltText('Original invoice PDF page 1')).toBeInTheDocument();
+  });
+  it('locates PDF evidence in the retained extracted text', async () => {
+    const finding = { code: 'TOTAL_MISMATCH', severity: 'ERROR' as const, message: 'Amounts differ.', evidence: 'Total: 10.00' };
+    render(<RunDetails run={{ ...base, filename: 'invoice.pdf', findings: [finding] }} events={[]} source={'Invoice\nTotal: 10.00\nEnd'} pdfUrl="blob:test-pdf" sourceError={null} onExport={vi.fn()} exporting={false} />);
+    await userEvent.click(screen.getByRole('button', { name: /find in source/i }));
+    expect(screen.getByText('Total: 10.00').tagName).toBe('MARK');
+    expect(screen.queryByAltText('Original invoice PDF page 1')).not.toBeInTheDocument();
+  });
 });
