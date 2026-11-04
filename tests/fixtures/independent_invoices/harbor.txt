@@ -1,0 +1,11 @@
+Invoice #: HARBOR-4721
+Supplier: Harbor Components
+Invoice Date: 2026-11-01
+Due Date: 2026-12-01
+Currency: USD
+WidgetA 2 @ $12.50 $25.00
+GadgetX 1 @ $8.00 $8.00
+Subtotal: $33.00
+Tax: $0.00
+Total Amount: $33.00
+Payment Terms: Net 30

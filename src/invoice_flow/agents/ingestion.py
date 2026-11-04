@@ -49,7 +49,7 @@ class ExtractionResult:
 
 
 def _issues(draft: InvoiceDraft, text: str, policy: Policy) -> tuple[list[Finding], list[Finding]]:
-    grounding = [f for f in check_grounding(draft, text) if f.code in _GROUNDING_BAD]
+    grounding = [f for f in check_grounding(draft, text, policy) if f.code in _GROUNDING_BAD]
     currency = effective_currency(draft, policy)
     arithmetic: list[Finding] = []
     if currency and len(currency) == 3:

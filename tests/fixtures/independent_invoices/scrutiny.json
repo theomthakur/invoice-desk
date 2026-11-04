@@ -1,0 +1,10 @@
+{
+  "invoice_number": "FOUNDRY-502",
+  "vendor": "North Foundry",
+  "date": "2026-11-01",
+  "due_date": "2026-12-01",
+  "currency": "USD",
+  "line_items": [{"item": "WidgetA", "quantity": 1, "unit_price": "12500.00"}],
+  "subtotal": "12500.00",
+  "total": "12500.00"
+}

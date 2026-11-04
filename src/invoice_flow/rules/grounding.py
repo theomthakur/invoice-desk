@@ -8,7 +8,9 @@ draft against the source text itself:
 * a correction is only accepted as a plain repair when it differs by look-alike characters,
   spacing or punctuation (``2O26`` -> ``2026``). Anything else needs a person;
 * every amount, quantity, identity and item name must appear in the source (or be a
-  verified correction).
+  verified correction);
+* dates and revisions must have evidence for the corresponding source field. A due date
+  may also follow from a grounded invoice date and stated payment terms.
 
 Structured drafts (``origin == "structured"``) came from code, not a model, and skip this.
 """
@@ -16,13 +18,94 @@ Structured drafts (``origin == "structured"``) came from code, not a model, and 
 from __future__ import annotations
 
 import re
+from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 
+from ..config import DatePolicy, Policy
 from ..findings import Finding, FindingCode, make_finding
 from ..schemas import Correction, InvoiceDraft
-from ..textnorm import collapse_ws, invoice_number_key, item_key, ocr_skeleton, vendor_key
+from ..textnorm import (
+    collapse_ws,
+    invoice_number_key,
+    item_key,
+    ocr_skeleton,
+    parse_date,
+    revision_rank,
+    terms_days,
+    vendor_key,
+)
 
 _NUMBER = re.compile(r"\d[\d,]*(?:\.\d+)?")
+_DEFAULT_DATES = DatePolicy(slash_date_order="mdy", terms_tolerance_days=3)
+_SOURCE_FIELDS = re.compile(
+    r"(?ix)\b(?:"
+    r"(?P<due_date>due(?:[\s_-]*(?:date|dt))?|payment[\s_-]*due|payable[\s_-]*by)"
+    r"|(?P<invoice_date>(?:invoice[\s_-]*)?(?:date|dt))"
+    r"|(?P<payment_terms>(?:payment[\s_-]*|pymnt[\s_-]*)?terms)"
+    r"|(?P<revision>revision|rev\.?|version)"
+    r")\b\s*(?:[:=\#]\s*|\s+)"
+)
+_DATE_LITERAL = re.compile(
+    r"(?ix)^(?:"
+    r"\d{4}-\d{1,2}-\d{1,2}"
+    r"|\d{1,2}[/.]\d{1,2}[/.]\d{4}"
+    r"|\d{1,2}(?:st|nd|rd|th)?[\s-]+[a-z]{3,9}\.?,?[\s-]+\d{4}"
+    r"|[a-z]{3,9}\.?\s+\d{1,2}(?:st|nd|rd|th)?,?\s+\d{4}"
+    r")(?![\w/.-])"
+)
+
+
+def _source_fields(text: str) -> dict[str, list[str]]:
+    """Keep each header's value in its own role, including adjacent PDF header fields."""
+    fields: dict[str, list[str]] = {}
+    for line in text.splitlines():
+        labels = list(_SOURCE_FIELDS.finditer(line))
+        for index, label in enumerate(labels):
+            end = labels[index + 1].start() if index + 1 < len(labels) else len(line)
+            value = line[label.end() : end].strip(" \t\"'")
+            fields.setdefault(label.lastgroup, []).append(value)
+    return fields
+
+
+def _starts_with(value: str, raw: str) -> bool:
+    value, raw = _fold(value), _fold(raw)
+    return (
+        bool(raw)
+        and value.startswith(raw)
+        and (len(value) == len(raw) or not value[len(raw)].isalnum())
+    )
+
+
+def _repaired_date(raw: str) -> str:
+    # Repair numeric components only. Translating the entire string would corrupt months
+    # such as April. This is used only for an explicitly quoted correction.
+    return re.sub(
+        r"(?<![a-z0-9])([0-9oils]+)(st|nd|rd|th)?(?![a-z0-9])",
+        lambda match: match[1].translate(_LOOKALIKE) + (match[2] or ""),
+        raw.casefold(),
+    )
+
+
+def _same_date(first: str, second: str, dates: DatePolicy, *, repair: bool = False) -> bool:
+    parsed = parse_date(_repaired_date(first) if repair else first, dates).value
+    return parsed is not None and parsed == parse_date(second, dates).value
+
+
+def _date_in_field(raw: str, values: list[str], dates: DatePolicy) -> bool:
+    for value in values:
+        if _starts_with(value, raw):
+            return True
+        literal = _DATE_LITERAL.match(value)
+        if literal and _same_date(literal[0], raw, dates):
+            return True
+    return False
+
+
+def _same_revision(first: str, second: str) -> bool:
+    first_rank, second_rank = revision_rank(first), revision_rank(second)
+    if first_rank is not None and second_rank is not None:
+        return first_rank == second_rank
+    return _fold(first) == _fold(second)
 
 
 def _fold(text: str) -> str:
@@ -72,7 +155,7 @@ def _skeleton(correction: Correction, *, corrected: bool = False) -> str:
 
 
 def verify_corrections(
-    corrections: list[Correction], source_text: str
+    corrections: list[Correction], source_text: str, policy: Policy | None = None
 ) -> tuple[list[Finding], list[Correction]]:
     """Return findings and the corrections that are verified plain repairs."""
     findings: list[Finding] = []
@@ -108,7 +191,27 @@ def verify_corrections(
                 )
             )
             continue
-        if _skeleton(correction) != _skeleton(correction, corrected=True):
+        if correction.field in {"invoice_date", "due_date"}:
+            # Removing punctuation can move digits between date components: 2026-1-11
+            # and 2026-11-1 are different dates despite the same generic OCR skeleton.
+            plain_repair = _same_date(
+                correction.original,
+                correction.corrected,
+                policy.dates if policy else _DEFAULT_DATES,
+                repair=True,
+            )
+        elif correction.field == "revision":
+            # Keep component separators: R1.1 is not the single revision R11.
+            label = _fold(correction.original)
+            numeric = re.fullmatch(
+                r"((?:revision|version|rev|r|v)?[\s_.-]*)([0-9oils]{1,3})", label
+            )
+            if numeric:
+                label = numeric[1] + numeric[2].translate(_LOOKALIKE)
+            plain_repair = _same_revision(label, correction.corrected)
+        else:
+            plain_repair = _skeleton(correction) == _skeleton(correction, corrected=True)
+        if not plain_repair:
             findings.append(
                 make_finding(
                     FindingCode.SUBSTANTIVE_CORRECTION,
@@ -138,7 +241,10 @@ def verify_corrections(
 
 
 def verify_values(
-    draft: InvoiceDraft, source_text: str, accepted: list[Correction]
+    draft: InvoiceDraft,
+    source_text: str,
+    accepted: list[Correction],
+    policy: Policy | None = None,
 ) -> list[Finding]:
     """Every extracted number and identity string must be traceable to the source."""
     findings: list[Finding] = []
@@ -206,12 +312,73 @@ def verify_values(
                 observed=draft.vendor_name,
             )
         )
+
+    fields = _source_fields(source_text)
+    dates = policy.dates if policy else _DEFAULT_DATES
+
+    def date_grounded(field: str, raw: str | None) -> bool:
+        if not raw or not raw.strip():
+            return False
+        values = fields.get(field, [])
+        if _date_in_field(raw, values, dates):
+            return True
+        return any(
+            correction.field == field
+            and _date_in_field(correction.original, values, dates)
+            and _same_date(correction.corrected, raw, dates)
+            for correction in accepted
+        )
+
+    invoice_date_grounded = date_grounded("invoice_date", draft.invoice_date_raw)
+    for field, raw, grounded in (
+        ("invoice_date", draft.invoice_date_raw, invoice_date_grounded),
+        ("due_date", draft.due_date_raw, date_grounded("due_date", draft.due_date_raw)),
+    ):
+        if not raw or not raw.strip() or grounded:
+            continue
+        if field == "due_date" and not fields.get("due_date") and invoice_date_grounded:
+            invoice_date = parse_date(draft.invoice_date_raw, dates).value
+            due_date = parse_date(raw, dates).value
+            days = terms_days(draft.payment_terms)
+            if invoice_date and due_date and days is not None:
+                source_days = {terms_days(value) for value in fields.get("payment_terms", [])}
+                if days in source_days and (due_date - invoice_date) == timedelta(days=days):
+                    continue
+        findings.append(
+            make_finding(
+                FindingCode.VALUE_NOT_IN_SOURCE,
+                f"{field} '{raw}' has no supporting source field or verified derivation.",
+                field=field,
+                observed=raw,
+            )
+        )
+
+    if draft.revision and draft.revision.strip():
+        revisions = fields.get("revision", [])
+        grounded = any(_same_revision(value, draft.revision) for value in revisions)
+        grounded = grounded or any(
+            correction.field == "revision"
+            and any(_same_revision(value, correction.original) for value in revisions)
+            and _same_revision(correction.corrected, draft.revision)
+            for correction in accepted
+        )
+        if not grounded:
+            findings.append(
+                make_finding(
+                    FindingCode.VALUE_NOT_IN_SOURCE,
+                    f"Revision '{draft.revision}' has no supporting revision label in the source.",
+                    field="revision",
+                    observed=draft.revision,
+                )
+            )
     return findings
 
 
-def check_grounding(draft: InvoiceDraft, source_text: str) -> list[Finding]:
+def check_grounding(
+    draft: InvoiceDraft, source_text: str, policy: Policy | None = None
+) -> list[Finding]:
     if draft.origin != "model":
         return []
-    findings, accepted = verify_corrections(draft.corrections, source_text)
-    findings.extend(verify_values(draft, source_text, accepted))
+    findings, accepted = verify_corrections(draft.corrections, source_text, policy)
+    findings.extend(verify_values(draft, source_text, accepted, policy))
     return findings

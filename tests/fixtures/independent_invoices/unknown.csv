@@ -1,0 +1,11 @@
+field,value
+invoice_number,ORCHARD-19
+vendor,Orchard Fabrication
+date,2026-11-01
+due_date,2026-12-01
+currency,USD
+item,WidgetZ
+quantity,1
+unit_price,10.00
+subtotal,10.00
+total,10.00

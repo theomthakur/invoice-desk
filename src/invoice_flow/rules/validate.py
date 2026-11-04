@@ -137,7 +137,7 @@ def validate_invoice(
     valid_currency = currency if currency and len(currency) == 3 else None
 
     findings = check_integrity(draft, policy)
-    findings += check_grounding(draft, source_text)
+    findings += check_grounding(draft, source_text, policy)
     date_findings, invoice_date, due_date = check_dates(draft, policy, today)
     findings += date_findings
     inventory_findings, resolved = check_inventory(draft, index)

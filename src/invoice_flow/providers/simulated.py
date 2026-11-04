@@ -28,7 +28,7 @@ from .scripted import reply
 
 _LABEL = re.compile(
     r"""(?ix)\b(?:
-        (?P<number>invoice\s*(?:number|no\.?)\s*[:\#]?|invoice\s*[:\#]|inv\s*(?:number|no\.?|\#)\s*[:\#]?)
+        (?P<number>invoice\s*(?:number|no\.?)\s*[:\#]?|invoice\s*[:\#][ \t]*:?|inv\s*(?:number|no\.?|\#)\s*[:\#]?)
       | (?P<vendor>vendor(?:\s*name)?\s*:|vndr\s*:|supplier\s*:)
       | (?P<from>from\s*:)
       | (?P<due>due\s*date\s*:|due\s*dt\s*:|due\s*:)

@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from decimal import Decimal
 
-from ..amounts import effective_currency
+from ..amounts import effective_amounts, effective_currency
 from ..config import Policy
 from ..findings import Finding, FindingCode, Severity, make_finding
 from ..money import CURRENCY_EXPONENTS, canonical, exponent_for
@@ -148,11 +148,26 @@ def check_integrity(draft: InvoiceDraft, policy: Policy) -> list[Finding]:
                 )
             )
 
-    # header amounts
+    if draft.tax_rate is not None and draft.tax_rate < 0:
+        findings.append(
+            make_finding(
+                FindingCode.SOURCE_FIELD_INVALID,
+                f"Tax rate {canonical(draft.tax_rate)} is negative; credits require an explicit "
+                "policy and cannot be represented as negative tax.",
+                field="tax_rate",
+                observed=canonical(draft.tax_rate),
+                expected="nonnegative rate",
+                evidence=canonical(draft.tax_rate),
+            )
+        )
+
+    # Validate the amounts that normalization and payment actually use, including derived
+    # subtotal and tax. Derived tax is rounded later, as required for a fractional rate.
+    subtotal, tax, shipping = effective_amounts(draft)
     for name, label, value in (
-        ("subtotal", "Subtotal", draft.subtotal),
-        ("tax_amount", "Tax", draft.tax_amount),
-        ("shipping", "Shipping", draft.shipping),
+        ("subtotal", "Subtotal", subtotal),
+        ("tax_amount", "Tax", tax),
+        ("shipping", "Shipping", shipping),
         ("total", "Total", draft.total),
     ):
         if value is None:
@@ -166,7 +181,8 @@ def check_integrity(draft: InvoiceDraft, policy: Policy) -> list[Finding]:
                     observed=canonical(value),
                 )
             )
-        if currency and not _has_precision(value, currency):
+        derived_tax = name == "tax_amount" and draft.tax_amount is None
+        if currency and not derived_tax and not _has_precision(value, currency):
             findings.append(
                 make_finding(
                     FindingCode.INVALID_AMOUNT,

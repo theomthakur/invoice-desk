@@ -1,0 +1,11 @@
+{
+  "invoice_number": "CIRCUIT-88",
+  "vendor": "Circuit Supply",
+  "date": "2026-11-01",
+  "due_date": "2026-12-01",
+  "currency": "USD",
+  "line_items": [{"item": "WidgetB", "quantity": 2, "unit_price": "50.00"}],
+  "subtotal": "100.00",
+  "tax_amount": "10.00",
+  "total": "111.00"
+}
