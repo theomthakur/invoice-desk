@@ -1,95 +1,60 @@
 # Evaluation
 
-## What has been measured
+## Current verification
+
+Local verification on 4 November 2026 uses the current working tree. These results do not establish CI on a future commit or a hosted deployment.
 
 | Check | Result | Scope |
 | --- | --- | --- |
-| Python tests | 730 passed, 4 live tests deselected | Deterministic rules, controlled providers, API, security, workflow, CLI, conflict persistence, legacy holds, grounding, cancellation, original PDF inspection and internal department routing. |
-| Frontend unit and interaction tests | 56 passed | Controlled HTTP responses; no live model. |
-| Browser tests | 18 passed | Real local backend in mock mode; valid invoice, rejection, workspace isolation, mobile intake, simulated review, optional notes, persistent department handoffs, rendered original PDF pages, manual guided onboarding and saved appearance in light/dark modes. |
-| Mutation checks | Historical baseline: 52/52 caught | Measured before the corrections; not rerun for the current source. Current safeguard regressions are included in the Python suite. |
-| Container smoke | Historical packaging check: passed on Linux amd64, 512 MB RAM / 0.1 CPU | Non-root image, custom port, access gate, browser production cookie on loopback, invoice outcomes, native PDF preview, review, export, isolation, full batch and CLI. Peak memory 213,676,032 bytes; no OOM. |
-| Supplied-file regression | 20/20 expected outcomes matched | Each file on a fresh isolated ledger, simulated reader, fixed processing date 3 Nov 2026. Known examples, not a blind set or LLM accuracy estimate. |
-| Supplied batch | Prior fingerprinted source: 20 files completed: 6 paid, 8 rejected, 2 held, 3 duplicate, 1 superseded | Fresh shared ledger; USD 30,375.00 in **mock** receipts. No real payments or savings. |
-| Live OpenRouter | Four Grok 4.7 acceptance tests passed | Clean payment with inventory tool use, messy invoice hold, invalid invoice rejection and usage accounting. Single runs on known samples; no broader accuracy estimate. |
+| Python tests | 736 passed, 4 live tests deselected | Rules, simulated/controlled providers, API, CLI, review, identity/version checks, source evidence, payment safety, restart/session behavior and workspace isolation. |
+| Frontend tests | 73 passed | Interactions, four-panel records, developer-only exports, CSV safety, review, history, theme and progress semantics. |
+| Browser tests | 21 passed | Real local mock backend; includes collapsed developer-toggle, Handoffs breadcrumb, four-panel layout, review, PDF inspection, isolation, responsive UI and exports. |
+| Frontend lint, TypeScript and build | Passed | Production frontend served by the local backend. |
+| Supplied-file regression | Earlier fingerprinted source: 20/20 expected outcomes | Each supplied file uses an isolated fresh ledger and a simulated reader. This is a known regression set, not blind LLM accuracy. |
+| Shared-ledger sample batch | Earlier fingerprinted source: 6 paid, 8 rejected, 2 held, 3 duplicate, 1 superseded | 20 files, USD 30,375.00 in simulated receipts. No real payment or savings. |
+| Live OpenRouter acceptance | Four known Grok 4.7 cases passed | Clean payment/tool use, messy invoice hold, invalid invoice rejection and usage accounting. Not rerun during the UI review. |
 
-Per-file results, flags and elapsed times for the fresh-ledger regression are in [`sample-regression.json`](../evidence/offline/sample-regression.json); the batch output is [`batch-regression.json`](../evidence/offline/batch-regression.json). Both record a source-code/policy fingerprint without requiring Git history. The fresh-ledger regression was rerun after invoice lookup was added; the batch artifact remains a historical measurement of its recorded source. Do not sum the fresh-ledger payments: those separate runs intentionally include alternate copies and revisions. The shared-ledger batch groups them first.
+## Read the results correctly
 
-The local Docker verification is recorded in [`render-container.json`](../evidence/offline/render-container.json). It predates the department-routing update and used its recorded source fingerprint, a Linux amd64 image, a 512,000,000-byte memory limit without extra swap, and 0.1 CPU. The workload was sequential with one operator. The actual hosted Render HTTPS URL, sleep/wake behavior and concurrent load remain unverified; no cloud deployment is claimed.
+A run is a processing attempt, not a unique invoice. Batch extraction attempts, retries and duplicate submissions can add runs. A completed run is not proof of payment: inspect the business outcome and stored simulated receipt. Restarting the local stack preserves workspace history while its cookie and signing key remain valid.
 
-Re-run from the repository root:
+Model roles use separate requests and structured results; they may share a model. Mock mode simulates those roles and does not measure genuine model reasoning. Live OpenRouter uses internet. The provided local workflow does not implement an offline LLM. No paid requests were made during this submission UI review.
+
+The four live Grok checks previously reported USD 0.065166 total provider cost. Separate single clean-invoice observations found Haiku 4.5 and GPT-4o-mini holding the sample rather than producing the expected paid outcome; Haiku 5.5 had no compatible endpoint. These small known-sample observations cannot establish which model is generally more reliable.
+
+## Evidence and reproducibility
+
+- [Independent sample outcomes](../evidence/offline/sample-regression.json): source and policy fingerprints recorded in the artifact. Separate ledgers intentionally include alternate files and revisions, so do not sum their payments.
+- [Shared-ledger batch](../evidence/offline/batch-regression.json): historical recorded fingerprint; files and explicit revisions grouped before decisions.
+- [Container smoke](../evidence/offline/render-container.json): historical Linux amd64, 512 MB / 0.1 CPU, sequential operator workload. Peak memory 213,676,032 bytes, no OOM. This predates later UI and handoff work; it is not production-load evidence.
+- Live trace files are local and git-ignored; no keys or private runtime records are included in the public repository.
+
+```bash
+uv run pytest
+cd frontend
+npm run lint
+npm test
+npm run build
+npm run test:e2e
+```
+
+Run sample comparisons separately from the active user workspace:
 
 ```bash
 MODEL_MODE=mock uv run python scripts/evaluate_samples.py
-MODEL_MODE=mock uv run python main.py --batch=data/invoices
+DATA_DIR=/path/to/an/empty/test-directory MODEL_MODE=mock uv run python main.py --batch=data/invoices
 ```
 
-The second command uses `DATA_DIR` or `data/runtime`. Point it at a fresh directory if you need the clean-ledger batch results. Expected outcomes are stored in `tests/fixtures/sample_expectations.json` as test labels, not runtime rules.
+The evaluation script has predefined labels in tests/fixtures/sample_expectations.json. They are test expectations, not runtime routing rules. Real rejection and review outcomes are successful executions, not CLI failures.
 
-## Selected checks
+## UI verification and limitations
 
-- `invoice_1007.csv`: declared USD 15,525 differs from USD 15,635 computed from subtotal and tax. The case also has stock violations.
-- `invoice_1013.json`: declared USD 22,562.80 differs from USD 22,512.80 computed from subtotal and tax; summed quantities also exceed stock.
-- `invoice_1012.pdf`: review is required for an unverified vendor-name change; extraction corrections are recorded separately.
-- `invoice_1014.xml`: EUR is held because no FX or non-USD payment policy was supplied.
-- `invoice_1004`: a batch chooses the explicit newer revision before payment; if the original was already paid, the later revision is held for reconciliation.
+The latest review corrects structured/reused reading progress, independent scrolling in four fixed panels, dark-mode indicators, the Handoffs title, and explicit Developer mode state. JSON and raw event payloads are hidden by default. Developer mode has a collapsed-state indicator and saved preference. User-facing payment labels consistently say simulated; mock remains the API/configuration mode identifier. Readable activity and decision PDFs use the browser print dialog. CSV supports text branding, not images. Department handoffs are internal records and do not send notifications.
 
-These labels are judgments for the supplied case, informed by the current policy. The checks do not prove a vendor committed fraud. No monetary value above is a measured business saving.
+The guided walkthrough waits for explicit actions and does not approve anything. Analytics query the whole workspace with UTC date, vendor and outcome filters; totals remain separated by currency. Table filters and selections apply to loaded runs. Receipt totals are not outstanding balances. Current backlog and exception bars open matching records; historical charts remain separate and do not provide per-metric drill-through. No fabricated savings or predictive metrics are claimed.
 
-## Live evaluation and gaps
+The public Render HTTPS deployment, sleep/wake behavior, concurrent production traffic, enterprise sign-in/RBAC, distributed worker recovery, OCR and actual bank transfers remain unverified or outside this prototype. Current Render configuration is mock-only with temporary storage. Human review and all payments are simulated.
 
-Tests marked `live` make real network calls and cost money; they are deselected by default. They require `RUN_LIVE_TESTS=1`, `OPENROUTER_API_KEY`, a positive `MODEL_BUDGET_USD` and explicit `-m live`. Configure a provider-side limit too: missing provider cost is recorded as unknown and is not included in the app's known-cost counter. A single live clean-invoice Grok 4.7 test was performed; its trace was kept locally outside the repository.
+## Current backlog and exception checks
 
-The positive live acceptance test now requires successful completion of the clean invoice, an inventory tool-call event, approval/critique/final decisions, and one expected mock receipt. Offline contract tests verify that provider failure and omitted tool use make that acceptance test fail. These controlled tests do not count as a live-model demonstration. Additional authored fixtures in `tests/fixtures/independent_invoices/` check manually specified fields and outcomes; they are development examples, not a blind benchmark.
-
-A meaningful next evaluation would use independent invoices with manually verified fields and expected findings, then record extraction accuracy, unsafe mock payments, unnecessary holds/rejections, retry/failure rates, latency and reported cost across repeated real-model runs. Negative examples and model/API failures should remain in the denominator. The present known examples were used during development and cannot answer that generalization question.
-
-## Operator workflow increment
-
-The invoice list labels a paid outcome as Payment reported because history does not contain a receipt. The record shows Paid (simulated) only with a stored receipt. Completed is a processing lifecycle, not a payment outcome. Rejected records provide a correction-request draft; no message is sent. Activity uses deterministic labels for known events and retains every event's type and payload under Technical details. Unknown events use a generic label and retain their original details. The print view summarizes the loaded record and can be saved as PDF through the browser; it is not the supplier's original document.
-
-Frontend lint, type check and build passed with 46 unit/interaction tests. The 13-test integrated browser suite passed, followed by targeted browser checks for print layout and the rejected-invoice draft after the final layout adjustment. Backend behavior and historic container evidence were unchanged.
-
-## Ledger lookup and CSV report
-
-Invoice lookup matches an exact normalized invoice number in the signed-in browser workspace. It lists separate vendors, recorded versions, version flags and linked runs, and identifies a simulated payment only when a payment row exists. It returns at most 50 matching payables and 100 versions each, with truncation explicitly labeled. Records without a usable identity are not included. This is a read-only lookup, not model-generated question answering. Tests cover workspace isolation, a paid record, a hold and distinct vendors with the same number.
-
-The CSV report is built from the loaded authorized run. It quotes cells and prefixes formula-like input, and marks payments as simulated. It is a decision report, not the original PDF. The lookup increment passed 719 Python tests with four live tests deselected, and the known sample regression matched 20/20 in mock mode. At that increment frontend checks passed 48 tests and 14 browser tests, including ledger lookup, CSV download and print layout. The historical container and shared-ledger batch evidence were not rerun for this source.
-
-## Linked retries and corrections
-
-Only failed or interrupted runs can be retried. Only rejected runs can receive a corrected file. New attempts and their parent link are saved atomically with an idempotency token before the worker starts, and queued links survive worker recovery. The original source and run remain accessible. Every attempt uses the same payment gate. A correction that cannot be matched to the original payable is held with an identity flag that the demo cannot clear. Identical source bytes are rejected as unchanged. Selecting a different file does not establish that it is a valid correction.
-
-The final local checks passed 726 Python tests (four live tests deselected), 50 frontend tests and 15 browser tests; linked navigation was rerun after the final UI adjustment. These include concurrent retry submission, cross-workspace and CSRF denial, repeated requests, recovery, preservation of the original, a correction with an unrelated identity and the one-payment rule. The 20 known samples matched expected mock outcomes. No live model was tested.
-
-## Initial ledger overview
-
-The overview reads all identified payables, runs, active flagged versions and simulated receipts from one workspace-scoped database snapshot. Runs are attempts and include batch extraction, retries and duplicates; they are not a count of distinct invoices. Review-run counts reflect recorded run outcomes, not currently outstanding invoices. Receipt totals use integer minor units and remain separate by currency. Unknown identities are excluded from identified-invoice counts. The CSV has the same labels and values.
-
-This initial overview did not implement the full planned analytics. See the ledger filters increment below for subsequent work; reconciliation drill-through, processing percentiles and comprehensive version-aware business metrics remain open. Tests cover empty workspaces, workspace isolation, duplicate attempts and separate currencies. Current checks: 729 Python tests with four live tests deselected, 51 frontend tests and 16 browser tests. The overview CSV and compact sidebar were also checked in a targeted browser run after the full suite. Known mock regression: 20/20. Historical container and shared-ledger batch artifacts were not rerun.
-
-## Multiple selection
-
-Selection applies to loaded runs. Select all affects only the loaded rows on the current page; selected rows hidden by a filter remain selected and are counted. CSV export includes every selected loaded run and escapes spreadsheet formula-like input. Selection is in browser memory and clears when the list unmounts; it does not execute invoice actions. Tests cover filtering, clearing, removal from loaded history and formula escaping. The integrated browser check verifies the selected CSV contains both visible and hidden selected run IDs.
-
-## Ledger filters
-
-The overview can filter by UTC run start date, vendor substring and outcome. Filtered invoice and flag counts are distinct records linked to matching runs. A receipt is included only when its own version has a matching paid run, so a duplicate or rejection is not presented as a payment. Vendor filters exclude runs without an identifiable vendor. CSV includes the applied filters. Automated tests cover workspace isolation, date boundaries, duplicate and rejected outcomes, and invalid dates. The 20 supplied samples matched expected outcomes in mock mode; live model and hosted deployment were not tested for this increment.
-
-## Duplicate inbox and current batch check
-
-The inbox labels the backend duplicate outcome and has a Duplicates filter for loaded runs. It does not guess duplicates from filenames or invoice numbers. In a fresh shared ledger on 4 November 2026, all 20 supplied files completed: 6 paid, 8 rejected, 2 held, 3 duplicates and 1 superseded. The USD 30,375 total is simulated. The browser check processes the same invoice twice and checks the duplicate filter. These known samples and offline tests do not establish real-model accuracy. The four live-provider tests remain unrun.
-
-## Initial live model comparison
-
-On 4 November 2026, the same clean-invoice acceptance test was run once per model using OpenRouter. Grok 4.7 passed with four model calls, one inventory tool call and a mock receipt; provider-reported cost was USD 0.032896 and the test took about 46 seconds. Claude Haiku 4.5 completed and called the inventory tool but held the sample for review because its due date was past, so the test expecting a paid outcome failed; reported cost was USD 0.010708. GPT-4o-mini held it for review after source-grounding checks, before tool use; reported cost was USD 0.000477. Haiku 5.5 returned no compatible endpoint for the request. The application did not fall back silently. These are single observations on a known sample, not a reliability comparison or guarantee. Live mode requires internet and payments are simulated.
-
-## Product navigation and live check, 4 November 2026
-
-The sidebar now avoids duplicate inbox/history/review links. Handoffs opens the assigned review queue; exact invoice lookup is beside the list. The presentation supports full screen and the architecture uses one diagram with local technology marks. Frontend checks passed 64 tests, lint and build. The browser run passed 19 tests before a narrow-screen header overflow was found; after the fix, all four affected navigation, presentation, analytics and mobile checks passed.
-
-The four live Grok 4.7 acceptance tests passed using the existing OpenRouter key: clean invoice paid in simulation with an inventory tool call; messy invoice held; invalid invoices rejected; usage recorded. Reported cost across these four tests was USD 0.065166. These are known samples run once, not a blind reliability benchmark. Sanitized traces remain local under the git-ignored evidence/live directory. No real payment or department notification occurred.
-
-## Detailed architecture and presentation mode
-
-The architecture page now covers all 16 main workflow steps plus shared SQLite records, the external OpenRouter service, ingestion details, recovery, current Render configuration and production changes. It identifies Render as prepared rather than deployed. The presentation uses the slide-only approach reviewed in PolicyPilot and AfterOrder, with keyboard navigation, idle controls and a visible exit action. Frontend tests passed 64 checks; lint and build passed. The affected browser tests passed for resource navigation, native full screen, arrow-key navigation, dark mode and mobile overflow. No backend or deployment configuration changed.
+New integration coverage verifies duplicate attempts do not multiply backlog counts, only the latest department assignment is counted, another workspace cannot read chart records, paid holds leave the backlog, superseded versions are excluded, and filtering never resurrects a historical hold after a later rejection. Reasons count once per record, informational findings are excluded, and record pagination/date/size bounds are checked. Frontend checks cover opening actual run records from a chart and discarding an obsolete request after filters change. The browser flow assigns an invoice, submits a duplicate, confirms one current hold and opens the original record from its chart. Final browser verification is run on the current API contract.

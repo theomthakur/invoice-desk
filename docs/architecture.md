@@ -63,3 +63,29 @@ Handoffs use the same workspace ownership and CSRF checks as other mutations. Th
 The System design page walks through input, source parsing and storage, queued work, preparation, validation, version registration, inventory evidence, approval and critique, payment revalidation, and operator follow-up. A Render/Docker boundary shows the prepared one-service deployment, and OpenRouter is drawn as an external dependency used only for live calls. The Render configuration remains mock-only and ephemeral until an operator deliberately changes it and verifies the hosted service.
 
 Presentation full screen shows the current slide without the page heading or slide navigation list. Arrow keys, Space and Page Up/Down move through the deck; F toggles full screen and Esc exits. Controls fade when idle and return on pointer or keyboard activity.
+
+## Product terms and agent responsibilities
+
+The interface uses Vendor, Invoice number, Line items, Subtotal, Tax, Shipping, Total and Due date for the document fields. These are accounts-payable concepts, not claims of compliance with a specific company's internal glossary. Acme is fictional and the case does not prescribe a UI glossary.
+
+- **Invoice:** the vendor's business document and its versioned identity.
+- **Run:** one processing attempt. Retrying or resubmitting can create another run without creating another payment.
+- **Needs review:** payment is on hold pending a permitted human decision.
+- **Handoffs:** review holds assigned internally to a department. This does not send a notification or grant payment permission.
+- **Rejected:** this submission cannot proceed as it stands. A correction can be submitted as a linked attempt.
+- **Duplicate / superseded:** another submission matches an existing record, or an applicable later revision exists. These are not extra payments.
+- **Processing finished:** execution ended; consult its separate outcome and receipt before interpreting it as paid.
+
+The multi-agent workflow has four specialized roles with separate instructions and typed exchanges. The **reader** extracts a draft and can reread once; structured parsing or verified reuse can bypass this model role. The **validator** requests the inventory tool and passes its evidence onward; independent Python rules still check arithmetic and stock. The **approver** proposes a decision using the invoice, findings and tool evidence. The **critic** checks the proposal and may cause one revision; remaining disagreement goes to human review. LangGraph coordinates these stages and early exits. A code-controlled payment gate revalidates the decision transactionally.
+
+These are sequential collaborating roles, not four parallel services or necessarily four different models. Mock mode simulates their responses. Activity shows recorded execution rather than implying every role ran for every invoice.
+
+References used for terminology and architecture comparison: [ERPNext purchase invoice fields](https://github.com/frappe/erpnext/blob/develop/erpnext/accounts/doctype/purchase_invoice/purchase_invoice.json), [InvoicePlane invoice statuses](https://wiki.invoiceplane.org/en/1.5/modules/invoices), and [LangGraph multi-agent patterns](https://www.langchain.com/blog/langgraph-multi-agent-workflows). InvoicePlane is primarily an invoice-issuing workflow, so Draft/Sent statuses were not copied into this incoming-invoice prototype. No reference implementation was imported and no new framework is required.
+
+## Current review analytics
+
+Historical charts count processing attempts. Current backlog and blocking-reason charts instead select the latest completed decision per active invoice version (or per document when version identity is missing), before applying date/vendor/outcome filters. Paid payables and superseded versions are excluded. Duplicate attempts cannot multiply current holds. Unidentified documents without a version or document ID remain separate records rather than inventing an invoice identity.
+
+Current backlog groups needs-review records by the latest internal department assignment. Exception reasons include only ERROR and REVIEW findings on current held/rejected records, deduplicated per reason per record. One record can have several reasons, so category counts overlap. Neither metric is an accounts-payable balance or forecast.
+
+The read-only /analytics/records endpoint returns paginated records for a chart category. It uses the same selection and filters as the overview, derives workspace identity from the session, and lets operators open the corresponding run. Views are read snapshots, not a frozen report: records can change between chart refresh and pagination. The frontend ignores stale responses after filter changes. This prototype computes current records in memory after the database selection; large-scale performance has not been benchmarked.
