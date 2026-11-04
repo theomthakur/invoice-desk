@@ -280,6 +280,8 @@ class AnalyticsOverview(StrictModel):
     paid_by_currency: list[AnalyticsAmount]
     outcomes: dict[str, int]
     daily_runs: list[dict[str, str | int]]
+    vendor_runs: list[dict[str, str | int]]
+    identity_flags: list[dict[str, str | int]]
 
 
 class InvoiceLookupVersion(StrictModel):

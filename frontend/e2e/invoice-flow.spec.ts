@@ -353,7 +353,8 @@ test('ledger overview counts records beyond the inbox as separate runs and recei
   await expect(page.getByRole('heading',{name:'Ledger overview',exact:true})).toBeVisible();
   await expect(page.getByText('USD · 1 receipt(s)')).toBeVisible();
   await expect(page.getByText('$5,000.00')).toBeVisible();
-  await expect(page.getByText('Includes retries, duplicates and batch extraction')).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Activity by vendor'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Runs over time'})).toBeVisible();
   for (const name of ['Processing rules','System design','Presentation']) await expect(page.getByRole('button',{name,exact:true})).toBeInViewport();
   const [download]=await Promise.all([page.waitForEvent('download'),page.getByRole('button',{name:'Download CSV'}).click()]);
   expect(download.suggestedFilename()).toBe('ledger-overview.csv');

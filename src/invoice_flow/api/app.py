@@ -921,11 +921,17 @@ def create_app(
                 params,
             ).fetchone()
             outcome_rows = conn.execute(
-                "SELECT COALESCE(r.outcome, 'pending') AS outcome, COUNT(*) AS count"
+                # Runs without an outcome are split by lifecycle so failures stay visible.
+                "SELECT COALESCE(r.outcome, CASE"
+                " WHEN r.lifecycle IN ('failed','interrupted') THEN 'failed'"
+                " WHEN r.lifecycle IN ('queued','running') THEN 'in_progress'"
+                # Batch extraction runs complete without an outcome of their own.
+                " WHEN r.lifecycle = 'completed' THEN 'extraction_only'"
+                " ELSE 'pending' END) AS outcome, COUNT(*) AS count"
                 + joins
                 + " WHERE "
                 + where
-                + " GROUP BY r.outcome",
+                + " GROUP BY 1 ORDER BY count DESC, outcome",
                 params,
             ).fetchall()
             day_rows = conn.execute(
@@ -936,25 +942,37 @@ def create_app(
                 + " GROUP BY date(r.started_at) ORDER BY day DESC LIMIT 30",
                 params,
             ).fetchall()
+            vendor_rows = conn.execute(
+                "SELECT p.vendor_name AS vendor, COUNT(*) AS count"
+                + joins
+                + " WHERE "
+                + where
+                + " AND p.payable_id IS NOT NULL GROUP BY p.vendor_name"
+                + " ORDER BY count DESC, p.vendor_name LIMIT 8",
+                params,
+            ).fetchall()
             if filtered:
                 invoice_count = runs["invoices"]
-                flagged = conn.execute(
-                    "SELECT COUNT(DISTINCT v.version_id)"
+                flag_rows = conn.execute(
+                    "SELECT v.identity_flag AS flag, COUNT(DISTINCT v.version_id) AS count"
                     + joins
                     + " WHERE "
                     + where
-                    + " AND v.status='active' AND v.identity_flag IS NOT NULL",
+                    + " AND v.status='active' AND v.identity_flag IS NOT NULL"
+                    + " GROUP BY v.identity_flag ORDER BY count DESC, flag",
                     params,
-                ).fetchone()[0]
+                ).fetchall()
             else:
                 invoice_count = conn.execute(
                     "SELECT COUNT(*) FROM payables WHERE workspace_id=?", (ws,)
                 ).fetchone()[0]
-                flagged = conn.execute(
-                    "SELECT COUNT(*) FROM invoice_versions WHERE workspace_id=?"
-                    " AND status='active' AND identity_flag IS NOT NULL",
+                flag_rows = conn.execute(
+                    "SELECT identity_flag AS flag, COUNT(*) AS count FROM invoice_versions"
+                    " WHERE workspace_id=? AND status='active' AND identity_flag IS NOT NULL"
+                    " GROUP BY identity_flag ORDER BY count DESC, flag",
                     (ws,),
-                ).fetchone()[0]
+                ).fetchall()
+            flagged = sum(row["count"] for row in flag_rows)
             totals: dict[str, tuple[int, int]] = {}
             payment_sql = "SELECT t.currency, t.amount_minor FROM payments t WHERE t.workspace_id=?"
             payment_params: list[Any] = [ws]
@@ -973,10 +991,16 @@ def create_app(
                 "failed_runs": runs["failed"],
                 "review_runs": runs["review"],
                 "flagged_active_versions": flagged,
+                "identity_flags": [
+                    {"flag": row["flag"], "count": row["count"]} for row in flag_rows
+                ],
                 "simulated_receipts": sum(count for _, count in totals.values()),
                 "outcomes": {row["outcome"]: row["count"] for row in outcome_rows},
                 "daily_runs": [
                     {"day": row["day"], "count": row["count"]} for row in reversed(day_rows)
+                ],
+                "vendor_runs": [
+                    {"vendor": row["vendor"], "count": row["count"]} for row in vendor_rows
                 ],
                 "paid_by_currency": [
                     {

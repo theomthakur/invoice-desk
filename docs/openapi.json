@@ -61,6 +61,23 @@
             "title": "Identified Invoices",
             "type": "integer"
           },
+          "identity_flags": {
+            "items": {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ]
+              },
+              "type": "object"
+            },
+            "title": "Identity Flags",
+            "type": "array"
+          },
           "outcomes": {
             "additionalProperties": {
               "type": "integer"
@@ -86,6 +103,23 @@
           "total_runs": {
             "title": "Total Runs",
             "type": "integer"
+          },
+          "vendor_runs": {
+            "items": {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ]
+              },
+              "type": "object"
+            },
+            "title": "Vendor Runs",
+            "type": "array"
           }
         },
         "required": [
@@ -98,7 +132,9 @@
           "simulated_receipts",
           "paid_by_currency",
           "outcomes",
-          "daily_runs"
+          "daily_runs",
+          "vendor_runs",
+          "identity_flags"
         ],
         "title": "AnalyticsOverview",
         "type": "object"
