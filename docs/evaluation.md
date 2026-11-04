@@ -11,7 +11,7 @@
 | Container smoke | Historical packaging check: passed on Linux amd64, 512 MB RAM / 0.1 CPU | Non-root image, custom port, access gate, browser production cookie on loopback, invoice outcomes, native PDF preview, review, export, isolation, full batch and CLI. Peak memory 213,676,032 bytes; no OOM. |
 | Supplied-file regression | 20/20 expected outcomes matched | Each file on a fresh isolated ledger, simulated reader, fixed processing date 3 Nov 2026. Known examples, not a blind set or LLM accuracy estimate. |
 | Supplied batch | Prior fingerprinted source: 20 files completed: 6 paid, 8 rejected, 2 held, 3 duplicate, 1 superseded | Fresh shared ledger; USD 30,375.00 in **mock** receipts. No real payments or savings. |
-| Live OpenRouter | One clean-invoice Grok 4.7 acceptance test passed | One run called the inventory tool and produced a simulated receipt; no broader accuracy estimate. |
+| Live OpenRouter | Four Grok 4.7 acceptance tests passed | Clean payment with inventory tool use, messy invoice hold, invalid invoice rejection and usage accounting. Single runs on known samples; no broader accuracy estimate. |
 
 Per-file results, flags and elapsed times for the fresh-ledger regression are in [`sample-regression.json`](../evidence/offline/sample-regression.json); the batch output is [`batch-regression.json`](../evidence/offline/batch-regression.json). Both record a source-code/policy fingerprint without requiring Git history. The fresh-ledger regression was rerun after invoice lookup was added; the batch artifact remains a historical measurement of its recorded source. Do not sum the fresh-ledger payments: those separate runs intentionally include alternate copies and revisions. The shared-ledger batch groups them first.
 
@@ -83,3 +83,9 @@ The inbox labels the backend duplicate outcome and has a Duplicates filter for l
 ## Initial live model comparison
 
 On 4 November 2026, the same clean-invoice acceptance test was run once per model using OpenRouter. Grok 4.7 passed with four model calls, one inventory tool call and a mock receipt; provider-reported cost was USD 0.032896 and the test took about 46 seconds. Claude Haiku 4.5 completed and called the inventory tool but held the sample for review because its due date was past, so the test expecting a paid outcome failed; reported cost was USD 0.010708. GPT-4o-mini held it for review after source-grounding checks, before tool use; reported cost was USD 0.000477. Haiku 5.5 returned no compatible endpoint for the request. The application did not fall back silently. These are single observations on a known sample, not a reliability comparison or guarantee. Live mode requires internet and payments are simulated.
+
+## Product navigation and live check, 4 November 2026
+
+The sidebar now avoids duplicate inbox/history/review links. Handoffs opens the assigned review queue; exact invoice lookup is beside the list. The presentation supports full screen and the architecture uses one diagram with local technology marks. Frontend checks passed 64 tests, lint and build. The browser run passed 19 tests before a narrow-screen header overflow was found; after the fix, all four affected navigation, presentation, analytics and mobile checks passed.
+
+The four live Grok 4.7 acceptance tests passed using the existing OpenRouter key: clean invoice paid in simulation with an inventory tool call; messy invoice held; invalid invoices rejected; usage recorded. Reported cost across these four tests was USD 0.065166. These are known samples run once, not a blind reliability benchmark. Sanitized traces remain local under the git-ignored evidence/live directory. No real payment or department notification occurred.

@@ -36,7 +36,7 @@ A custom Invoice Desk lettermark is used in the app and browser icons. `public/`
 
 ## Project resources and priority
 
-System design and Presentation are available from the sidebar. The architecture view describes the actual local stack, agent roles, storage, security boundaries and future scaling work. The seven-part presentation has slide controls and keyboard navigation; opening it does not start a processing or payment action.
+System design and Presentation are available from the sidebar. The architecture view uses a single high-level diagram with local technology marks and a short explanation of the agent roles. The seven-part presentation has slide controls, keyboard navigation and a full-screen option; opening it does not start a processing or payment action.
 
 Held invoices show review controls and findings before extracted details. Rejected invoices put findings first. The source remains alongside the decision content on desktop and below it on mobile. Refresh reloads history only; it does not reprocess documents or make payments.
 
@@ -115,3 +115,5 @@ Ledger overview shows workspace-wide identified payables, run counts, failures, 
 ## Select multiple entries
 
 The invoice list supports selecting individual loaded runs and selecting all visible loaded runs. Search and status filters retain the selection and show how many selected runs are outside the current view. The selection is limited to loaded history, clears when leaving the list, and is pruned if records disappear from the loaded page. Export selected CSV includes all selected loaded runs, including those hidden by a filter. The export uses spreadsheet formula escaping. Selection and export do not approve, reject, reprocess or pay invoices. `multi-select.png` shows the workflow.
+
+Technology marks in `public/tech/` come from Simple Icons (https://simpleicons.org), downloaded for local use. Brand marks identify the technologies in the architecture diagram; they do not imply endorsement.
