@@ -4,7 +4,7 @@ The local application has been checked with Python 3.12.2 and Node 22.13.1. Curr
 
 - Python: 713 passed; four paid-provider tests deselected.
 - Frontend: TypeScript, ESLint and production build passed; 36 tests passed.
-- Browser: six integrated Chrome tests passed against an isolated local backend in mock mode, including actual PDF page rendering.
+- Browser: seven integrated Chrome tests passed against an isolated local backend in mock mode, including actual PDF page rendering.
 - Supplied data: all 20 original files retained unchanged; 20 predefined independent-ledger outcomes matched.
 - Shared-ledger batch: six paid, eight rejected, two held, three duplicate, one superseded; USD 30,375.00 in simulated receipts.
 - Source regression evidence records a source-code and policy fingerprint. No genuine model trace has been produced.

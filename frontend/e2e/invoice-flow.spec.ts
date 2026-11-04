@@ -15,6 +15,25 @@ async function runSample(page: Page, name: string) {
   return runId;
 }
 
+test('sidebar can collapse, keep navigation usable and remember the choice', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto('/');
+  const collapse = page.getByRole('button', { name: 'Collapse sidebar', exact: true });
+  await expect(collapse).toHaveAttribute('aria-expanded', 'true');
+  await collapse.click();
+  await expect(page.locator('.sidebar')).toHaveCSS('width', '76px');
+  await page.getByRole('button', { name: 'Processing rules', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Processing rules', exact: true })).toBeVisible();
+  await page.reload();
+  const expand = page.getByRole('button', { name: 'Expand sidebar', exact: true });
+  await expect(expand).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.locator('.sidebar')).toHaveCSS('width', '76px');
+  await expand.click();
+  await expect(page.locator('.sidebar')).toHaveCSS('width', '252px');
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Collapse sidebar', exact: true })).toBeVisible();
+});
+
 test('valid invoice is processed once, traced and isolated from another workspace', async ({ page, browser }) => {
   await page.goto('/');
   await expect(page.getByRole('button', { name: 'Start a new invoice' })).toBeEnabled();
