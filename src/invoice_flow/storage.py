@@ -169,6 +169,21 @@ CREATE TABLE IF NOT EXISTS approval_decisions (
     FOREIGN KEY (version_id, workspace_id) REFERENCES invoice_versions(version_id, workspace_id)
         ON DELETE CASCADE
 );
+CREATE TABLE IF NOT EXISTS review_handoffs (
+    handoff_id    TEXT PRIMARY KEY,
+    workspace_id  TEXT NOT NULL REFERENCES workspaces(workspace_id) ON DELETE CASCADE,
+    run_id        TEXT NOT NULL REFERENCES runs(run_id) ON DELETE CASCADE,
+    version_id    TEXT,
+    content_hash  TEXT,
+    department    TEXT NOT NULL,
+    reason_code   TEXT NOT NULL,
+    note          TEXT NOT NULL,
+    request_token TEXT NOT NULL,
+    request_hash  TEXT NOT NULL,
+    created_at    TEXT NOT NULL,
+    UNIQUE (workspace_id, request_token)
+);
+CREATE INDEX IF NOT EXISTS idx_handoffs_run ON review_handoffs(workspace_id, run_id, created_at);
 CREATE TABLE IF NOT EXISTS payments (
     payment_id     TEXT PRIMARY KEY,
     workspace_id   TEXT NOT NULL,

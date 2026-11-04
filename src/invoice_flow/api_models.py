@@ -213,6 +213,47 @@ class ReviewOptions(StrictModel):
     can_reject: bool
 
 
+class HandoffChoice(StrictModel):
+    value: str
+    label: str
+
+
+class DepartmentAssignment(StrictModel):
+    handoff_id: SafeId
+    department: str
+    department_label: str
+    reason_code: str
+    reason: str
+    note: str
+    created_at: datetime
+    active: bool
+    notification_sent: Literal[False] = False
+
+
+class DepartmentRouting(StrictModel):
+    assignment: DepartmentAssignment | None
+    can_route: bool
+    departments: list[HandoffChoice]
+    reasons: list[HandoffChoice]
+
+
+class DepartmentHandoffRequest(StrictModel):
+    version_id: SafeId | None
+    content_hash: Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{64}$")] | None
+    department: Literal[
+        "accounts_payable", "procurement", "vendor_management", "finance_operations"
+    ]
+    reason_code: Literal[
+        "inventory_check",
+        "vendor_verification",
+        "payment_policy",
+        "version_conflict",
+        "additional_review",
+    ]
+    note: Annotated[str, StringConstraints(strip_whitespace=True, max_length=1500)] = ""
+    idempotency_token: Token
+
+
 # ---------------------------------------------------------------- history and export
 
 

@@ -33,6 +33,9 @@ from ..api_models import (
     ConfigInfo,
     CreateBatchRequest,
     CreateRunRequest,
+    DepartmentAssignment,
+    DepartmentHandoffRequest,
+    DepartmentRouting,
     DocumentInfo,
     ErrorResponse,
     EventsPage,
@@ -61,6 +64,7 @@ from ..money import format_amount
 from ..parsers import SourceError, parse_bytes
 from ..parsers.common import safe_filename
 from ..parsers.pdf import pdf_page_count, render_pdf_page
+from ..review_routing import RoutingError, record_handoff, routing_info
 from ..runtime import App, AppConfig
 from ..schemas import RunEvent, RunLifecycle, RunResult, SourceFormat
 from ..service import process_batch, submit_review
@@ -689,6 +693,32 @@ def create_app(
             raise ApiError(status, outcome.code or "review_refused", outcome.message)
         _remember(ws, body.idempotency_token, run_id, payload)
         return ReviewResult(run=outcome.run, accepted=True, message=outcome.message)
+
+    @api.get(f"{API}/runs/{{run_id}}/routing", response_model=DepartmentRouting)
+    async def get_routing(run_id: str, ws: str = Depends(workspace)):
+        try:
+            return routing_info(ctx, ws, run_id)
+        except RoutingError as exc:
+            raise ApiError(exc.status, exc.code, exc.message) from exc
+
+    @api.post(f"{API}/runs/{{run_id}}/routing", response_model=DepartmentAssignment)
+    async def route_review(
+        run_id: str, body: DepartmentHandoffRequest, ws: str = Depends(mutation)
+    ):
+        try:
+            return record_handoff(
+                ctx,
+                workspace_id=ws,
+                run_id=run_id,
+                version_id=body.version_id,
+                content_hash_seen=body.content_hash,
+                department=body.department,
+                reason_code=body.reason_code,
+                note=body.note,
+                request_token=body.idempotency_token,
+            )
+        except RoutingError as exc:
+            raise ApiError(exc.status, exc.code, exc.message) from exc
 
     # ------------------------------------------------------------------ batches and history
 

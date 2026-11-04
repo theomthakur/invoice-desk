@@ -453,6 +453,180 @@
         "title": "CreateRunRequest",
         "type": "object"
       },
+      "DepartmentAssignment": {
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "department": {
+            "title": "Department",
+            "type": "string"
+          },
+          "department_label": {
+            "title": "Department Label",
+            "type": "string"
+          },
+          "handoff_id": {
+            "maxLength": 80,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9._\\-]+$",
+            "title": "Handoff Id",
+            "type": "string"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "notification_sent": {
+            "const": false,
+            "default": false,
+            "title": "Notification Sent",
+            "type": "boolean"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "reason_code": {
+            "title": "Reason Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "handoff_id",
+          "department",
+          "department_label",
+          "reason_code",
+          "reason",
+          "note",
+          "created_at",
+          "active"
+        ],
+        "title": "DepartmentAssignment",
+        "type": "object"
+      },
+      "DepartmentHandoffRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "content_hash": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Hash"
+          },
+          "department": {
+            "enum": [
+              "accounts_payable",
+              "procurement",
+              "vendor_management",
+              "finance_operations"
+            ],
+            "title": "Department",
+            "type": "string"
+          },
+          "idempotency_token": {
+            "maxLength": 80,
+            "minLength": 8,
+            "pattern": "^[A-Za-z0-9._\\-]+$",
+            "title": "Idempotency Token",
+            "type": "string"
+          },
+          "note": {
+            "default": "",
+            "maxLength": 1500,
+            "title": "Note",
+            "type": "string"
+          },
+          "reason_code": {
+            "enum": [
+              "inventory_check",
+              "vendor_verification",
+              "payment_policy",
+              "version_conflict",
+              "additional_review"
+            ],
+            "title": "Reason Code",
+            "type": "string"
+          },
+          "version_id": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9._\\-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Id"
+          }
+        },
+        "required": [
+          "version_id",
+          "content_hash",
+          "department",
+          "reason_code",
+          "idempotency_token"
+        ],
+        "title": "DepartmentHandoffRequest",
+        "type": "object"
+      },
+      "DepartmentRouting": {
+        "additionalProperties": false,
+        "properties": {
+          "assignment": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DepartmentAssignment"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "can_route": {
+            "title": "Can Route",
+            "type": "boolean"
+          },
+          "departments": {
+            "items": {
+              "$ref": "#/components/schemas/HandoffChoice"
+            },
+            "title": "Departments",
+            "type": "array"
+          },
+          "reasons": {
+            "items": {
+              "$ref": "#/components/schemas/HandoffChoice"
+            },
+            "title": "Reasons",
+            "type": "array"
+          }
+        },
+        "required": [
+          "assignment",
+          "can_route",
+          "departments",
+          "reasons"
+        ],
+        "title": "DepartmentRouting",
+        "type": "object"
+      },
       "DocumentInfo": {
         "additionalProperties": false,
         "properties": {
@@ -713,6 +887,25 @@
         ],
         "title": "FindingCode",
         "type": "string"
+      },
+      "HandoffChoice": {
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "value",
+          "label"
+        ],
+        "title": "HandoffChoice",
+        "type": "object"
       },
       "HistoryItem": {
         "additionalProperties": false,
@@ -3519,6 +3712,232 @@
           }
         },
         "summary": "Review Options"
+      }
+    },
+    "/api/v1/runs/{run_id}/routing": {
+      "get": {
+        "operationId": "get_routing_api_v1_runs__run_id__routing_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DepartmentRouting"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No valid session, or a bad access code."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Cross-site request, or a missing or invalid CSRF token."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such record in this workspace."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict: stale decision, reused request token, or active run."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The upload is larger than the configured limit."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid input."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Rate limited, or the run queue is full. Retry later."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested mode is unavailable."
+          }
+        },
+        "summary": "Get Routing"
+      },
+      "post": {
+        "operationId": "route_review_api_v1_runs__run_id__routing_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DepartmentHandoffRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DepartmentAssignment"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No valid session, or a bad access code."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Cross-site request, or a missing or invalid CSRF token."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such record in this workspace."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict: stale decision, reused request token, or active run."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The upload is larger than the configured limit."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid input."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Rate limited, or the run queue is full. Retry later."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested mode is unavailable."
+          }
+        },
+        "summary": "Route Review"
       }
     },
     "/api/v1/runs/{run_id}/source": {
