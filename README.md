@@ -8,7 +8,7 @@ The sidebar includes System design and Presentation for a walkthrough of the cur
 
 [See the guided walkthrough](frontend/docs/screenshots/guided-walkthrough.png).
 
-> **Mode matters:** the default offline `mock` mode uses a deterministic simulated reader, not a language model. An OpenRouter adapter is implemented for a real model, but no live-model run has been verified. Mock mode demonstrates the case's local simulated workflow; it does not measure genuine LLM reasoning or extraction accuracy. OpenRouter needs internet, and a local LLM is not configured.
+> **Mode matters:** the default offline `mock` mode uses a deterministic simulated reader, not a language model. An OpenRouter adapter is implemented for a real model. One clean invoice passed a live Grok 4.7 test; broader live-model accuracy is unverified. Mock mode demonstrates the case's local simulated workflow; it does not measure genuine LLM reasoning or extraction accuracy. OpenRouter needs internet, and a local LLM is not configured.
 
 ## Quick start
 
@@ -51,7 +51,7 @@ For frontend development, run `npm run dev` in `frontend/` while the backend run
 | Validate against SQLite inventory | Quantity aggregation, item lookup, arithmetic, dates and currency checks | Unit tests and the 20-case regression; inventory is a fixed mock snapshot. |
 | Simulate VP approval and critique | Separate LangGraph preparation and decision graphs, typed tool calls and bounded revision | Controlled-provider and simulated-reader tests. Real model performance is unverified. |
 | Process or reject | Transactional payment gate and simulated receipt; recorded rejection reasons | Duplicate/revision, stale approval and browser tests. No real bank API is called. |
-| LLM integration | Configurable OpenRouter Chat Completions adapter | Implemented and tested with mocked HTTP responses. A genuine Grok call has not been made. |
+| LLM integration | Configurable OpenRouter Chat Completions adapter | One clean-invoice live Grok test passed, including an inventory tool call. Broader live evaluation remains open. |
 | Local CLI and readable interface | `main.py`, FastAPI, React and SQLite | CLI, API and browser tests in mock mode. |
 
 ## Architecture
@@ -77,7 +77,7 @@ Batch preparation is reused for decisions using the same document hash. Conflict
 ## Model modes
 
 - **`mock`**: default, offline and zero-key. A deterministic simulated provider demonstrates extraction and agent flow. It is not an LLM and cannot establish model accuracy.
-- **`live`**: explicitly select `--mode live` or `MODEL_MODE=live`, provide `OPENROUTER_API_KEY` and a positive `MODEL_BUDGET_USD`, and configure `LLM_MODEL` if needed. The candidate default is `x-ai/grok-4.7`. Live access, model capabilities and pricing have not been verified for an account. Live errors never silently fall back to mock. Set a **provider-side key limit**: the application cap only counts reported costs, and missing usage cost is unknown.
+- **`live`**: explicitly select `--mode live` or `MODEL_MODE=live`, provide `OPENROUTER_API_KEY` and a positive `MODEL_BUDGET_USD`, and configure `LLM_MODEL` if needed. The candidate default is `x-ai/grok-4.7`. One live clean-invoice run succeeded; model availability, broader behavior and future pricing can vary. Live errors never silently fall back to mock. Set a **provider-side key limit**: the application cap only counts reported costs, and missing usage cost is unknown.
 
 Use shell environment variables or your platform's secret store; `.env.example` is a reference and is not automatically loaded. Never commit credentials. Hosted browser sessions only offer mock mode by default.
 
