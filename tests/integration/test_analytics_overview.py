@@ -43,3 +43,46 @@ def test_receipts_remain_separate_by_currency(alice, ctx):
         {"currency": "EUR", "amount": "5000.00", "receipts": 1},
         {"currency": "USD", "amount": "2750.00", "receipts": 1},
     ]
+
+
+def test_filters_match_runs_and_never_reuse_duplicate_receipts(alice, bob, ctx):
+    paid = alice.run("invoice_1001.txt")
+    rejected = alice.run("invoice_1007.csv")
+    duplicate = alice.run("invoice_1001.txt")
+    assert (paid["outcome"], rejected["outcome"], duplicate["outcome"]) == (
+        "paid",
+        "rejected",
+        "duplicate",
+    )
+    filtered = alice.get(
+        "/analytics/overview", params={"vendor": "MegaWidgets", "outcome": "rejected"}
+    ).json()
+    assert filtered["identified_invoices"] == 1
+    assert filtered["total_runs"] == 1
+    assert filtered["simulated_receipts"] == 0
+    duplicates = alice.get("/analytics/overview", params={"outcome": "duplicate"}).json()
+    assert duplicates["total_runs"] == 1
+    assert duplicates["identified_invoices"] == 1
+    assert duplicates["simulated_receipts"] == 0
+    paid_only = alice.get("/analytics/overview", params={"outcome": "paid"}).json()
+    assert paid_only["total_runs"] == 1
+    assert paid_only["simulated_receipts"] == 1
+    assert paid_only["paid_by_currency"][0]["amount"] == "5000.00"
+    day = ctx.db.now()[:10]
+    exact = alice.get(
+        "/analytics/overview", params={"date_from": day, "date_to": day, "outcome": "paid"}
+    ).json()
+    assert exact["simulated_receipts"] == 1
+    later = alice.get("/analytics/overview", params={"date_from": "9999-01-01"}).json()
+    assert later["total_runs"] == 0 and later["identified_invoices"] == 0
+    assert later["simulated_receipts"] == 0
+    assert bob.get("/analytics/overview", params={"vendor": "Widgets"}).json()["total_runs"] == 0
+    assert (
+        alice.get(
+            "/analytics/overview", params={"date_from": "2026-12-31", "date_to": "2026-01-01"}
+        ).status_code
+        == 422
+    )
+    assert (
+        alice.get("/analytics/overview", params={"vendor": "' OR 1=1 --"}).json()["total_runs"] == 0
+    )

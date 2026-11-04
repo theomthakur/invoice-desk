@@ -17,9 +17,9 @@ import json
 import re
 import uuid
 from contextlib import asynccontextmanager
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import Depends, FastAPI, File, Query, Request, Response, UploadFile
 from fastapi.exceptions import RequestValidationError
@@ -877,30 +877,77 @@ def create_app(
         )
 
     @api.get(f"{API}/analytics/overview", response_model=AnalyticsOverview)
-    async def analytics_overview(ws: str = Depends(workspace)):
-        # Integer arithmetic and a single read snapshot keep currencies separate and exact.
+    async def analytics_overview(
+        date_from: date | None = None,
+        date_to: date | None = None,
+        vendor: str | None = Query(None, max_length=128),
+        outcome: Literal["paid", "needs_review", "rejected", "duplicate", "superseded"]
+        | None = None,
+        ws: str = Depends(workspace),
+    ):
+        if date_from and date_to and date_from > date_to:
+            raise ApiError(422, "invalid_request", "The start date must be before the end date.")
+        vendor = vendor.strip() if vendor else None
+        clauses = ["r.workspace_id = ?"]
+        params: list[Any] = [ws]
+        if date_from:
+            clauses.append("date(r.started_at) >= ?")
+            params.append(date_from.isoformat())
+        if date_to:
+            clauses.append("date(r.started_at) <= ?")
+            params.append(date_to.isoformat())
+        if vendor:
+            clauses.append("instr(lower(coalesce(p.vendor_name, '')), lower(?)) > 0")
+            params.append(vendor)
+        if outcome:
+            clauses.append("r.outcome = ?")
+            params.append(outcome)
+        where = " AND ".join(clauses)
+        joins = (
+            " FROM runs r LEFT JOIN invoice_versions v"
+            " ON v.version_id=r.version_id AND v.workspace_id=r.workspace_id"
+            " LEFT JOIN payables p ON p.payable_id=v.payable_id AND p.workspace_id=v.workspace_id"
+        )
+        filtered = bool(date_from or date_to or vendor or outcome)
+        # Integer arithmetic and one read snapshot keep currencies separate and exact.
         with ctx.db.read() as conn:
             conn.execute("BEGIN")
-            invoice_count = conn.execute(
-                "SELECT COUNT(*) FROM payables WHERE workspace_id=?", (ws,)
-            ).fetchone()[0]
             runs = conn.execute(
                 "SELECT COUNT(*) AS total,"
-                " COUNT(CASE WHEN lifecycle IN ('queued','running') THEN 1 END) AS active,"
-                " COUNT(CASE WHEN lifecycle IN ('failed','interrupted') THEN 1 END) AS failed,"
-                " COUNT(CASE WHEN outcome='needs_review' THEN 1 END) AS review"
-                " FROM runs WHERE workspace_id=?",
-                (ws,),
+                " COUNT(CASE WHEN r.lifecycle IN ('queued','running') THEN 1 END) AS active,"
+                " COUNT(CASE WHEN r.lifecycle IN ('failed','interrupted') THEN 1 END) AS failed,"
+                " COUNT(CASE WHEN r.outcome='needs_review' THEN 1 END) AS review,"
+                " COUNT(DISTINCT p.payable_id) AS invoices" + joins + " WHERE " + where,
+                params,
             ).fetchone()
-            flagged = conn.execute(
-                "SELECT COUNT(*) FROM invoice_versions WHERE workspace_id=?"
-                " AND status='active' AND identity_flag IS NOT NULL",
-                (ws,),
-            ).fetchone()[0]
+            if filtered:
+                invoice_count = runs["invoices"]
+                flagged = conn.execute(
+                    "SELECT COUNT(DISTINCT v.version_id)"
+                    + joins
+                    + " WHERE "
+                    + where
+                    + " AND v.status='active' AND v.identity_flag IS NOT NULL",
+                    params,
+                ).fetchone()[0]
+            else:
+                invoice_count = conn.execute(
+                    "SELECT COUNT(*) FROM payables WHERE workspace_id=?", (ws,)
+                ).fetchone()[0]
+                flagged = conn.execute(
+                    "SELECT COUNT(*) FROM invoice_versions WHERE workspace_id=?"
+                    " AND status='active' AND identity_flag IS NOT NULL",
+                    (ws,),
+                ).fetchone()[0]
             totals: dict[str, tuple[int, int]] = {}
-            for payment in conn.execute(
-                "SELECT currency, amount_minor FROM payments WHERE workspace_id=?", (ws,)
-            ):
+            payment_sql = "SELECT t.currency, t.amount_minor FROM payments t WHERE t.workspace_id=?"
+            payment_params: list[Any] = [ws]
+            if filtered:
+                # A receipt is included once only if its version has a matching paid run.
+                payment_sql += " AND EXISTS (SELECT 1" + joins + " WHERE " + where
+                payment_sql += " AND r.version_id=t.version_id AND r.outcome='paid')"
+                payment_params.extend(params)
+            for payment in conn.execute(payment_sql, payment_params):
                 amount, count = totals.get(payment["currency"], (0, 0))
                 totals[payment["currency"]] = (amount + payment["amount_minor"], count + 1)
             return {
