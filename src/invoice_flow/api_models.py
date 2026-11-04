@@ -254,6 +254,30 @@ class DepartmentHandoffRequest(StrictModel):
     idempotency_token: Token
 
 
+class InvoiceLookupVersion(StrictModel):
+    version_id: str
+    revision: str | None
+    status: str
+    identity_flag: str | None
+    run_id: str | None
+    run_outcome: Outcome | None
+
+
+class InvoiceLookupMatch(StrictModel):
+    payable_id: str
+    number: str
+    vendor: str
+    paid: bool
+    payment_version_id: str | None
+    versions: list[InvoiceLookupVersion]
+    versions_truncated: bool
+
+
+class InvoiceLookupResult(StrictModel):
+    matches: list[InvoiceLookupMatch]
+    truncated: bool
+
+
 # ---------------------------------------------------------------- history and export
 
 

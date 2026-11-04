@@ -1215,6 +1215,148 @@
         "title": "InvoiceDraft",
         "type": "object"
       },
+      "InvoiceLookupMatch": {
+        "additionalProperties": false,
+        "properties": {
+          "number": {
+            "title": "Number",
+            "type": "string"
+          },
+          "paid": {
+            "title": "Paid",
+            "type": "boolean"
+          },
+          "payable_id": {
+            "title": "Payable Id",
+            "type": "string"
+          },
+          "payment_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Version Id"
+          },
+          "vendor": {
+            "title": "Vendor",
+            "type": "string"
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/InvoiceLookupVersion"
+            },
+            "title": "Versions",
+            "type": "array"
+          },
+          "versions_truncated": {
+            "title": "Versions Truncated",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "payable_id",
+          "number",
+          "vendor",
+          "paid",
+          "payment_version_id",
+          "versions",
+          "versions_truncated"
+        ],
+        "title": "InvoiceLookupMatch",
+        "type": "object"
+      },
+      "InvoiceLookupResult": {
+        "additionalProperties": false,
+        "properties": {
+          "matches": {
+            "items": {
+              "$ref": "#/components/schemas/InvoiceLookupMatch"
+            },
+            "title": "Matches",
+            "type": "array"
+          },
+          "truncated": {
+            "title": "Truncated",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "matches",
+          "truncated"
+        ],
+        "title": "InvoiceLookupResult",
+        "type": "object"
+      },
+      "InvoiceLookupVersion": {
+        "additionalProperties": false,
+        "properties": {
+          "identity_flag": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Identity Flag"
+          },
+          "revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revision"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "run_outcome": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Outcome"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "version_id": {
+            "title": "Version Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version_id",
+          "revision",
+          "status",
+          "identity_flag",
+          "run_id",
+          "run_outcome"
+        ],
+        "title": "InvoiceLookupVersion",
+        "type": "object"
+      },
       "LimitsInfo": {
         "additionalProperties": false,
         "properties": {
@@ -2804,6 +2946,117 @@
           }
         },
         "summary": "History"
+      }
+    },
+    "/api/v1/invoices/lookup": {
+      "get": {
+        "operationId": "lookup_invoice_api_v1_invoices_lookup_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Number",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvoiceLookupResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No valid session, or a bad access code."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Cross-site request, or a missing or invalid CSRF token."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such record in this workspace."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict: stale decision, reused request token, or active run."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The upload is larger than the configured limit."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid input."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Rate limited, or the run queue is full. Retry later."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested mode is unavailable."
+          }
+        },
+        "summary": "Lookup Invoice"
       }
     },
     "/api/v1/runs": {

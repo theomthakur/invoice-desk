@@ -42,6 +42,7 @@ from ..api_models import (
     ExportReport,
     HistoryItem,
     HistoryPage,
+    InvoiceLookupResult,
     LimitsInfo,
     ReviewOptions,
     ReviewRequest,
@@ -75,6 +76,7 @@ from ..storage import (
     list_events,
     reset_workspace,
 )
+from ..textnorm import invoice_number_key
 from .jobs import JobRunner, QueueFull
 from .security import (
     CSRF_HEADER,
@@ -799,6 +801,61 @@ def create_app(
             counts=report.get("counts", {}),
             paid_by_currency=report.get("paid_by_currency", {}),
         )
+
+    @api.get(f"{API}/invoices/lookup", response_model=InvoiceLookupResult)
+    async def lookup_invoice(
+        number: str = Query(..., min_length=1, max_length=128), ws: str = Depends(workspace)
+    ):
+        key = invoice_number_key(number)
+        if not key:
+            raise ApiError(422, "invalid_request", "Enter an invoice number.")
+        with ctx.db.read() as conn:
+            payables = conn.execute(
+                "SELECT payable_id, number, vendor_name FROM payables"
+                " WHERE workspace_id = ? AND number_key = ?"
+                " ORDER BY vendor_name, payable_id LIMIT 51",
+                (ws, key),
+            ).fetchall()
+            matches = []
+            for payable in payables[:50]:
+                versions = conn.execute(
+                    "SELECT v.version_id, v.revision_label, v.status, v.identity_flag,"
+                    " r.run_id, r.outcome FROM invoice_versions v LEFT JOIN runs r"
+                    " ON r.run_id = (SELECT r2.run_id FROM runs r2"
+                    " WHERE r2.workspace_id = v.workspace_id"
+                    " AND r2.version_id = v.version_id ORDER BY CASE WHEN r2.outcome IN"
+                    " ('duplicate','superseded') THEN 1 ELSE 0 END,"
+                    " r2.started_at DESC, r2.run_id DESC LIMIT 1)"
+                    " WHERE v.workspace_id = ? AND v.payable_id = ?"
+                    " ORDER BY v.created_at DESC, v.version_id DESC LIMIT 101",
+                    (ws, payable["payable_id"]),
+                ).fetchall()
+                payment = conn.execute(
+                    "SELECT version_id FROM payments WHERE workspace_id = ? AND payable_id = ?",
+                    (ws, payable["payable_id"]),
+                ).fetchone()
+                matches.append(
+                    {
+                        "payable_id": payable["payable_id"],
+                        "number": payable["number"],
+                        "vendor": payable["vendor_name"],
+                        "paid": payment is not None,
+                        "payment_version_id": payment["version_id"] if payment else None,
+                        "versions_truncated": len(versions) > 100,
+                        "versions": [
+                            {
+                                "version_id": v["version_id"],
+                                "revision": v["revision_label"],
+                                "status": v["status"],
+                                "identity_flag": v["identity_flag"],
+                                "run_id": v["run_id"],
+                                "run_outcome": v["outcome"],
+                            }
+                            for v in versions[:100]
+                        ],
+                    }
+                )
+        return {"matches": matches, "truncated": len(payables) > 50}
 
     @api.get(f"{API}/history", response_model=HistoryPage)
     async def history(
