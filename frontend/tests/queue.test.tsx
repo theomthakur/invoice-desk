@@ -35,6 +35,6 @@ describe('invoice queue', () => {
   it('does not claim a paid receipt from history alone', () => {
     queue();
     expect(screen.queryByText('Paid')).not.toBeInTheDocument();
-    expect(screen.getByText('Completed', { selector: '.status' })).toBeInTheDocument();
+    expect(screen.getByText('Payment reported', { selector: '.status' })).toBeInTheDocument();
   });
 });

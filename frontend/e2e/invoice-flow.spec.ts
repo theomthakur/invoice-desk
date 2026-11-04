@@ -93,6 +93,11 @@ test('valid invoice is processed once, traced and isolated from another workspac
   await expect(page.getByText('Mock payment recorded')).toBeVisible();
   await expect(page.getByText('Simulated model', { exact: true })).toBeVisible();
   await expect(page.getByText('Widgets Inc.', { exact: true }).first()).toBeVisible();
+  await page.emulateMedia({media:'print'});
+  await expect(page.getByRole('heading', {name:'Invoice decision report'})).toBeVisible();
+  await expect(page.locator('.decision-report')).toContainText('Simulated receipt');
+  await expect(page.locator('.sidebar')).toBeHidden();
+  await page.emulateMedia({media:'screen'});
   const [download] = await Promise.all([
     page.waitForEvent('download'), page.getByRole('button', { name: 'Export trace' }).click(),
   ]);
@@ -117,6 +122,8 @@ test('a malformed invoice is rejected with findings and never shows a payment', 
   await expect(page.getByText('Rejected', { exact: true })).toBeVisible();
   await expect(page.getByText('Mock payment recorded')).toHaveCount(0);
   await expect(page.getByText('Payment blocked')).toBeVisible();
+  await expect(page.getByLabel('Correction request draft')).toHaveValue(/Please review invoice/);
+  await expect(page.getByText(/No message is sent from this application/)).toBeVisible();
   await expect(page.getByText(/total mismatch/i).first()).toBeVisible();
 });
 

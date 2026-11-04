@@ -13,7 +13,7 @@ export function inQueue(item: HistoryItem, filter: QueueFilter) {
   if (filter === 'blocked') return item.outcome === 'rejected' || item.lifecycle === 'failed' || item.lifecycle === 'interrupted';
   return true;
 }
-const names: Record<QueueFilter, string> = { all: 'All invoices', attention: 'Needs review', processing: 'Processing', completed: 'Completed', blocked: 'Blocked' };
+const names: Record<QueueFilter, string> = { all: 'All runs', attention: 'Needs review', processing: 'Processing', completed: 'Processing finished', blocked: 'Blocked' };
 
 export function InvoiceQueue({ items, filter, onFilter, openRun, newInvoice, trySamples, connected, cursor, loadMore, loading }: {
   items: HistoryItem[]; filter: QueueFilter; onFilter: (filter: QueueFilter) => void;
@@ -26,10 +26,10 @@ export function InvoiceQueue({ items, filter, onFilter, openRun, newInvoice, try
     .filter((item) => [item.invoice_number, item.filename, item.vendor].filter(Boolean).join(' ').toLowerCase().includes(query.trim().toLowerCase()))
     .sort((a, b) => sort === 'vendor' ? (a.vendor ?? '').localeCompare(b.vendor ?? '') : (sort === 'newest' ? -1 : 1) * a.started_at.localeCompare(b.started_at)), [items, filter, query, sort]);
   const cards = [
-    { name: 'All invoices', icon: Files, filter: 'all' as const },
+    { name: 'All runs', icon: Files, filter: 'all' as const },
     { name: 'Needs review', icon: CircleAlert, filter: 'attention' as const },
     { name: 'In progress', icon: FileClock, filter: 'processing' as const },
-    { name: 'Completed', icon: CheckCheck, filter: 'completed' as const },
+    { name: 'Processing finished', icon: CheckCheck, filter: 'completed' as const },
   ];
   return <section className="inbox" aria-label="Invoice inbox">
     <div className="queue-stats">{cards.map((card) => <button key={card.filter} onClick={() => onFilter(card.filter)} className={`stat-card ${filter === card.filter ? 'selected' : ''}`}>
@@ -44,7 +44,7 @@ export function InvoiceQueue({ items, filter, onFilter, openRun, newInvoice, try
       {shown.length ? <div className="table-wrap queue-table"><table><thead><tr><th>INVOICE</th><th>VENDOR</th><th>AMOUNT</th><th>STATUS</th><th>RECEIVED</th><th aria-label="Action" /></tr></thead><tbody>{shown.map((item) => <tr key={item.run_id}>
         <td><div className="invoice-cell"><span className="file-symbol"><FileText size={18} /></span><div><button onClick={() => openRun(item.run_id)}>{item.invoice_number ?? item.filename ?? 'Invoice processing run'}</button><small>{item.filename ?? item.run_id}</small></div></div></td>
         <td>{item.vendor ?? <span className="muted">Not extracted</span>}</td><td className="money-cell">{item.amount != null ? formatAmount(item.amount, item.currency) : <span className="muted">Not available</span>}</td>
-        <td><Status status={item.outcome === 'paid' ? 'completed' : item.outcome ?? item.lifecycle} /></td>
+        <td><Status status={item.outcome === 'paid' ? 'reported_paid' : item.outcome ?? item.lifecycle} /></td>
         <td className="date-cell">{new Date(item.started_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}<small>{new Date(item.started_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</small></td>
         <td><button className="row-open" onClick={() => openRun(item.run_id)} aria-label={`Open ${item.invoice_number ?? item.filename ?? item.run_id}`}><ArrowRight size={17} /></button></td>
       </tr>)}</tbody></table></div>

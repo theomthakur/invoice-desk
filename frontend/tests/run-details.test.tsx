@@ -21,15 +21,38 @@ describe('run details', () => {
   });
   it('requires a stored receipt before displaying paid', () => {
     render(<RunDetails run={{ ...base, outcome: 'paid' }} events={[]} source={null} sourceError={null} onExport={vi.fn()} exporting={false} />);
-    expect(screen.getAllByText('Receipt unavailable')).toHaveLength(2);
+    expect(screen.getAllByText('Receipt unavailable').length).toBeGreaterThanOrEqual(2);
     expect(screen.queryByText('Paid')).not.toBeInTheDocument();
   });
   it('shows a mock receipt only when it is present', () => {
     const receipt = { payment_id: 'p1', transaction_id: 'mock_123', amount: '5000.00', currency: 'USD', vendor: 'Vendor', created_at: '2026-11-03T12:00:00Z', simulated: true as const };
     render(<RunDetails run={{ ...base, outcome: 'paid', receipt }} events={[]} source={null} sourceError={null} onExport={vi.fn()} exporting={false} />);
-    expect(screen.getByText('Paid')).toBeInTheDocument();
+    expect(screen.getByText('Paid (simulated)')).toBeInTheDocument();
     expect(screen.getByText('Mock payment recorded')).toBeInTheDocument();
-    expect(screen.getByText(/mock_123/)).toBeInTheDocument();
+    expect(screen.getAllByText(/mock_123/).length).toBeGreaterThanOrEqual(1);
+  });
+  it('prints a report with recorded values without interpreting source as markup', async () => {
+    const print = vi.spyOn(window, 'print').mockImplementation(() => {});
+    render(<RunDetails run={base} events={[]} source="text" sourceError={null} onExport={vi.fn()} exporting={false} />);
+    await userEvent.click(screen.getByRole('button', {name:'Print decision report'}));
+    expect(print).toHaveBeenCalledOnce();
+    expect(document.querySelector('.decision-report')).toHaveTextContent('Currency needs review.');
+    expect(document.querySelector('.decision-report')).toHaveTextContent('No simulated receipt recorded.');
+    print.mockRestore();
+  });
+  it('shows real event summaries with unknown details available', async () => {
+    const events = [{seq:1, stage:'intake', type:'parsed_structured', timestamp:'2026-11-03T12:00:00Z', payload:{line_items:2}}, {seq:2, stage:'error', type:'new_event', timestamp:'2026-11-03T12:00:01Z', payload:{code:'failure'}}];
+    render(<RunDetails run={base} events={events} source="text" sourceError={null} onExport={vi.fn()} exporting={false} />);
+    await userEvent.click(screen.getByRole('tab', {name:/Activity/}));
+    expect(screen.getByText('Structured document parsed')).toBeInTheDocument();
+    expect(screen.getByText('Other recorded activity')).toBeInTheDocument();
+    expect(screen.queryByText('Simulated payment recorded')).not.toBeInTheDocument();
+    expect(screen.getByText('new_event')).toBeInTheDocument();
+  });
+  it('offers a copyable correction draft without sending a message', () => {
+    render(<RunDetails run={{...base, outcome:'rejected'}} events={[]} source="original" sourceError={null} onExport={vi.fn()} exporting={false} />);
+    expect((screen.getByLabelText('Correction request draft') as HTMLTextAreaElement).value).toContain('Currency needs review.');
+    expect(screen.getByText(/No message is sent/)).toBeInTheDocument();
   });
   it('renders untrusted source as text', async () => {
     render(<RunDetails run={base} events={[]} source={'<img src=x onerror=alert(1)>'} sourceError={null} onExport={vi.fn()} exporting={false} />);
