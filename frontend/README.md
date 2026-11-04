@@ -43,7 +43,7 @@ Held invoices show review controls and findings before extracted details. Reject
 ## Verification on 4 November 2026
 
 - Node 22; TypeScript and ESLint passed.
-- Vitest: 48 tests passed. Coverage includes error bodies and status codes, CSRF and access-code headers, cancellation, exact decimal display, receipt gating, original PDF retrieval, text/preview switching, evidence location, explicit processing, duplicate clicks, queue search/sort and status grouping.
+- Vitest: 50 tests passed. Coverage includes error bodies and status codes, CSRF and access-code headers, cancellation, exact decimal display, receipt gating, original PDF retrieval, text/preview switching, evidence location, explicit processing, duplicate clicks, queue search/sort and status grouping.
 - Production build passed.
 - Real Brave browser against the local backend in **mock mode**, using a separate temporary database: a TXT sample reached a stored mock-payment receipt; an invalid CSV sample was rejected with findings; an uploaded JSON file was processed; its JSON trace downloaded with stored events; history survived refresh; and the 20-file sample batch completed. These are workflow checks, not live-model quality measurements.
 - Desktop at 1512×1050 and mobile at 390×844 were inspected. Queue search, the rules page, Escape to close intake and page-level horizontal overflow were checked. No browser JavaScript errors were observed.
@@ -54,7 +54,7 @@ Screenshots in `docs/screenshots/` show actual local simulated runs, not interce
 - `new-invoice-upload.png`, `new-invoice.png`, `new-invoice-mobile.png`
 - `invoice-record.png`, `invoice-exception.png`, `simulated-review.png`, `batch-results.png`, `processing-rules.png`
 
-The current simulated review screen is shown in `docs/screenshots/simulated-review.png`; `pdf-review.png` shows the original PDF preview. `system-design.png` and `presentation.png` show the project resources. The screenshots use actual local mock runs. Fourteen Playwright tests exercise the integrated workflow, including sidebar persistence, resource navigation, review priority, controls and original PDF inspection.
+The current simulated review screen is shown in `docs/screenshots/simulated-review.png`; `pdf-review.png` shows the original PDF preview. `system-design.png` and `presentation.png` show the project resources. The screenshots use actual local mock runs. Fifteen Playwright tests exercise the integrated workflow, including sidebar persistence, resource navigation, review priority, controls and original PDF inspection.
 
 ## Remaining integration boundaries
 
@@ -103,3 +103,7 @@ History shows Payment reported for a paid outcome without claiming that the list
 Find invoice searches all identified payables in the current browser workspace by exact invoice number, independent of the loaded history page. It distinguishes different vendors with the same number, shows recorded versions and flags, and opens a related run. A simulated payment is indicated only if a payment row exists. The endpoint displays truncation at 50 matching payables or 100 versions per payable. Invalid or missing identities do not appear. There is no LLM or arbitrary SQL involved.
 
 Download report CSV exports the selected run's details, findings, decisions and simulated receipt when available. Formula-like values are prefixed before opening in spreadsheet software. Print decision report remains available for a PDF through the browser. The original PDF remains separately downloadable. See `docs/screenshots/invoice-lookup.png`.
+
+## Retry and corrected file
+
+Failed and interrupted records offer an explicit Retry this invoice action. Rejected records allow a user to select a corrected file and explicitly process it. Each new attempt links to the original run and keeps its source available. All processing and payment checks still apply. The interface warns before a live-mode run because provider charges may apply. A correction with an unmatched identity is held and cannot be approved through this demo. The app never sends the correction request.

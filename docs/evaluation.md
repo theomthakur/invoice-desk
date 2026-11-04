@@ -4,9 +4,9 @@
 
 | Check | Result | Scope |
 | --- | --- | --- |
-| Python tests | 719 passed, 4 live tests deselected | Deterministic rules, controlled providers, API, security, workflow, CLI, conflict persistence, legacy holds, grounding, cancellation, original PDF inspection and internal department routing. |
-| Frontend unit and interaction tests | 48 passed | Controlled HTTP responses; no live model. |
-| Browser tests | 14 passed | Real local backend in mock mode; valid invoice, rejection, workspace isolation, mobile intake, simulated review, optional notes, persistent department handoffs, rendered original PDF pages, manual guided onboarding and saved appearance in light/dark modes. |
+| Python tests | 726 passed, 4 live tests deselected | Deterministic rules, controlled providers, API, security, workflow, CLI, conflict persistence, legacy holds, grounding, cancellation, original PDF inspection and internal department routing. |
+| Frontend unit and interaction tests | 50 passed | Controlled HTTP responses; no live model. |
+| Browser tests | 15 passed | Real local backend in mock mode; valid invoice, rejection, workspace isolation, mobile intake, simulated review, optional notes, persistent department handoffs, rendered original PDF pages, manual guided onboarding and saved appearance in light/dark modes. |
 | Mutation checks | Historical baseline: 52/52 caught | Measured before the corrections; not rerun for the current source. Current safeguard regressions are included in the Python suite. |
 | Container smoke | Historical packaging check: passed on Linux amd64, 512 MB RAM / 0.1 CPU | Non-root image, custom port, access gate, browser production cookie on loopback, invoice outcomes, native PDF preview, review, export, isolation, full batch and CLI. Peak memory 213,676,032 bytes; no OOM. |
 | Supplied-file regression | 20/20 expected outcomes matched | Each file on a fresh isolated ledger, simulated reader, fixed processing date 3 Nov 2026. Known examples, not a blind set or LLM accuracy estimate. |
@@ -54,4 +54,10 @@ Frontend lint, type check and build passed with 46 unit/interaction tests. The 1
 
 Invoice lookup matches an exact normalized invoice number in the signed-in browser workspace. It lists separate vendors, recorded versions, version flags and linked runs, and identifies a simulated payment only when a payment row exists. It returns at most 50 matching payables and 100 versions each, with truncation explicitly labeled. Records without a usable identity are not included. This is a read-only lookup, not model-generated question answering. Tests cover workspace isolation, a paid record, a hold and distinct vendors with the same number.
 
-The CSV report is built from the loaded authorized run. It quotes cells and prefixes formula-like input, and marks payments as simulated. It is a decision report, not the original PDF. Python checks passed 719 tests with four live tests deselected, and the known sample regression matched 20/20 in mock mode. Frontend checks passed 48 tests and 14 browser tests, including ledger lookup, CSV download and print layout. The historical container and shared-ledger batch evidence were not rerun for this source.
+The CSV report is built from the loaded authorized run. It quotes cells and prefixes formula-like input, and marks payments as simulated. It is a decision report, not the original PDF. The lookup increment passed 719 Python tests with four live tests deselected, and the known sample regression matched 20/20 in mock mode. At that increment frontend checks passed 48 tests and 14 browser tests, including ledger lookup, CSV download and print layout. The historical container and shared-ledger batch evidence were not rerun for this source.
+
+## Linked retries and corrections
+
+Only failed or interrupted runs can be retried. Only rejected runs can receive a corrected file. New attempts and their parent link are saved atomically with an idempotency token before the worker starts, and queued links survive worker recovery. The original source and run remain accessible. Every attempt uses the same payment gate. A correction that cannot be matched to the original payable is held with an identity flag that the demo cannot clear. Identical source bytes are rejected as unchanged. Selecting a different file does not establish that it is a valid correction.
+
+The final local checks passed 726 Python tests (four live tests deselected), 50 frontend tests and 15 browser tests; linked navigation was rerun after the final UI adjustment. These include concurrent retry submission, cross-workspace and CSRF denial, repeated requests, recovery, preservation of the original, a correction with an unrelated identity and the one-payment rule. The 20 known samples matched expected mock outcomes. No live model was tested.
