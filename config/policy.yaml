@@ -1,0 +1,68 @@
+# Business policy for invoice processing. Loaded by invoice_flow.config.load_policy.
+# Changing any value changes the policy fingerprint, which invalidates earlier approvals.
+# Values here are our prototype choices, not facts supplied by the case brief.
+
+policy_version: "2026-11-03.1"
+
+approval:
+  # Totals strictly greater than this need completed (simulated) additional scrutiny.
+  # Exactly this amount stays in the lower tier.
+  scrutiny_threshold: "10000.00"
+  scrutiny_currency: USD
+
+payment:
+  # Only these currencies can be paid automatically. No FX source has been supplied.
+  auto_pay_currencies: [USD]
+  # Applied when a source states no currency at all (e.g. the supplied CSV files).
+  # Set to null to require an explicit currency.
+  assume_currency_when_missing: USD
+
+arithmetic:
+  # Allowed difference when comparing computed and declared amounts, in minor units.
+  tolerance_minor_units: 1
+
+dates:
+  # Interpretation of NN/NN/YYYY dates. Ambiguous values are flagged with a warning.
+  slash_date_order: mdy
+  # Allowed gap between stated payment terms (e.g. Net 30) and due date minus invoice date.
+  terms_tolerance_days: 3
+
+signals:
+  # A vendor that states a former name holds the invoice for human verification.
+  review_on_vendor_identity_change: true
+  vendor_identity_change:
+    - '\b(?:formerly|f/k/a|fka|previously\s+known\s+as|now\s+known\s+as|successor\s+to)\b'
+  # Urgency language is a warning only. It is never proof of fraud.
+  payment_pressure:
+    - '\burgent(?:ly)?\b'
+    - '\bimmediate(?:ly)?\b'
+    - '\bavoid\s+(?:late\s+)?(?:fees?|penalt(?:y|ies))\b'
+    - '\bfinal\s+notice\b'
+    - '\bwire\s+transfer\b'
+    - '\bpay\s+(?:now|today|asap)\b'
+    - '\basap\b'
+  # Instructions about where or how to pay that appear inside the document.
+  payment_instruction:
+    - '\b(?:new|updated|changed|revised)\s+(?:bank|banking|account|wire|payment)\s+(?:details|account|instructions|information|number)\b'
+    - '\b(?:change|update)\s+(?:of|to)\s+(?:bank|banking|account)\b'
+    - '\b(?:routing\s*(?:number|no\.?|#)|iban|swift|bic\s*code)\b'
+  # Text that tries to instruct the processing system. Document text is data, not instructions.
+  embedded_instructions:
+    - 'ignore\s+(?:all\s+|any\s+|the\s+)?(?:previous|prior|above|earlier)\s+(?:instructions?|rules?|checks?|polic(?:y|ies))'
+    - 'disregard\s+(?:all\s+|any\s+|the\s+)?(?:previous|prior|above|earlier|your)\s+\w+'
+    - '(?m)^\s*system\s*:'
+    - '\bsystem\s+prompt\b'
+    - '\b(?:approve|authorize)\s+(?:this\s+)?(?:invoice\s+)?(?:immediately|without\s+(?:review|checks?|validation))'
+    - '\bdo\s+not\s+(?:flag|validate|check|review|reject)\b'
+    - '\boverride\b.{0,30}\b(?:policy|rules?|checks?|approval)\b'
+    - '\bas\s+an?\s+(?:ai|language\s+model|assistant)\b'
+    - '\bbypass\b'
+
+limits:
+  # Demo limits chosen by us, not requirements of the brief.
+  max_file_bytes: 2000000
+  max_text_chars: 200000
+  max_csv_rows: 1000
+  max_pdf_pages: 20
+  max_line_items: 200
+  allowed_extensions: [".txt", ".pdf", ".json", ".csv", ".xml"]

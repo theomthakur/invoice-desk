@@ -1,0 +1,22 @@
+{
+  "invoice_1001.txt": "paid",
+  "invoice_1002.txt": "rejected",
+  "invoice_1003.txt": "rejected",
+  "invoice_1004.json": "paid",
+  "invoice_1004_revised.json": "paid",
+  "invoice_1005.json": "rejected",
+  "invoice_1006.csv": "paid",
+  "invoice_1007.csv": "rejected",
+  "invoice_1008.txt": "rejected",
+  "invoice_1009.json": "rejected",
+  "invoice_1010.txt": "paid",
+  "invoice_1011.pdf": "paid",
+  "invoice_1011.txt": "paid",
+  "invoice_1012.pdf": "needs_review",
+  "invoice_1012.txt": "needs_review",
+  "invoice_1013.json": "rejected",
+  "invoice_1013.pdf": "rejected",
+  "invoice_1014.xml": "needs_review",
+  "invoice_1015.csv": "paid",
+  "invoice_1016.json": "rejected"
+}
