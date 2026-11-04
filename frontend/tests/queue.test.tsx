@@ -37,4 +37,25 @@ describe('invoice queue', () => {
     expect(screen.queryByText('Paid')).not.toBeInTheDocument();
     expect(screen.getByText('Payment reported', { selector: '.status' })).toBeInTheDocument();
   });
+  it('selects visible loaded runs, retains hidden selections and clears them explicitly', async () => {
+    queue(); const user=userEvent.setup();
+    await user.click(screen.getByRole('checkbox',{name:'Select all visible loaded runs'}));
+    expect(screen.getByText('3 selected')).toBeVisible();
+    await user.type(screen.getByLabelText('Search invoices'),'aster');
+    expect(screen.getByText(/2 outside this view/)).toBeVisible();
+    await user.click(screen.getByRole('checkbox',{name:'Select all visible loaded runs'}));
+    expect(screen.getByText('2 selected')).toBeVisible();
+    await user.click(screen.getByRole('button',{name:'Clear selection'}));
+    expect(screen.queryByText('2 selected')).not.toBeInTheDocument();
+  });
+  it('removes a selected run when it disappears from loaded history', async () => {
+    const props={filter:'all' as const,onFilter:vi.fn(),openRun:vi.fn(),newInvoice:vi.fn(),trySamples:vi.fn(),connected:true,cursor:null,loadMore:vi.fn(),loading:false};
+    const view=render(<InvoiceQueue {...props} items={items}/>); const user=userEvent.setup();
+    await user.click(screen.getByRole('checkbox',{name:'Select INV-81 (run_1)'}));
+    await user.click(screen.getByRole('checkbox',{name:'Select INV-82 (run_2)'}));
+    view.rerender(<InvoiceQueue {...props} items={items.slice(1)}/>);
+    expect(screen.getByText('1 selected')).toBeVisible();
+    expect(screen.getByRole('checkbox',{name:'Select INV-82 (run_2)'})).toBeChecked();
+  });
+
 });

@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { decisionCsv } from '../src/features/runs/reportCsv';
+import { decisionCsv, tableCsv } from '../src/features/runs/reportCsv';
 import type { RunResult } from '../src/types/api';
 
 it('exports recorded values and escapes formulas, commas, quotes and newlines', () => {
@@ -9,4 +9,10 @@ it('exports recorded values and escapes formulas, commas, quotes and newlines', 
   expect(csv).toContain('"Outcome","Receipt unavailable"');
   expect(csv).toContain('"ERROR: line 1, ""quoted""\nline 2"');
   expect(csv).toContain('"Payment system","Simulated only"');
+});
+
+it('escapes spreadsheet formulas in selected list exports', () => {
+  const csv=tableCsv([['Invoice','Vendor'],['INV-1','  =HYPERLINK("bad")'],['INV-2','Safe, Inc.']]);
+  expect(csv).toContain('"\'  =HYPERLINK(""bad"")"');
+  expect(csv).toContain('"Safe, Inc."');
 });

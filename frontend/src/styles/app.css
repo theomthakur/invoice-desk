@@ -464,3 +464,9 @@ td small { display: block; color: var(--theme-muted, #646d5c); font-size: 10px; 
   .sidebar-bottom > p { display:none; }
   .sidebar-account { padding:10px 8px; margin-top:8px; }
 }
+.selection-bar { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; padding:12px 23px; border-bottom:1px solid var(--line); background:var(--green-soft); font-size:12px; color:var(--ink); }
+.selection-bar > div { display:flex; align-items:center; flex-wrap:wrap; gap:14px; }
+.selection-bar .button { min-height:34px; font-size:11px; }
+.queue-table .selection-cell { width:52px; padding-left:24px; padding-right:8px; }
+.selection-cell input { width:16px; height:16px; accent-color:#28634c; cursor:pointer; }
+@media (max-width:600px) { .selection-bar { padding:12px 14px; } }

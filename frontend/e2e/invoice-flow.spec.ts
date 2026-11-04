@@ -358,3 +358,25 @@ test('ledger overview counts records beyond the inbox as separate runs and recei
   await page.setViewportSize({width:320,height:844});
   expect(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth)).toBe(false);
 });
+
+
+test('multiple loaded runs can be selected, filtered and exported', async ({page}) => {
+  await page.goto('/');
+  await expect(page.getByRole('button',{name:'Start a new invoice'})).toBeEnabled();
+  const first=await runSample(page,'invoice_1001.txt');
+  await page.getByRole('button',{name:'Back to invoices'}).click();
+  const second=await runSample(page,'invoice_1007.csv');
+  await page.getByRole('button',{name:'Back to invoices'}).click();
+  await page.getByRole('checkbox',{name:'Select all visible loaded runs'}).check();
+  await expect(page.getByText('2 selected',{exact:true})).toBeVisible();
+  await page.getByLabel('Search invoices').fill('INV-1001');
+  await expect(page.getByText(/1 outside this view/)).toBeVisible();
+  const [download]=await Promise.all([page.waitForEvent('download'),page.getByRole('button',{name:'Export selected CSV'}).click()]);
+  expect(download.suggestedFilename()).toBe('selected-invoice-runs.csv');
+  const content=readFileSync((await download.path())!,'utf8');
+  expect(content).toContain(first); expect(content).toContain(second);
+  expect(content).toContain('Payment reported');
+  if (process.env.UPDATE_SCREENSHOTS === '1') await page.screenshot({path:'docs/screenshots/multi-select.png',animations:'disabled'});
+  await page.getByRole('button',{name:'Clear selection'}).click();
+  await expect(page.getByText('2 selected',{exact:true})).toHaveCount(0);
+});

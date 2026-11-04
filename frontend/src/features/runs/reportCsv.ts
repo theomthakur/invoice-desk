@@ -6,8 +6,11 @@ function cell(value: unknown): string {
   if (/^[\s\uFEFF]*[=+\-@\t\r]/u.test(text)) text = `'${text}`;
   return `"${text.replaceAll('"','""')}"`;
 }
+export function tableCsv(rows: unknown[][]): string {
+  return '\uFEFF'+rows.map(row=>row.map(cell).join(',')).join('\r\n')+'\r\n';
+}
 export function rowsCsv(rows: [unknown, unknown][]): string {
-  return '\uFEFF'+[['Field','Value'],...rows].map(row=>row.map(cell).join(',')).join('\r\n')+'\r\n';
+  return tableCsv([['Field','Value'],...rows]);
 }
 export function decisionCsv(run: RunResult): string {
   const rows: [string, unknown][] = [
