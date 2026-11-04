@@ -254,6 +254,15 @@ class DepartmentHandoffRequest(StrictModel):
     idempotency_token: Token
 
 
+class RetryRequest(StrictModel):
+    mode: Literal["mock", "live"]
+    request_token: Token
+
+
+class CorrectionRequest(RetryRequest):
+    document_id: SafeId
+
+
 class InvoiceLookupVersion(StrictModel):
     version_id: str
     revision: str | None

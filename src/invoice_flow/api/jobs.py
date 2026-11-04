@@ -21,11 +21,17 @@ from ..ledger import load_document
 from ..runtime import App, EventRecorder
 from ..schemas import Outcome, RunLifecycle, RunResult
 from ..service import execute_run
-from ..storage import create_run, ensure_workspace, update_run
+from ..storage import append_event, create_run, ensure_workspace, update_run
 
 
 class QueueFull(Exception):
     pass
+
+
+class RetryError(Exception):
+    def __init__(self, status: int, code: str, message: str):
+        super().__init__(message)
+        self.status, self.code, self.message = status, code, message
 
 
 @dataclass(frozen=True)
@@ -34,6 +40,8 @@ class Job:
     workspace_id: str
     document_id: str
     mode: str
+    attempt_of: str | None = None
+    relation_kind: str | None = None
 
 
 class JobRunner:
@@ -73,9 +81,10 @@ class JobRunner:
                 "SELECT run_id, workspace_id FROM runs WHERE lifecycle = 'running'"
             ).fetchall()
             queued = conn.execute(
-                "SELECT run_id, workspace_id, document_id, mode FROM runs"
-                " WHERE lifecycle = 'queued'"
-                " ORDER BY started_at"
+                "SELECT r.run_id, r.workspace_id, r.document_id, r.mode,"
+                " l.parent_run_id, l.kind AS relation_kind"
+                " FROM runs r LEFT JOIN run_links l ON l.child_run_id = r.run_id"
+                " WHERE r.lifecycle = 'queued' ORDER BY r.started_at"
             ).fetchall()
         for row in stale:
             update_run(
@@ -98,6 +107,8 @@ class JobRunner:
                         row["workspace_id"],
                         row["document_id"],
                         row["mode"] or "mock",
+                        row["parent_run_id"],
+                        row["relation_kind"],
                     )
                 )
 
@@ -132,6 +143,103 @@ class JobRunner:
         EventRecorder(self.app.db, run_id)("intake", "run_queued", {"mode": mode})
         self._queue.put(Job(run_id, workspace_id, document_id, mode))
         return run_id
+
+    def submit_retry(
+        self,
+        *,
+        workspace_id: str,
+        parent_run_id: str,
+        mode: str,
+        token: str,
+        payload_hash: str,
+        correction_document_id: str | None = None,
+    ) -> tuple[str, bool]:
+        """Record an idempotent retry and its parent atomically before waking the worker."""
+        with self.app.db.transaction() as conn:
+            existing = conn.execute(
+                "SELECT t.run_id, p.payload_hash FROM request_tokens t"
+                " LEFT JOIN token_payloads p ON p.workspace_id=t.workspace_id AND p.token=t.token"
+                " WHERE t.workspace_id=? AND t.token=?",
+                (workspace_id, token),
+            ).fetchone()
+            if existing:
+                if existing["payload_hash"] != payload_hash:
+                    raise RetryError(409, "token_reused", "That request token was already used.")
+                return existing["run_id"], True
+            parent = conn.execute(
+                "SELECT lifecycle, outcome, document_id FROM runs"
+                " WHERE workspace_id=? AND run_id=?",
+                (workspace_id, parent_run_id),
+            ).fetchone()
+            if parent is None:
+                raise RetryError(404, "not_found", "No such run.")
+            kind = "correction" if correction_document_id else "retry"
+            if kind == "retry" and parent["lifecycle"] not in ("failed", "interrupted"):
+                raise RetryError(
+                    409, "not_retryable", "Only failed or interrupted runs can be retried."
+                )
+            if kind == "correction" and (
+                parent["lifecycle"] != "completed" or parent["outcome"] != "rejected"
+            ):
+                raise RetryError(
+                    409, "not_correctable", "Only a rejected run can receive a correction."
+                )
+            original = (
+                load_document(conn, workspace_id, parent["document_id"])
+                if parent["document_id"]
+                else None
+            )
+            if original is None:
+                raise RetryError(409, "document_missing", "The original document is not available.")
+            document_id = correction_document_id or parent["document_id"]
+            chosen = load_document(conn, workspace_id, document_id)
+            if chosen is None:
+                raise RetryError(404, "not_found", "No such correction document.")
+            if kind == "correction" and chosen.byte_hash == original.byte_hash:
+                raise RetryError(
+                    409,
+                    "unchanged_document",
+                    "Choose a corrected file that differs from the original.",
+                )
+            pending = conn.execute(
+                "SELECT COUNT(*) FROM runs WHERE lifecycle IN ('queued','running')"
+            ).fetchone()[0]
+            if pending >= self.app.config.queue_capacity:
+                raise QueueFull(f"The queue is full ({self.app.config.queue_capacity} runs).")
+            now = self.app.db.now()
+            run_id = create_run(
+                conn,
+                workspace_id=workspace_id,
+                now=now,
+                document_id=document_id,
+                mode=mode,
+                policy_version=self.app.policy.policy_version,
+                lifecycle="queued",
+            )
+            conn.execute(
+                "INSERT INTO run_links (workspace_id,child_run_id,parent_run_id,kind)"
+                " VALUES (?,?,?,?)",
+                (workspace_id, run_id, parent_run_id, kind),
+            )
+            conn.execute(
+                "INSERT INTO request_tokens (workspace_id,token,run_id,created_at)"
+                " VALUES (?,?,?,?)",
+                (workspace_id, token, run_id, now),
+            )
+            conn.execute(
+                "INSERT INTO token_payloads (workspace_id,token,payload_hash) VALUES (?,?,?)",
+                (workspace_id, token, payload_hash),
+            )
+            append_event(
+                conn,
+                run_id,
+                "intake",
+                "run_queued",
+                {"mode": mode, "attempt_of": parent_run_id, "relation_kind": kind},
+                now,
+            )
+        self._queue.put(Job(run_id, workspace_id, document_id, mode, parent_run_id, kind))
+        return run_id, False
 
     def cancel(self, run_id: str) -> None:
         with self._lock:
@@ -187,6 +295,13 @@ class JobRunner:
             mode=job.mode,
             run_id=job.run_id,
             cancel=cancel,
+            attempt_of=job.attempt_of,
+            hold_reason=(
+                "The submitted correction could not be matched to the original invoice. "
+                "Reconcile its identity before payment; this hold cannot be cleared in the demo."
+                if job.relation_kind == "correction"
+                else None
+            ),
         )
 
     # ------------------------------------------------------------------ reading
@@ -195,7 +310,11 @@ class JobRunner:
         """The stored result, or a minimal live view while the run is still in progress."""
         with self.app.db.read() as conn:
             row = conn.execute(
-                "SELECT * FROM runs WHERE workspace_id = ? AND run_id = ?", (workspace_id, run_id)
+                "SELECT r.*, l.parent_run_id, l.kind AS relation_kind FROM runs r"
+                " LEFT JOIN run_links l"
+                " ON l.child_run_id=r.run_id AND l.workspace_id=r.workspace_id"
+                " WHERE r.workspace_id = ? AND r.run_id = ?",
+                (workspace_id, run_id),
             ).fetchone()
             filename = None
             if row is not None and row["document_id"]:
@@ -213,6 +332,8 @@ class JobRunner:
                     "lifecycle": RunLifecycle(row["lifecycle"]),
                     "outcome": Outcome(row["outcome"]) if row["outcome"] else None,
                     "terminal_reason": row["terminal_reason"],
+                    "attempt_of": row["parent_run_id"] or stored.attempt_of,
+                    "relation_kind": row["relation_kind"] or stored.relation_kind,
                 }
             )
         return RunResult(
@@ -227,6 +348,8 @@ class JobRunner:
             provider=row["provider"],
             model=row["model"],
             policy_version=row["policy_version"],
+            attempt_of=row["parent_run_id"],
+            relation_kind=row["relation_kind"],
         )
 
 

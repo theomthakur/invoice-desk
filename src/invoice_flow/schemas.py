@@ -290,6 +290,7 @@ class RunResult(StrictModel):
     policy_version: str | None = None
     content_hash: str | None = None  # the hash a reviewer must echo to prove they saw this version
     review_summary: dict[str, object] | None = None  # proposal, critique and revision, concise
-    attempt_of: str | None = None  # run this one retried, if any
+    attempt_of: str | None = None  # linked earlier run, if any
+    relation_kind: Literal["retry", "correction"] | None = None
     started_at: datetime | None = None
     finished_at: datetime | None = None

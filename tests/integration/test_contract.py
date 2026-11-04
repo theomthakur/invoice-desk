@@ -24,6 +24,8 @@ EXPECTED = {
     ("post", "/api/v1/batches"),
     ("get", "/api/v1/batches/{batch_id}"),
     ("get", "/api/v1/runs/{run_id}"),
+    ("post", "/api/v1/runs/{run_id}/retry"),
+    ("post", "/api/v1/runs/{run_id}/correction"),
     ("get", "/api/v1/runs/{run_id}/events"),
     ("get", "/api/v1/runs/{run_id}/source"),
     ("get", "/api/v1/runs/{run_id}/original"),

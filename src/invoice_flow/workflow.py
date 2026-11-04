@@ -323,9 +323,26 @@ def build_decide_graph(env: RunEnv):
                 reg = dataclasses.replace(reg, disposition=Disposition.NEW, findings=[])
                 resumed = True
             route = route_after_validation(reg, report)
-            if env.hold_reason and route.outcome is None:
-                route = Route(Outcome.NEEDS_REVIEW, env.hold_reason, route.findings)
-                flag_version(conn, env.workspace_id, reg.version_id, "batch_hold")
+            hold_reason = env.hold_reason
+            link = conn.execute(
+                "SELECT l.kind, v.payable_id FROM run_links l"
+                " JOIN runs r ON r.run_id=l.parent_run_id AND r.workspace_id=l.workspace_id"
+                " LEFT JOIN invoice_versions v ON v.version_id=r.version_id"
+                " AND v.workspace_id=r.workspace_id"
+                " WHERE l.workspace_id=? AND l.child_run_id=?",
+                (env.workspace_id, env.run_id),
+            ).fetchone()
+            is_correction = bool(link and link["kind"] == "correction")
+            if is_correction and link["payable_id"] and link["payable_id"] == reg.payable_id:
+                hold_reason = None
+            if hold_reason and route.outcome is None:
+                route = Route(Outcome.NEEDS_REVIEW, hold_reason, route.findings)
+                flag_version(
+                    conn,
+                    env.workspace_id,
+                    reg.version_id,
+                    "correction_identity" if is_correction else "batch_hold",
+                )
             save_findings(conn, env.workspace_id, env.run_id, reg.version_id, route.findings)
             conn.execute(
                 "UPDATE runs SET version_id = ?, document_id = ? WHERE run_id = ?",

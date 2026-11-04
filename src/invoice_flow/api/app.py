@@ -31,6 +31,7 @@ from ..api_models import (
     BatchFileResult,
     BatchResult,
     ConfigInfo,
+    CorrectionRequest,
     CreateBatchRequest,
     CreateRunRequest,
     DepartmentAssignment,
@@ -44,6 +45,7 @@ from ..api_models import (
     HistoryPage,
     InvoiceLookupResult,
     LimitsInfo,
+    RetryRequest,
     ReviewOptions,
     ReviewRequest,
     ReviewResult,
@@ -77,7 +79,7 @@ from ..storage import (
     reset_workspace,
 )
 from ..textnorm import invoice_number_key
-from .jobs import JobRunner, QueueFull
+from .jobs import JobRunner, QueueFull, RetryError
 from .security import (
     CSRF_HEADER,
     SESSION_COOKIE,
@@ -464,6 +466,77 @@ def create_app(
             response.status_code = 200
             return RunAccepted(run_id=owner, already_existed=True, lifecycle=RunLifecycle.QUEUED)
         return RunAccepted(run_id=run_id, lifecycle=RunLifecycle.QUEUED)
+
+    @api.post(f"{API}/runs/{{run_id}}/retry", response_model=RunAccepted, status_code=202)
+    async def retry_run(
+        run_id: str, body: RetryRequest, response: Response, ws: str = Depends(mutation)
+    ):
+        _check_mode(body.mode)
+        if body.mode == "live":
+            try:
+                ctx.check_live_allowed()
+            except Exception as exc:
+                raise ApiError(
+                    503,
+                    getattr(exc, "code", "live_unavailable"),
+                    getattr(exc, "message", "Live mode is unavailable."),
+                ) from exc
+        try:
+            child, existed = runner.submit_retry(
+                workspace_id=ws,
+                parent_run_id=run_id,
+                mode=body.mode,
+                token=body.request_token,
+                payload_hash=_payload_hash("retry", run_id, body.mode),
+            )
+        except QueueFull as exc:
+            raise ApiError(429, "queue_full", str(exc), retryable=True) from exc
+        except RetryError as exc:
+            raise ApiError(exc.status, exc.code, exc.message) from exc
+        if existed:
+            response.status_code = 200
+        current = runner.result(ws, child)
+        return RunAccepted(
+            run_id=child,
+            already_existed=existed,
+            lifecycle=current.lifecycle if current else RunLifecycle.QUEUED,
+        )
+
+    @api.post(f"{API}/runs/{{run_id}}/correction", response_model=RunAccepted, status_code=202)
+    async def correct_run(
+        run_id: str, body: CorrectionRequest, response: Response, ws: str = Depends(mutation)
+    ):
+        _check_mode(body.mode)
+        if body.mode == "live":
+            try:
+                ctx.check_live_allowed()
+            except Exception as exc:
+                raise ApiError(
+                    503,
+                    getattr(exc, "code", "live_unavailable"),
+                    getattr(exc, "message", "Live mode is unavailable."),
+                ) from exc
+        try:
+            child, existed = runner.submit_retry(
+                workspace_id=ws,
+                parent_run_id=run_id,
+                mode=body.mode,
+                token=body.request_token,
+                payload_hash=_payload_hash("correction", run_id, body.mode, body.document_id),
+                correction_document_id=body.document_id,
+            )
+        except QueueFull as exc:
+            raise ApiError(429, "queue_full", str(exc), retryable=True) from exc
+        except RetryError as exc:
+            raise ApiError(exc.status, exc.code, exc.message) from exc
+        if existed:
+            response.status_code = 200
+        current = runner.result(ws, child)
+        return RunAccepted(
+            run_id=child,
+            already_existed=existed,
+            lifecycle=current.lifecycle if current else RunLifecycle.QUEUED,
+        )
 
     @api.get(f"{API}/runs/{{run_id}}", response_model=RunResult)
     async def get_run(run_id: str, ws: str = Depends(workspace)):

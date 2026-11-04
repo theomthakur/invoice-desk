@@ -129,6 +129,12 @@ CREATE TABLE IF NOT EXISTS runs (
     result_json     TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_runs_workspace ON runs(workspace_id, started_at);
+CREATE TABLE IF NOT EXISTS run_links (
+    workspace_id TEXT NOT NULL REFERENCES workspaces(workspace_id) ON DELETE CASCADE,
+    child_run_id TEXT PRIMARY KEY REFERENCES runs(run_id) ON DELETE CASCADE,
+    parent_run_id TEXT NOT NULL REFERENCES runs(run_id) ON DELETE CASCADE,
+    kind TEXT NOT NULL CHECK (kind IN ('retry', 'correction'))
+);
 CREATE TABLE IF NOT EXISTS run_events (
     run_id       TEXT NOT NULL REFERENCES runs(run_id) ON DELETE CASCADE,
     seq          INTEGER NOT NULL,
