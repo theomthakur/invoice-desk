@@ -4,8 +4,8 @@
   "description": "Invoice processing and exception review for Acme Corp.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f5f6f8",
-  "theme_color": "#5d5bd4",
+  "background_color": "#f6f6f0",
+  "theme_color": "#193c2e",
   "icons": [
     {
       "src": "/icon-192.png",
