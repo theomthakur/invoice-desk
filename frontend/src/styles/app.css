@@ -470,3 +470,13 @@ td small { display: block; color: var(--theme-muted, #646d5c); font-size: 10px; 
 .queue-table .selection-cell { width:52px; padding-left:24px; padding-right:8px; }
 .selection-cell input { width:16px; height:16px; accent-color:#28634c; cursor:pointer; }
 @media (max-width:600px) { .selection-bar { padding:12px 14px; } }
+.analytics-filters { margin-bottom:18px; }
+.analytics-filter-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
+.analytics-filter-grid label { display:flex; flex-direction:column; gap:7px; font-size:11px; font-weight:600; }
+.analytics-filter-grid input, .analytics-filter-grid select { min-width:0; width:100%; padding:10px; border:1px solid var(--line); border-radius:8px; color:var(--ink); background:var(--surface); }
+.analytics-filter-actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:14px; }
+.analytics-filter-actions .button { min-height:36px; }
+.analytics-filters p, .analytics-scope { margin-top:12px; color:var(--muted); font-size:11px; line-height:1.65; }
+.analytics-scope { margin-bottom:14px; overflow-wrap:anywhere; }
+@media(max-width:900px) { .analytics-filter-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:420px) { .analytics-filter-grid { grid-template-columns:1fr; } }

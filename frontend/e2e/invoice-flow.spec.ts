@@ -354,6 +354,13 @@ test('ledger overview counts records beyond the inbox as separate runs and recei
   for (const name of ['Processing rules','System design','Presentation']) await expect(page.getByRole('button',{name,exact:true})).toBeInViewport();
   const [download]=await Promise.all([page.waitForEvent('download'),page.getByRole('button',{name:'Download CSV'}).click()]);
   expect(download.suggestedFilename()).toBe('ledger-overview.csv');
+  await page.getByLabel('Run outcome').selectOption('rejected');
+  await page.getByRole('button',{name:'Apply filters'}).click();
+  await expect(page.getByText('No simulated receipts recorded.')).toBeVisible();
+  const [filteredDownload]=await Promise.all([page.waitForEvent('download'),page.getByRole('button',{name:'Download CSV'}).click()]);
+  expect(readFileSync((await filteredDownload.path())!,'utf8')).toContain('rejected');
+  await page.getByRole('button',{name:'Clear filters'}).click();
+  await expect(page.getByText('$5,000.00')).toBeVisible();
   if (process.env.UPDATE_SCREENSHOTS === '1') await page.screenshot({path:'docs/screenshots/ledger-overview.png',animations:'disabled'});
   await page.setViewportSize({width:320,height:844});
   expect(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth)).toBe(false);
