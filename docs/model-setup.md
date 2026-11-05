@@ -6,6 +6,8 @@ Never put a key in the browser, source code, screenshots or a committed file.
 
 ## Local setup
 
+Complete the [local quick start](../README.md#run-locally) once to install dependencies and build the interface, then stop the server before configuring live mode.
+
 1. Copy `.env.example` to `.env` and edit it locally. `.env` is git-ignored.
 2. Set one of the configurations below. Enter the matching key in that private file.
 3. Set a positive `MODEL_BUDGET_USD` and a provider-side spending limit.
@@ -15,7 +17,7 @@ Never put a key in the browser, source code, screenshots or a committed file.
 set -a
 . ./.env
 set +a
-uv run uvicorn invoice_flow.api:create_app --factory --host 127.0.0.1 --port 8000
+uv run python main.py --serve
 ```
 
 For the browser, set `ALLOW_LIVE_IN_SESSIONS=1` before starting and select **Live model**
