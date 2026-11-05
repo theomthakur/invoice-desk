@@ -1,0 +1,98 @@
+{
+  "schema_version": "1",
+  "run_id": "run_c3a440887f6447419825",
+  "workspace_id": "local",
+  "lifecycle": "completed",
+  "outcome": "needs_review",
+  "terminal_reason": "A finding needs human review before payment.",
+  "document_id": "doc_1caa242113ed12bc",
+  "filename": "invoice.txt",
+  "payable_id": "pay_f779a2bd1a6e8983",
+  "version_id": "ver_23fe82d43920455e8486",
+  "invoice": {
+    "invoice_number": "HBR-717",
+    "revision": null,
+    "vendor_name": "Harbor Parts Co.",
+    "invoice_date": "2026-11-04",
+    "due_date": "2026-12-04",
+    "currency": "EUR",
+    "lines": [
+      {
+        "line_no": 1,
+        "description": "WidgetA",
+        "sku": "WidgetA",
+        "quantity": 2,
+        "unit_price": "25.00",
+        "amount": "50.00",
+        "note": null
+      }
+    ],
+    "subtotal": "50.00",
+    "tax": "0.00",
+    "shipping": "0.00",
+    "total": "50.00",
+    "payment_terms": "Net 30"
+  },
+  "draft": {
+    "origin": "model",
+    "invoice_number": "HBR-717",
+    "revision": null,
+    "vendor_name": "Harbor Parts Co.",
+    "vendor_address": null,
+    "invoice_date_raw": "2026-11-04",
+    "due_date_raw": "2026-12-04",
+    "currency": "EUR",
+    "line_items": [
+      {
+        "line_no": 1,
+        "description": "WidgetA",
+        "quantity": "2",
+        "unit_price": "25.00",
+        "amount": "50.00",
+        "note": null
+      }
+    ],
+    "subtotal": "50.00",
+    "tax_rate": "0",
+    "tax_amount": "0.00",
+    "shipping": "0.00",
+    "total": "50.00",
+    "payment_terms": "Net 30",
+    "notes": null,
+    "corrections": [],
+    "parse_findings": []
+  },
+  "findings": [
+    {
+      "code": "UNSUPPORTED_CURRENCY",
+      "severity": "REVIEW",
+      "message": "EUR invoices cannot be paid automatically (no exchange rate supplied).",
+      "field": "currency",
+      "item_ref": null,
+      "observed": "EUR",
+      "expected": "USD",
+      "evidence": null
+    }
+  ],
+  "requires_scrutiny": false,
+  "approval": [],
+  "receipt": null,
+  "mode": "live",
+  "provider": "openrouter",
+  "model": "x-ai/grok-4.7",
+  "usage": {
+    "model_calls": 1,
+    "tool_calls": 0,
+    "prompt_tokens": 2372,
+    "completion_tokens": 536,
+    "usage_complete": true,
+    "estimated_cost_usd": "0.006232"
+  },
+  "policy_version": "2026-11-03.1",
+  "content_hash": "11d919adf0bcb30e81b0cb5af24513da5bc6c803abf7ac3767c89d6e99e0dfd6",
+  "review_summary": null,
+  "attempt_of": null,
+  "relation_kind": null,
+  "started_at": null,
+  "finished_at": "2026-11-04T23:09:27.207199Z"
+}

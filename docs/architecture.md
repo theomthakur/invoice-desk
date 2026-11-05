@@ -50,7 +50,7 @@ The worker uses one process. Queued runs are recovered after restart; runs that 
 
 ## Provider boundary
 
-Mock mode uses a deterministic simulated reader, not a model. Live mode uses OpenRouter over HTTPS with an operator-provided key and configured model. It does not fall back to mock on a live failure. The case requires no internet for external APIs; an actual offline LLM is not implemented. See [evaluation](evaluation.md) for what has and has not been measured.
+Mock mode uses a deterministic simulated reader, not a model. Live mode uses OpenRouter over HTTPS with an operator-provided key and configured model. It does not fall back to mock on a live failure. For genuine offline inference an optional Ollama adapter accepts only loopback HTTP, does not follow redirects, rejects remote model aliases after inspecting metadata before sending invoice text, and uses native JSON schemas and tool calls. Run the local Ollama server with OLLAMA_NO_CLOUD=1. Qwen 7B exercised the complete tool/approval/critique path but held a clean invoice unnecessarily, so this remains experimental. Cloud Grok remains the default. See [evaluation](evaluation.md) for what has and has not been measured.
 
 ## Internal department review
 
@@ -89,3 +89,8 @@ Historical charts count processing attempts. Current backlog and blocking-reason
 Current backlog groups needs-review records by the latest internal department assignment. Exception reasons include only ERROR and REVIEW findings on current held/rejected records, deduplicated per reason per record. One record can have several reasons, so category counts overlap. Neither metric is an accounts-payable balance or forecast.
 
 The read-only /analytics/records endpoint returns paginated records for a chart category. It uses the same selection and filters as the overview, derives workspace identity from the session, and lets operators open the corresponding run. Views are read snapshots, not a frozen report: records can change between chart refresh and pagination. The frontend ignores stale responses after filter changes. This prototype computes current records in memory after the database selection; large-scale performance has not been benchmarked.
+
+
+Current analytics aggregate department and blocking-reason counts inside SQLite. Record queries filter before applying a bounded limit, so Python parses only the returned page. Composite cursors use the recorded start timestamp and run ID. Resolving a prior-page item does not shift the next page. The UI replaces pages rather than retaining previously loaded stale records; refreshing the first page shows new arrivals. Each response is a read snapshot, not a cross-request frozen report. These changes do not make the single-process SQLite design a distributed production deployment.
+
+The progress strip marks an actual recorded approval, hold or rejection as a completed review step and shows the decision. Payment completion still requires a stored receipt. A refused gate remains blocked.

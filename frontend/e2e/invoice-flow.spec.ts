@@ -57,6 +57,7 @@ test('sidebar can collapse, keep navigation usable and remember the choice', asy
 });
 
 test('project resources explain the real system without starting invoice work', async ({ page }) => {
+  if (process.env.UPDATE_SCREENSHOTS === '1') await page.setViewportSize({width:1440,height:1080});
   const processingRequests: string[] = [];
   page.on('request', request => {
     if (request.method() === 'POST' && /\/api\/v1\/(runs|batches)(?:\/|$)/.test(new URL(request.url()).pathname)) processingRequests.push(request.url());
@@ -68,8 +69,10 @@ test('project resources explain the real system without starting invoice work', 
   await expect(page.getByRole('button', {name:'System design', exact:true})).toHaveAttribute('aria-current','page');
   await expect(page.getByRole('figure', { name: 'Invoice Desk current system architecture' })).toBeVisible();
   await expect(page.locator('.architecture-steps > li')).toHaveCount(16);
+  if (process.env.UPDATE_SCREENSHOTS === '1') await page.screenshot({path:'docs/screenshots/system-design.png',fullPage:true,animations:'disabled'});
   await page.getByRole('button', { name: 'Presentation', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'An invoice should end with a clear next step.' })).toBeVisible();
+  if (process.env.UPDATE_SCREENSHOTS === '1') await page.screenshot({path:'docs/screenshots/presentation.png',animations:'disabled'});
   await page.getByRole('button', { name: 'Next slide' }).click();
   await expect(page.getByRole('heading', { name: 'Upload. Check. Decide.' })).toBeVisible();
   await page.getByRole('button', { name: 'Previous slide' }).click();
@@ -77,6 +80,7 @@ test('project resources explain the real system without starting invoice work', 
   await page.getByRole('button',{name:'Full screen',exact:true}).click();
   await expect(page.locator('.presentation-page')).toHaveClass(/presentation-fullscreen/);
   await expect(page.getByRole('navigation',{name:'Presentation slides'})).toBeHidden();
+  if (process.env.UPDATE_SCREENSHOTS === '1') await page.screenshot({path:'docs/screenshots/presentation-fullscreen.png',animations:'disabled'});
   await page.keyboard.press('ArrowRight');
   await expect(page.getByRole('heading',{name:'Upload. Check. Decide.'})).toBeVisible();
   await page.keyboard.press('ArrowLeft');

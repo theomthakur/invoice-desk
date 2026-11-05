@@ -1,0 +1,145 @@
+{
+  "schema_version": "1",
+  "run_id": "run_de590352f74246089073",
+  "workspace_id": "local",
+  "lifecycle": "completed",
+  "outcome": "needs_review",
+  "terminal_reason": "A finding needs human review before payment.",
+  "document_id": "doc_7308ab3d7ff26ee3",
+  "filename": "invoice_1001.txt",
+  "payable_id": "pay_b3764435ba24c8ab",
+  "version_id": "ver_c160f79f1dd346caba03",
+  "invoice": {
+    "invoice_number": "INV-1001",
+    "revision": null,
+    "vendor_name": "Widgets Inc.",
+    "invoice_date": "2026-01-15",
+    "due_date": "2026-02-01",
+    "currency": "USD",
+    "lines": [
+      {
+        "line_no": 1,
+        "description": "WidgetA",
+        "sku": "WidgetA",
+        "quantity": 10,
+        "unit_price": "250.00",
+        "amount": "2500.00",
+        "note": null
+      },
+      {
+        "line_no": 2,
+        "description": "WidgetB",
+        "sku": "WidgetB",
+        "quantity": 5,
+        "unit_price": "500.00",
+        "amount": "2500.00",
+        "note": null
+      }
+    ],
+    "subtotal": "5000.00",
+    "tax": "0.00",
+    "shipping": "0",
+    "total": "5000.00",
+    "payment_terms": "Net 15"
+  },
+  "draft": {
+    "origin": "model",
+    "invoice_number": "INV-1001",
+    "revision": null,
+    "vendor_name": "Widgets Inc.",
+    "vendor_address": null,
+    "invoice_date_raw": "2026-01-15",
+    "due_date_raw": "2026-02-01",
+    "currency": null,
+    "line_items": [
+      {
+        "line_no": 1,
+        "description": "WidgetA",
+        "quantity": "10",
+        "unit_price": "250.00",
+        "amount": "2500.00",
+        "note": null
+      },
+      {
+        "line_no": 2,
+        "description": "WidgetB",
+        "quantity": "5",
+        "unit_price": "500.00",
+        "amount": "2500.00",
+        "note": null
+      }
+    ],
+    "subtotal": "5000.00",
+    "tax_rate": "0.00",
+    "tax_amount": "0.00",
+    "shipping": null,
+    "total": "5000.00",
+    "payment_terms": "Net 15",
+    "notes": null,
+    "corrections": [],
+    "parse_findings": []
+  },
+  "findings": [
+    {
+      "code": "CURRENCY_ASSUMED",
+      "severity": "INFO",
+      "message": "No currency stated; policy default USD applied.",
+      "field": "currency",
+      "item_ref": null,
+      "observed": null,
+      "expected": "USD",
+      "evidence": null
+    },
+    {
+      "code": "VALUE_NOT_IN_SOURCE",
+      "severity": "REVIEW",
+      "message": "amount 2500 does not appear in the source.",
+      "field": "amount",
+      "item_ref": "line 1",
+      "observed": "2500",
+      "expected": null,
+      "evidence": null
+    },
+    {
+      "code": "VALUE_NOT_IN_SOURCE",
+      "severity": "REVIEW",
+      "message": "amount 2500 does not appear in the source.",
+      "field": "amount",
+      "item_ref": "line 2",
+      "observed": "2500",
+      "expected": null,
+      "evidence": null
+    },
+    {
+      "code": "OVERDUE",
+      "severity": "INFO",
+      "message": "Due date 2026-02-01 is before 2026-11-04.",
+      "field": "due_date",
+      "item_ref": null,
+      "observed": "2026-02-01",
+      "expected": ">= 2026-11-04",
+      "evidence": null
+    }
+  ],
+  "requires_scrutiny": false,
+  "approval": [],
+  "receipt": null,
+  "mode": "live",
+  "provider": "ollama",
+  "model": "qwen2.5:7b",
+  "usage": {
+    "model_calls": 2,
+    "tool_calls": 0,
+    "prompt_tokens": 1111,
+    "completion_tokens": 764,
+    "usage_complete": true,
+    "estimated_cost_usd": "0.000000"
+  },
+  "policy_version": "2026-11-03.1",
+  "content_hash": "246e76f89221ef67f7f75cedac1d5588607a8e013fa3ff8e0815267cd03eddfc",
+  "review_summary": null,
+  "attempt_of": null,
+  "relation_kind": null,
+  "started_at": null,
+  "finished_at": "2026-11-04T23:05:52.664196Z"
+}

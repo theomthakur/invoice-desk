@@ -31,7 +31,7 @@ The test and evidence details are in [evaluation.md](evaluation.md). A check mar
 | Simulated VP decision and critique | `agents/review.py`, LangGraph in `workflow.py` | Controlled provider, mock workflow and browser tests. Live model behavior unverified. |
 | Mock payment or rejection with reasons | `ledger.py`, `tools/payment.py`, event log | Payment gate and duplicate/revision tests. No real bank. |
 | LLM / Grok | `providers/openrouter.py` | Adapter implemented, live requests unverified. Mock reader is deterministic and is not an LLM. |
-| Local operation without external APIs | mock provider, SQLite, CLI, API | End-to-end runs offline with no LLM. A local LLM is not configured; OpenRouter requires internet. |
+| Local operation without external APIs | mock provider, SQLite, CLI, API | Default simulation runs offline. Optional local Ollama inference is implemented but produced unnecessary holds; OpenRouter requires internet. |
 | Multiple agents, tool calls, structured outputs and correction | `agents/`, `workflow.py`, `llm.py` | Controlled tests and simulated tool calls; real-provider tool and schema behavior unverified. |
 | CLI, structured logs and result | `main.py`, `cli.py`, `storage.py` | CLI and event tests; commands in the root README. |
 | UI and human review | `frontend/`, workspace API | Browser tests cover actual mock workflows, including review and blocked currency. |
@@ -101,7 +101,7 @@ Verified by running the code, not only by reading:
 
 ## 6. Current limitations
 
-- The no-key, no-network mode uses a deterministic simulated reader. It demonstrates the control flow but is not an LLM. The OpenRouter adapter is implemented and unit-tested with mock transport, but live model access, accuracy, cost and latency were not measured. It needs internet, which is at odds with the case's no-internet constraint. A real local model is future work.
+- Default mock mode uses a deterministic simulated reader. Optional real local Ollama inference is available, with metadata checks that reject remote aliases and a requirement to disable cloud routing on the daemon. Local Qwen checks did not pass clean-invoice acceptance, so it remains experimental. Grok has four known acceptance checks plus 16 fresh runs; see evaluation for outcomes, latency, cost and the retained expected-label mismatch.
 - Tests that use hand-written TXT/PDF drafts prove deterministic checks, not real model extraction accuracy. The 20 supplied examples are a known regression set, not a blind test.
 - Older held batch records with no version are reconciled when their original sources are submitted again. Until unknown legacy identities are accounted for, the workspace remains blocked from new payment; an explicit content-bound review is then required. Reconciliation records no invented historical approval.
 - Default local sessions created before persistent signing keys cannot regain access if their old process-only key has already been lost. The database is retained; new sessions persist their signing key alongside it.

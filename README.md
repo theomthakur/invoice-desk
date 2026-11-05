@@ -8,7 +8,7 @@ The sidebar groups Invoices, Handoffs, Invoice analytics and Processing rules, w
 
 [Guided walkthrough](frontend/docs/screenshots/guided-walkthrough.png) · [Four-panel invoice review](frontend/docs/screenshots/four-panel-review.png) · [System design](frontend/docs/screenshots/system-design.png) · [Presentation](frontend/docs/screenshots/presentation.png) · [Full-screen presentation](frontend/docs/screenshots/presentation-fullscreen.png) · [Invoice analytics](frontend/docs/screenshots/invoice-analytics.png).
 
-> **Mode matters:** the default offline `mock` mode uses a deterministic simulated reader, not a language model. An OpenRouter adapter is implemented for a real model. Four live Grok 4.7 acceptance tests passed on known samples; broader live-model accuracy is unverified. Mock mode demonstrates the case's local simulated workflow; it does not measure genuine LLM reasoning or extraction accuracy. OpenRouter needs internet, and a local LLM is not configured.
+> **Mode matters:** default `mock` mode is a deterministic simulation, not an LLM. Grok 4.7 is the cloud default. A fresh author-written evaluation matched 15/16 frozen expectations, including three runs each of three critical cases, with no unsafe payments observed. This is not a general accuracy estimate. Optional Ollama inference runs a real local model without cloud fallback, but Qwen checks held clean invoices unnecessarily; keep it experimental. See [evaluation](docs/evaluation.md).
 
 ## Quick start
 
@@ -43,7 +43,7 @@ Open **http://127.0.0.1:8000**. Select **New invoice**, then upload a file or ch
 - **Review and handoffs:** eligible holds support a selected decision reason and optional note. A handoff records an internal department assignment; it does not notify anyone or authorize payment. Rejected records support a correction request and linked corrected-file submission. Interrupted or failed records can be retried.
 - **Reports:** Save decision PDF and Save activity PDF use branded browser print views. Download report CSV exports recorded details with spreadsheet-formula escaping. Developer mode reveals technical JSON and raw event payloads; it is off by default and has a visible, saved on/off state.
 - **Finding records:** Find invoice searches the workspace ledger by invoice number. The inbox has status filters and ten rows per page; Next fetches more when needed. Selection and list filters apply to loaded records. Bulk selection supports CSV export and individually checked department handoffs, never bulk payment approval.
-- **Analytics:** current review backlog by department and current blocking reasons link to matching invoice records. Separate historical charts cover outcomes, activity dates and vendors, with date/vendor/outcome filters and simulated receipts separated by currency. Counts distinguish processing attempts from distinct invoices. They are not outstanding balances or claimed savings.
+- **Analytics:** current review backlog by department and current blocking reasons link to matching invoice records. Matching pages use a stable cursor and database-side filtering; refresh the first page to see new records. Separate historical charts cover outcomes, activity dates and vendors, with date/vendor/outcome filters and simulated receipts separated by currency. Counts distinguish processing attempts from distinct invoices. They are not outstanding balances or claimed savings.
 
 The Multi-agent workflow explanation identifies the reader, validator, approver and critic, and explains early exits and the final code-controlled payment gate. Activity shows the steps actually recorded for each attempt. See [architecture](docs/architecture.md) for responsibilities and terminology, and [evaluation](docs/evaluation.md) for current checks and limitations.
 
@@ -59,7 +59,7 @@ For frontend development, run `npm run dev` in `frontend/` while the backend run
 | Validate against SQLite inventory | Quantity aggregation, item lookup, arithmetic, dates and currency checks | Unit tests and the 20-case regression; inventory is a fixed mock snapshot. |
 | Simulate VP approval and critique | Separate LangGraph preparation and decision graphs, typed tool calls and bounded revision | Controlled-provider and simulated-reader tests. Real model performance is unverified. |
 | Process or reject | Transactional payment gate and simulated receipt; recorded rejection reasons | Duplicate/revision, stale approval and browser tests. No real bank API is called. |
-| LLM integration | Configurable OpenRouter Chat Completions adapter | Four live acceptance tests passed, including clean-invoice inventory tool use, a review hold and rejected invalid invoices. Broader live evaluation remains open. |
+| LLM integration | OpenRouter and optional loopback-only Ollama adapters | Four known acceptance checks plus 16 fresh runs. One fresh expected-label mismatch is retained; see evaluation. Optional Ollama adapter tested locally with quality limitations. |
 | Local CLI and readable interface | `main.py`, FastAPI, React and SQLite | CLI, API and browser tests in mock mode. |
 
 ## Architecture
@@ -74,7 +74,7 @@ flowchart LR
     Decision --> Gate["Deterministic payment gate"]
     Gate --> DB
     Gate --> Mock["Mock payment receipt"]
-    Prep -.-> Provider["Simulated reader or OpenRouter"]
+    Prep -.-> Provider["Simulation, OpenRouter or local Ollama"]
     Decision -.-> Provider
 ```
 
@@ -85,7 +85,17 @@ Batch preparation is reused for decisions using the same document hash. Conflict
 ## Model modes
 
 - **`mock`**: default, offline and zero-key. A deterministic simulated provider demonstrates extraction and agent flow. It is not an LLM and cannot establish model accuracy.
-- **`live`**: explicitly select `--mode live` or `MODEL_MODE=live`, provide `OPENROUTER_API_KEY` and a positive `MODEL_BUDGET_USD`, and configure `LLM_MODEL` if needed. The candidate default is `x-ai/grok-4.7`. Four live acceptance tests succeeded; model availability, broader behavior and future pricing can vary. Live errors never silently fall back to mock. Set a **provider-side key limit**: the application cap only counts reported costs, and missing usage cost is unknown.
+- **`live`**: explicitly select `--mode live` or `MODEL_MODE=live`, provide `OPENROUTER_API_KEY` and a positive `MODEL_BUDGET_USD`, and configure `LLM_MODEL` if needed. The candidate default is `x-ai/grok-4.7`. Fresh evaluation and known-sample checks are documented below; model availability and future behavior can vary. Live errors never silently fall back to mock. Set a **provider-side key limit**: the application cap only counts reported costs, and missing usage cost is unknown.
+
+For genuine offline inference, install a tool-capable model separately, then start Ollama with cloud routing disabled:
+
+```bash
+OLLAMA_NO_CLOUD=1 ollama serve
+# In another terminal, with the model already installed:
+LLM_PROVIDER=ollama LLM_MODEL=qwen2.5:7b uv run python main.py --mode live --invoice_path=data/invoices/invoice_1001.txt
+```
+
+This optional adapter accepts loopback HTTP only, follows no redirects, checks model metadata before each request and rejects remote aliases or unverified local weights. It never falls back to a cloud model. No provider key or API budget is needed for local inference; time, request and tool limits still apply. Local hardware has a cost. Qwen 7B completed genuine tool calling and approval/critique, but incorrectly held a clean invoice, so it is not the recommended demo model. The free Render configuration remains mock-only and does not host Ollama.
 
 Use shell environment variables or your platform's secret store; `.env.example` is a reference and is not automatically loaded. Never commit credentials. Hosted browser sessions only offer mock mode by default.
 

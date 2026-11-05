@@ -33,7 +33,7 @@ The current image passed a local sequential verification with a 512,000,000-byte
 
 ## Live inference and limits
 
-Public live inference is off (`ALLOW_LIVE_IN_SESSIONS=0`). Four live Grok 4.7 acceptance tests passed on known samples on 4 November 2026; broader live reliability remains unverified. Enabling it needs a configured key, access gate, explicit numeric application cap and an enforceable provider-side key cap. The app's known-cost counter does not count requests for which the provider omits cost; it is not a complete spending guarantee. The rate limiter is per process, and provider-backed inference requires network access.
+Public live inference is off (`ALLOW_LIVE_IN_SESSIONS=0`). Four known live Grok 4.7 acceptance checks and 16 fresh runs are documented in evaluation; general reliability remains unverified. Optional Ollama inference is local-only and is not included in this free Render configuration. Enabling it needs a configured key, access gate, explicit numeric application cap and an enforceable provider-side key cap. The app's known-cost counter does not count requests for which the provider omits cost; it is not a complete spending guarantee. The rate limiter is per process, and provider-backed inference requires network access.
 
 ## Restart and rollback
 
