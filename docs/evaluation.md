@@ -56,7 +56,7 @@ The latest review corrects structured/reused reading progress, independent scrol
 
 The guided walkthrough waits for explicit actions and does not approve anything. Analytics query the whole workspace with UTC date, vendor and outcome filters; totals remain separated by currency. Table filters and selections apply to loaded runs. Receipt totals are not outstanding balances. Current backlog and exception bars open matching records; historical charts remain separate and do not provide per-metric drill-through. No fabricated savings or predictive metrics are claimed.
 
-The public Render HTTPS deployment, sleep/wake behavior, concurrent production traffic, enterprise sign-in/RBAC, distributed worker recovery, OCR and actual bank transfers remain unverified or outside this prototype. Current Render configuration is mock-only with temporary storage. Human review and all payments are simulated.
+The Render demo is deployed and its home page and health endpoint were checked over HTTPS. That availability check does not establish sleep/wake behavior or production reliability. Concurrent production traffic, enterprise sign-in/RBAC, distributed worker recovery, OCR and actual bank transfers remain unverified or outside this prototype. The committed Render configuration uses simulated mode with temporary storage; private service settings may differ. Human review and all payments are simulated.
 
 ## Current backlog and exception checks
 

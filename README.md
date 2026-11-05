@@ -14,21 +14,31 @@ The hosted demo may take a minute to wake after inactivity. Payments and invento
 
 ## Run locally
 
-You need **Python 3.12, uv, Node 22 and npm**. Run these commands from the repository root:
+Install **[uv](https://docs.astral.sh/uv/getting-started/installation/), Node 22 or newer, and npm**. From a fresh clone on macOS or Linux, run:
+
+```bash
+git clone https://github.com/theomthakur/invoice-desk.git
+cd invoice-desk
+./scripts/run_local.sh
+```
+
+Open **http://127.0.0.1:8000**. The script installs locked dependencies, builds the interface and starts the app. It uses Python 3.12, which uv can download if needed. First-time setup needs internet; invoice processing in the default simulated mode does not. No model key, database setup or paid service is required. Press **Ctrl+C** to stop.
+
+For manual setup or Windows, run these commands from the repository root:
 
 ```bash
 uv sync --locked --python 3.12
 npm --prefix frontend ci
 npm --prefix frontend run build
-MODEL_MODE=mock uv run python -m invoice_flow.server
+uv run python main.py --serve
 ```
 
-Open **http://127.0.0.1:8000**. No API key is needed for this default mode. It uses simulated model responses, so it demonstrates the workflow without making paid calls.
+The app defaults to simulated mode when `MODEL_MODE` is unset. If your shell already has live-model settings, use the startup script or clear them first. Local records persist under `data/runtime`; use a fresh browser session for a separate workspace.
 
 Prefer the terminal? The same processing logic is available through the CLI:
 
 ```bash
-uv run python main.py --mode mock --invoice_path=data/invoices/invoice_1001.txt
+uv run python main.py --invoice_path=data/invoices/invoice_1001.txt
 uv run python main.py --mode mock --batch=data/invoices
 ```
 
@@ -49,6 +59,8 @@ A rejected invoice is a valid business result, not a program crash. Running an i
 The **Guided walkthrough** in the sidebar points out the actual controls. It waits for your actions and does not approve invoices for you. **System design** explains the flow, and **Presentation** provides a short, full-screen walkthrough.
 
 ## What it does
+
+The required path is **ingest -> validate against SQLite inventory -> approval and critique -> mock payment or a logged rejection**. The CLI works without a mode flag. The SQLite database and starter inventory are created automatically.
 
 | Feature | What is implemented |
 | --- | --- |

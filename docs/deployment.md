@@ -17,11 +17,13 @@ For durable storage, mount a writable directory and set `DATA_DIR` to that mount
 
 ## Render blueprint
 
-`render.yaml` is a prepared **free, ephemeral, mock-only** web service, with a generated session secret and a required manually entered demo access code. It uses the root Dockerfile and health endpoint. No service is claimed as deployed. Connect the public repository, select the `deployment` branch and root blueprint, enter the access code in Render, then deploy. The access code is a shared demo gate, not personal authentication. Do not put it or a model key in the repository or client bundle.
+The [hosted demo](https://invoice-desk-823q.onrender.com/) is available, and the [recorded walkthrough](https://youtu.be/3wwiXjCHQoQ) shows the application. Local execution remains the primary review path. The Blueprint configures one free Docker service in simulated mode with temporary storage and a generated session secret.
 
-Render prompts for `sync: false` secrets only when initially creating a Blueprint. Existing services must have `DEMO_ACCESS_CODE` configured manually; an unset code permits open demo access. Confirm that missing and incorrect codes fail before sharing the URL. A generated `SESSION_SECRET` is created only when absent, so retain an existing valid secret unless intentionally ending sessions. Keep `MODEL_MODE=mock`, `ALLOW_LIVE_IN_SESSIONS=0`, and no provider key for the free demonstration.
+Connect the public repository, select `deployment`, and use the root `render.yaml`. A demo access code is optional: leave it unset for open demo access, or set `DEMO_ACCESS_CODE` in Render to require a shared code. If enabled, check that missing and incorrect codes fail. This is a shared gate, not personal authentication.
 
-Local operation is the primary supported setup. The hosted app is an optional demo.
+`SESSION_SECRET` is required when binding publicly. The Blueprint generates one; for a manually created service, generate a random value locally with `python -c "import secrets; print(secrets.token_urlsafe(32))"` and enter it privately in Render. Keep an existing secret unless intentionally ending sessions. Never commit it or a model key.
+
+Render prompts for `sync: false` values when initially creating a Blueprint; later changes must be made in the existing service's Environment settings. The committed configuration uses `MODEL_MODE=mock` and `ALLOW_LIVE_IN_SESSIONS=0`. The actual service environment may differ, so inspect its selected mode before a demonstration. A Git push does not deploy while automatic deployment is disabled in the Blueprint.
 
 For the free service, local files and SQLite are lost when the instance is redeployed, restarted or spun down. According to [Render's free service documentation](https://render.com/docs/free), it spins down after 15 minutes without inbound traffic, and waking can take about a minute. The UI reports ephemeral storage. If persistence is required, use an appropriate paid disk or managed service, set the storage flag truthfully, test restart and backups, and keep one server process. Do not assume a free instance is durable. The configuration follows the [Render Blueprint reference](https://render.com/docs/blueprint-spec).
 
@@ -42,7 +44,7 @@ Queued individual runs may resume; in-progress runs become interrupted. Queued b
 
 ## Main and deployment branches
 
-`main` remains the reviewed product and the repository default. `deployment` is the release branch selected by Render. Both begin at the same tested commit; no live service is created by pushing the branch. Make shared fixes on main, verify them, then merge main into deployment. Keep hosting-only configuration changes on deployment. Do not force-push or copy a ZIP over either history. The branches need an explicit merge for each release and do not automatically stay in sync.
+`main` remains the reviewed product and the repository default. `deployment` is the release branch selected by Render. Keep both branches on the same reviewed application code; pushing a branch alone does not create a service. Make shared fixes on main, verify them, then merge main into deployment. Keep hosting-only configuration changes on deployment. Do not force-push or copy a ZIP over either history. The branches need an explicit merge for each release and do not automatically stay in sync.
 
 ```bash
 git fetch origin
