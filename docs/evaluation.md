@@ -121,3 +121,8 @@ These are concrete local correctness improvements. They do not establish distrib
 A new API regression reproduces rejecting INV-1007, submitting unrelated INV-1012 as its correction, and attempting approval after resolving the vendor-name warning. Before the fix the request returned a USD 9,975 simulated receipt. After the fix it returns `not_approvable`, retains `needs_review` with no receipt, and the database contains no payment. Review options also disable approval. All checks use isolated temporary data and simulated inference, not provider credit.
 
 A correction identity hold is now stored independently of another review outcome. It takes precedence over reviewable identity flags, so clearing a vendor warning or selecting a revision cannot clear an unrelated-correction restriction. Existing rejection, duplicate and superseded outcomes retain their disposition. Unit tests check identity-flag precedence and preserve the rule that paid versions are not retroactively flagged. This is a code regression check; the prior Grok results are recorded checks and were not rerun for this fix.
+
+
+## Policy-label correction approved before rerun
+
+The owner approved correcting the missing-vendor expectation from `needs_review` to `rejected`. This matches the existing required-field ERROR rule; neither the application policy nor model prompts were changed. The corrected manifest is [grok-policy-expectations.json](../tests/fixtures/grok-policy-expectations.json). All ten invoice texts, input hashes, other labels and the three-case repetition schedule are unchanged. This manifest is committed before new inference. The original 15/16 results remain intact; the new run will be reported separately and is a known-set rerun, not a fresh blind evaluation.
