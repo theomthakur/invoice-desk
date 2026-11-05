@@ -2,20 +2,20 @@
 
 ## Current verification
 
-Local verification on 5 November 2026 includes the direct xAI configuration update. These results do not establish CI on a future commit or a hosted deployment.
+Submission checks on 5 November 2026 used a fresh clone with no model key, existing database or frontend build. The startup script installed dependencies, built the interface and served the app; the home page, health endpoint and API docs returned HTTP 200. The CLI command worked without a mode flag and produced a simulated receipt.
 
 | Check | Result | Scope |
 | --- | --- | --- |
-| Python tests | 791 passed, 4 live tests deselected | Rules, simulated/controlled providers, direct xAI contracts and secret isolation, API, CLI, review, identity/version checks, source evidence, payment safety, restart/session behavior and workspace isolation. |
-| Frontend tests | 81 passed on Node 22 and Node 24 | Interactions, four-panel records, developer-only exports, CSV safety, review, history, theme and progress semantics. |
-| Browser tests | 21 passed | Real local mock backend; includes collapsed developer-toggle, Handoffs breadcrumb, four-panel layout, review, PDF inspection, isolation, responsive UI and exports. |
-| Frontend lint, TypeScript and build | Passed | Production frontend served by the local backend. |
-| Supplied-file regression | Earlier fingerprinted source: 20/20 expected outcomes | Each supplied file uses an isolated fresh ledger and a simulated reader. This is a known regression set, not blind LLM accuracy. |
-| Shared-ledger sample batch | Earlier fingerprinted source: 6 paid, 8 rejected, 2 held, 3 duplicate, 1 superseded | 20 files, USD 30,375.00 in simulated receipts. No real payment or savings. |
-| Live OpenRouter acceptance | Four known Grok 4.7 cases passed | Recorded clean payment/tool use, messy invoice hold, invalid invoice rejection and usage accounting. |
-| Latest Grok known-set rerun | **16/16 expected matches** | Ten scenarios with three cases run three times each. The owner-approved missing-vendor label correction was committed before this rerun. No unsafe payments observed. |
+| Backend tests | 791 passed; 4 paid tests deselected | Rules, provider contracts, API/CLI, correction identity, payment safety, recovery and workspace isolation. |
+| Frontend tests | 81 passed on Node 22 and Node 24 | Interface behaviour, review, source inspection, reports, analytics and navigation. |
+| Browser tests | 21 passed | Real local backend in simulated mode, including the full invoice/review workflow, duplicate handling, reports and responsive layouts. |
+| Quality checks | Python lint/format, API schema, frontend lint and TypeScript/build passed | Local checks; GitHub CI is checked separately on the pushed commit. |
+| Supplied files | 20/20 expected outcomes | Fresh ledger per file, simulated responses. See the fingerprinted sample artifact. |
+| Shared-ledger batch | Historical: 6 paid, 8 rejected, 2 held, 3 duplicate, 1 superseded | 20 files, USD 30,375.00 in simulated receipts; no real payment or savings. |
+| Live OpenRouter acceptance | Recorded: four known Grok 4.7 cases passed | Clean payment/tool use, messy invoice hold, invalid invoice rejection and usage accounting. |
+| Latest Grok rerun | Recorded: 16/16 expected matches | Ten known scenarios with three cases repeated three times each; policy-label correction committed before rerun. |
 
-Direct xAI support was checked with HTTP fixtures only. No direct xAI paid run or new OpenRouter evaluation was performed for this update. The recorded Grok results below remain evidence for their original evaluated commits.
+No paid model calls were repeated for the submission check. Direct xAI has fixture-based contract tests, with no funded direct-xAI run recorded. Historical live and constrained-container results apply to their documented source snapshots and do not establish general reliability or a new container measurement. Docker was not rerun for this submission check because its daemon was not running.
 
 ## Read the results correctly
 

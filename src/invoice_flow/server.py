@@ -16,7 +16,7 @@ PACKAGE_ROOT = Path(__file__).resolve().parents[2]
 
 
 def build_app(config: AppConfig | None = None):
-    """Create the ASGI app. Serves ``frontend/dist`` when it exists (Part 03), else API only."""
+    """Create the ASGI app. Serves the built frontend when available, otherwise the API only."""
     from .api import create_app
 
     cfg = config or AppConfig.from_env()

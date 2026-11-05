@@ -252,9 +252,7 @@ class RunEvent(StrictModel):
 
 
 class Usage(StrictModel):
-    """Model usage for one run. Part 02 added ``tool_calls`` and ``usage_complete`` (additive,
-    defaults keep Part 01 payloads valid). ``estimated_cost_usd`` is ``None`` when unknown;
-    unknown is never reported as zero."""
+    """Model and tool usage for one run. Unknown cost is ``None``, never zero."""
 
     model_calls: int = 0
     tool_calls: int = 0
@@ -265,7 +263,7 @@ class Usage(StrictModel):
 
 
 class RunResult(StrictModel):
-    """Everything a client needs about one run. Part 02 fills the model-related parts."""
+    """Processing state, invoice evidence, decisions and model usage for one run."""
 
     schema_version: str = SCHEMA_VERSION
     run_id: str
