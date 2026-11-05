@@ -69,6 +69,7 @@ class LimitsInfo(StrictModel):
 
 
 class ConfigInfo(StrictModel):
+    model_provider: Literal["openrouter", "ollama"] = "openrouter"
     schema_version: str = SCHEMA_VERSION
     policy_version: str
     limits: LimitsInfo
@@ -292,6 +293,7 @@ class AnalyticsRecords(StrictModel):
     records: list[AnalyticsRecord]
     record_count: int
     next_offset: int | None
+    next_cursor: str | None = None
 
 
 class AnalyticsOverview(StrictModel):

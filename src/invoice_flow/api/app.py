@@ -26,7 +26,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from ..analytics import current_exceptions, exception_groups
+from ..analytics import current_exception_groups, current_exception_page
 from ..api_models import (
     AnalyticsOverview,
     AnalyticsRecords,
@@ -120,7 +120,7 @@ def _history_cursor(started_at: str, run_id: str) -> str:
     return "h1." + base64.urlsafe_b64encode(payload).decode("ascii").rstrip("=")
 
 
-def _history_position(cursor: str) -> tuple[str, str | None]:
+def _history_position(cursor: str, *, normalize: bool = True) -> tuple[str, str | None]:
     """Validate bounded composite cursors, accepting legacy UTC timestamp boundaries."""
     try:
         run_id = None
@@ -151,7 +151,9 @@ def _history_position(cursor: str) -> tuple[str, str | None]:
         ):
             raise ValueError
         moment = datetime.fromisoformat(timestamp)
-        return moment.astimezone(UTC).isoformat(timespec="microseconds"), run_id
+        return (
+            moment.astimezone(UTC).isoformat(timespec="microseconds") if normalize else timestamp
+        ), run_id
     except (ValueError, TypeError, UnicodeError, OverflowError, binascii.Error) as exc:
         raise ApiError(422, "invalid_request", "Invalid history cursor.") from exc
 
@@ -319,6 +321,7 @@ def create_app(
     async def get_config():
         p = ctx.policy
         return ConfigInfo(
+            model_provider=config.llm_provider,
             policy_version=p.policy_version,
             limits=LimitsInfo(
                 max_file_bytes=p.limits.max_file_bytes,
@@ -986,11 +989,11 @@ def create_app(
             for payment in conn.execute(payment_sql, payment_params):
                 amount, count = totals.get(payment["currency"], (0, 0))
                 totals[payment["currency"]] = (amount + payment["amount_minor"], count + 1)
-            current = current_exceptions(
+            current = current_exception_groups(
                 conn, ws, date_from=date_from, date_to=date_to, vendor=vendor, outcome=outcome
             )
             return {
-                **exception_groups(current),
+                **current,
                 "identified_invoices": invoice_count,
                 "total_runs": runs["total"],
                 "active_runs": runs["active"],
@@ -1028,6 +1031,7 @@ def create_app(
         outcome: Literal["paid", "needs_review", "rejected", "duplicate", "superseded"]
         | None = None,
         offset: int = Query(0, ge=0, le=100000),
+        cursor: str | None = Query(None, max_length=512),
         limit: int = Query(25, ge=1, le=100),
         ws: str = Depends(workspace),
     ):
@@ -1035,27 +1039,27 @@ def create_app(
             raise ApiError(422, "invalid_request", "The start date must be before the end date.")
         with ctx.db.read() as conn:
             conn.execute("BEGIN")
-            records = current_exceptions(
+            page = current_exception_page(
                 conn,
                 ws,
+                view=view,
+                key=key,
+                limit=limit,
+                offset=offset,
+                position=_history_position(cursor, normalize=False) if cursor else None,
                 date_from=date_from,
                 date_to=date_to,
                 vendor=vendor.strip() if vendor else None,
                 outcome=outcome,
             )
-        if view == "backlog":
-            selected = [
-                item
-                for item in records
-                if item["outcome"] == "needs_review" and item["department"] == key
-            ]
-        else:
-            selected = [item for item in records if key in item["reasons"]]
-        end = offset + limit
+        records = page["records"]
         return {
-            "records": selected[offset:end],
-            "record_count": len(selected),
-            "next_offset": end if end < len(selected) else None,
+            "records": records,
+            "record_count": page["record_count"],
+            "next_offset": offset + limit if page["has_more"] else None,
+            "next_cursor": _history_cursor(records[-1]["started_at"], records[-1]["run_id"])
+            if page["has_more"] and records
+            else None,
         }
 
     @api.get(f"{API}/invoices/lookup", response_model=InvoiceLookupResult)

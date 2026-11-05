@@ -1,5 +1,5 @@
 import {describe,it,expect} from 'vitest';
-import {stageState} from '../src/features/runs/progress';
+import {reviewDecision,stageState} from '../src/features/runs/progress';
 import type {RunEvent,RunResult} from '../src/types/api';
 const run:RunResult={run_id:'one',workspace_id:'ws',lifecycle:'completed',outcome:'needs_review',findings:[],approval:[],requires_scrutiny:false};
 const event=(stage:string,type:string,payload:Record<string,unknown>={}):RunEvent=>({seq:1,timestamp:'2026-11-04T00:00:00Z',stage,type,payload});
@@ -17,9 +17,10 @@ describe('honest stage progress',()=>{
     expect(stageState('payment',run,[event('payment','payment_attempt')])).toBe('reached');
     expect(stageState('payment',{...run,outcome:'paid',receipt:{payment_id:'p',transaction_id:'t',vendor:'v',amount:'2',currency:'USD',created_at:'2026-11-04',simulated:true}},[])).toBe('complete');
   });
-  it('marks rejected and held decisions as blocked',()=>{
-    expect(stageState('approval',run,[event('approval','final_decision',{action:'reject'})])).toBe('blocked');
-    expect(stageState('approval',run,[event('approval','final_decision',{action:'needs_review'})])).toBe('blocked');
+  it('marks a recorded rejection or hold as completed review without marking payment complete',()=>{
+    expect(stageState('approval',run,[event('approval','final_decision',{action:'reject'})])).toBe('complete');
+    expect(stageState('approval',run,[event('approval','final_decision',{action:'needs_review'})])).toBe('complete');
+    expect(stageState('payment',run,[event('approval','final_decision',{action:'needs_review'})])).toBe('not_reached');
   });
   it('marks an interrupted active stage as failed rather than successful',()=>{
     expect(stageState('extraction',{...run,lifecycle:'interrupted'},[event('extraction','model_request'),event('error','run_interrupted')])).toBe('failed');
@@ -32,4 +33,11 @@ describe('honest stage progress',()=>{
     expect(stageState('validation',failed,events)).toBe('complete');
     expect(stageState('approval',failed,events)).toBe('failed');
   });
+});
+
+it.each([['paid','approve'],['rejected','reject'],['needs_review','needs_review']])('uses the applied human %s decision after an old hold and refused gate',(outcome,action)=>{
+  const events=[event('approval','final_decision',{action:'needs_review'}),event('approval','gate_refused'),event('completion','review_applied',{outcome})];
+  expect(reviewDecision(events)).toBe(action);
+  expect(stageState('approval',run,events)).toBe('complete');
+  expect(stageState('payment',run,events)).not.toBe('complete');
 });

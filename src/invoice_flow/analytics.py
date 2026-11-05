@@ -3,24 +3,21 @@
 from __future__ import annotations
 
 import json
-from collections import Counter
 from datetime import date
 from sqlite3 import Connection
 
 from .review_routing import DEPARTMENTS
 
 
-def current_exceptions(
-    conn: Connection,
+def _current_query(
     workspace_id: str,
     *,
     date_from: date | None = None,
     date_to: date | None = None,
     vendor: str | None = None,
     outcome: str | None = None,
-) -> list[dict]:
-    # Choose a current decision BEFORE applying display filters. A date/vendor filter
-    # must never resurrect an old hold after the version was paid or rejected.
+) -> tuple[str, list]:
+    # Select current decisions before display filters, so old holds cannot reappear.
     sql = """
     WITH decisions AS (
       SELECT r.*, v.status AS version_status, v.payable_id, p.vendor_name,
@@ -39,7 +36,7 @@ def current_exceptions(
       WHERE r.workspace_id=? AND r.lifecycle='completed'
         AND r.outcome IN ('needs_review','rejected','paid')
     )
-    SELECT * FROM decisions c WHERE position=1
+    , current AS (SELECT * FROM decisions c WHERE position=1
       AND outcome IN ('needs_review','rejected')
       AND (version_id IS NULL OR version_status='active')
       AND NOT EXISTS (SELECT 1 FROM payments t
@@ -58,51 +55,108 @@ def current_exceptions(
     if outcome:
         sql += " AND outcome=?"
         params.append(outcome)
-    sql += " ORDER BY started_at DESC, run_id DESC"
-    records = []
-    for row in conn.execute(sql, params):
-        payload = json.loads(row["result_json"]) if row["result_json"] else {}
-        invoice = payload.get("invoice") or {}
-        reasons = sorted(
-            {
-                str(item["code"])
-                for item in payload.get("findings", [])
-                if item.get("severity") in {"ERROR", "REVIEW"} and item.get("code")
-            }
-        )
-        if not reasons:
-            reasons = ["REVIEW_REQUIRED" if row["outcome"] == "needs_review" else "REJECTED"]
-        department = row["department"] or "unassigned"
-        records.append(
-            {
-                "run_id": row["run_id"],
-                "version_id": row["version_id"],
-                "invoice_number": invoice.get("invoice_number"),
-                "vendor": row["vendor_name"] or invoice.get("vendor_name"),
-                "filename": row["filename"],
-                "outcome": row["outcome"],
-                "department": department,
-                "department_label": DEPARTMENTS.get(department, "Unassigned"),
-                "reasons": reasons,
-                "started_at": row["started_at"],
-            }
-        )
-    return records
+
+    sql += """), enriched AS (SELECT current.*,
+      COALESCE(department,'unassigned') AS assigned_department,
+      CASE WHEN EXISTS (SELECT 1 FROM json_each(COALESCE(result_json,'{}'),'$.findings') j
+        WHERE json_extract(j.value,'$.severity') IN ('ERROR','REVIEW')
+          AND json_extract(j.value,'$.code') IS NOT NULL)
+      THEN (SELECT json_group_array(code) FROM (
+        SELECT DISTINCT json_extract(j.value,'$.code') AS code
+        FROM json_each(COALESCE(result_json,'{}'),'$.findings') j
+        WHERE json_extract(j.value,'$.severity') IN ('ERROR','REVIEW')
+          AND json_extract(j.value,'$.code') IS NOT NULL ORDER BY code))
+      ELSE json_array(CASE WHEN outcome='needs_review' THEN 'REVIEW_REQUIRED' ELSE 'REJECTED' END)
+      END AS reasons_json FROM current) """
+    return sql, params
 
 
-def exception_groups(records: list[dict]) -> dict:
-    review = [record for record in records if record["outcome"] == "needs_review"]
-    departments = Counter(record["department"] for record in review)
-    reasons = Counter(code for record in records for code in record["reasons"])
+def _record(row) -> dict:
+    payload = json.loads(row["result_json"]) if row["result_json"] else {}
+    invoice = payload.get("invoice") or {}
+    reasons = json.loads(row["reasons_json"])
+    department = row["department"] or "unassigned"
     return {
-        "current_review_count": len(review),
-        "current_exception_count": len(records),
-        "backlog_by_department": [
-            {"key": key, "label": DEPARTMENTS.get(key, "Unassigned"), "count": count}
-            for key, count in sorted(departments.items(), key=lambda pair: (-pair[1], pair[0]))
-        ],
+        "run_id": row["run_id"],
+        "version_id": row["version_id"],
+        "invoice_number": invoice.get("invoice_number"),
+        "vendor": row["vendor_name"] or invoice.get("vendor_name"),
+        "filename": row["filename"],
+        "outcome": row["outcome"],
+        "department": department,
+        "department_label": DEPARTMENTS.get(department, "Unassigned"),
+        "reasons": reasons,
+        "started_at": row["started_at"],
+    }
+
+
+def current_exception_page(
+    conn: Connection,
+    workspace_id: str,
+    *,
+    view: str,
+    key: str,
+    limit: int,
+    offset: int = 0,
+    position: tuple[str, str | None] | None = None,
+    **filters,
+) -> dict:
+    """Filter and paginate in SQLite. Parse full result JSON only for returned records."""
+    sql, params = _current_query(workspace_id, **filters)
+    if view == "backlog":
+        condition = "outcome='needs_review' AND assigned_department=?"
+    else:
+        condition = "EXISTS (SELECT 1 FROM json_each(reasons_json) WHERE value=?)"
+    sql += " , matching AS (SELECT * FROM enriched WHERE " + condition + ") "
+    params.append(key)
+    count = conn.execute(sql + "SELECT count(*) FROM matching", params).fetchone()[0]
+    page_sql = "SELECT * FROM matching"
+    page_params = list(params)
+    if position:
+        timestamp, run_id = position
+        if run_id is None:
+            page_sql += " WHERE started_at<?"
+            page_params.append(timestamp)
+        else:
+            page_sql += " WHERE (started_at,run_id)<(?,?)"
+            page_params.extend((timestamp, run_id))
+    page_sql += " ORDER BY started_at DESC,run_id DESC LIMIT ? OFFSET ?"
+    page_params.extend((limit + 1, offset))
+    rows = conn.execute(sql + page_sql, page_params).fetchall()
+    return {
+        "records": [_record(row) for row in rows[:limit]],
+        "record_count": count,
+        "has_more": len(rows) > limit,
+    }
+
+
+def current_exception_groups(conn: Connection, workspace_id: str, **filters) -> dict:
+    """Aggregate current counts without materializing every invoice result in Python."""
+    sql, params = _current_query(workspace_id, **filters)
+    counts = conn.execute(
+        sql + "SELECT count(*),sum(outcome='needs_review') FROM enriched", params
+    ).fetchone()
+    departments = conn.execute(
+        sql + "SELECT assigned_department,count(*) AS n FROM enriched "
+        "WHERE outcome='needs_review' GROUP BY assigned_department "
+        "ORDER BY n DESC,assigned_department",
+        params,
+    )
+    backlog = [
+        {"key": r[0], "label": DEPARTMENTS.get(r[0], "Unassigned"), "count": r[1]}
+        for r in departments
+    ]
+    reasons = conn.execute(
+        sql + "SELECT j.value,count(*) AS n FROM enriched,json_each(reasons_json) j "
+        "GROUP BY j.value ORDER BY n DESC,j.value",
+        params,
+    )
+    return {
+        "current_review_count": counts[1] or 0,
+        "current_exception_count": counts[0],
+        "backlog_by_department": backlog,
         "exception_reasons": [
-            {"key": code, "label": code.replace("_", " ").capitalize(), "count": count}
-            for code, count in sorted(reasons.items(), key=lambda pair: (-pair[1], pair[0]))
+            {"key": r[0], "label": r[0].replace("_", " ").capitalize(), "count": r[1]}
+            for r in reasons
         ],
     }

@@ -71,8 +71,9 @@ export class ApiClient {
   samples() { return this.json<SampleInfo[]>('/samples'); }
   history(cursor?: string) { return this.json<HistoryPage>(`/history${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`); }
   analyticsOverview(filters?:AnalyticsFilters) { const params=new URLSearchParams(); if(filters) Object.entries(filters).forEach(([key,value])=>{if(value.trim()) params.set(key,value.trim());}); const query=params.toString(); return this.json<AnalyticsOverview>(`/analytics/overview${query ? `?${query}` : ''}`); }
-  analyticsRecords(view:'backlog'|'exceptions',key:string,filters:AnalyticsFilters,offset=0) {
+  analyticsRecords(view:'backlog'|'exceptions',key:string,filters:AnalyticsFilters,offset=0,cursor?:string) {
     const params=new URLSearchParams({view,key,offset:String(offset)});
+    if(cursor)params.set('cursor',cursor);
     Object.entries(filters).forEach(([name,value])=>{if(value.trim())params.set(name,value.trim());});
     return this.json<AnalyticsRecords>(`/analytics/records?${params}`);
   }

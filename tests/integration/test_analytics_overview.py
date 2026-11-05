@@ -258,3 +258,30 @@ def test_current_exception_pages_are_bounded_and_superseded_versions_are_exclude
         ).status_code
         == 422
     )
+
+
+def test_cursor_does_not_skip_records_when_a_previous_page_is_resolved(alice, ctx):
+    with ctx.db.transaction() as conn:
+        for index in range(5):
+            conn.execute(
+                "INSERT INTO runs (run_id,workspace_id,lifecycle,outcome,started_at,finished_at)"
+                " VALUES (?,?,'completed','needs_review','2026-11-04T00:00:00Z',"
+                "'2026-11-04T00:01:00Z')",
+                (f"run_cursor_{index:02d}", alice.workspace),
+            )
+    query = {"view": "backlog", "key": "unassigned", "limit": 2}
+    first = alice.get("/analytics/records", params=query).json()
+    assert [r["run_id"] for r in first["records"]] == ["run_cursor_04", "run_cursor_03"]
+    with ctx.db.transaction() as conn:
+        conn.execute("UPDATE runs SET outcome='paid' WHERE run_id='run_cursor_04'")
+    second = alice.get(
+        "/analytics/records", params={**query, "cursor": first["next_cursor"]}
+    ).json()
+    assert [r["run_id"] for r in second["records"]] == ["run_cursor_02", "run_cursor_01"]
+    assert second["record_count"] == 4
+    last = alice.get("/analytics/records", params={**query, "cursor": second["next_cursor"]}).json()
+    assert [r["run_id"] for r in last["records"]] == ["run_cursor_00"]
+    assert last["next_cursor"] is None
+    assert (
+        alice.get("/analytics/records", params={**query, "cursor": "h1.invalid"}).status_code == 422
+    )

@@ -9,6 +9,7 @@ export interface SessionInfo {
   csrf_token?: string | null;
 }
 export interface ConfigInfo {
+  model_provider?: 'openrouter' | 'ollama';
   schema_version: string;
   policy_version: string;
   limits: { max_file_bytes: number; max_pdf_pages: number; max_line_items: number };
@@ -93,7 +94,7 @@ export interface InvoiceLookupResult { matches: {payable_id:string; number:strin
 
 export interface AnalyticsGroup {key:string; label:string; count:number}
 export interface AnalyticsRecord {run_id:string;version_id:string|null;invoice_number:string|null;vendor:string|null;filename:string|null;outcome:'needs_review'|'rejected';department:string;department_label:string;reasons:string[];started_at:string}
-export interface AnalyticsRecords {records:AnalyticsRecord[];record_count:number;next_offset:number|null}
+export interface AnalyticsRecords {records:AnalyticsRecord[];record_count:number;next_offset:number|null;next_cursor?:string|null}
 export interface AnalyticsOverview { current_review_count?:number; current_exception_count?:number; backlog_by_department?:AnalyticsGroup[]; exception_reasons?:AnalyticsGroup[]; identified_invoices:number; total_runs:number; active_runs:number; failed_runs:number; review_runs:number; flagged_active_versions:number; simulated_receipts:number; paid_by_currency:{currency:string; amount:string; receipts:number}[]; outcomes?:Record<string,number>; daily_runs?:{day:string;count:number}[]; vendor_runs?:{vendor:string;count:number}[]; identity_flags?:{flag:string;count:number}[] }
 
 export interface AnalyticsFilters { date_from:string; date_to:string; vendor:string; outcome:Outcome | '' }

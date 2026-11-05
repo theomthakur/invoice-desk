@@ -284,6 +284,17 @@
       "AnalyticsRecords": {
         "additionalProperties": false,
         "properties": {
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          },
           "next_offset": {
             "anyOf": [
               {
@@ -589,6 +600,15 @@
           },
           "limits": {
             "$ref": "#/components/schemas/LimitsInfo"
+          },
+          "model_provider": {
+            "default": "openrouter",
+            "enum": [
+              "openrouter",
+              "ollama"
+            ],
+            "title": "Model Provider",
+            "type": "string"
           },
           "payment_currencies": {
             "items": {
@@ -2986,6 +3006,23 @@
               "minimum": 0,
               "title": "Offset",
               "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 512,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
             }
           },
           {

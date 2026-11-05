@@ -66,3 +66,17 @@ it('discards old chart records when the applied filters change during loading',a
   expect(await screen.findByText(/Filtered results: vendor contains New vendor/)).toBeVisible();
   expect(screen.queryByRole('region',{name:'Matching analytics records'})).not.toBeInTheDocument();
 });
+
+it('replaces the prior page and uses a stable cursor for the next records',async()=>{
+  const api=new ApiClient();const user=userEvent.setup();
+  vi.spyOn(api,'analyticsOverview').mockResolvedValue({identified_invoices:1,total_runs:2,active_runs:0,failed_runs:0,review_runs:2,flagged_active_versions:0,simulated_receipts:0,paid_by_currency:[],backlog_by_department:[{key:'unassigned',label:'Unassigned',count:2}]});
+  const row={run_id:'run_first',version_id:null,invoice_number:'INV-FIRST',vendor:'Vendor',filename:'invoice.txt',outcome:'needs_review' as const,department:'unassigned',department_label:'Unassigned',reasons:['REVIEW_REQUIRED'],started_at:'2026-11-04T00:00:00Z'};
+  const records=vi.spyOn(api,'analyticsRecords').mockResolvedValueOnce({records:[row],record_count:2,next_offset:1,next_cursor:'cursor-one'}).mockResolvedValueOnce({records:[{...row,run_id:'run_second',invoice_number:'INV-SECOND'}],record_count:1,next_offset:null,next_cursor:null});
+  render(<AnalyticsPage api={api} openHistory={vi.fn()}/>);
+  await user.click(await screen.findByRole('button',{name:'View Unassigned: 2 records'}));
+  expect(await screen.findByText('INV-FIRST')).toBeVisible();
+  await user.click(screen.getByRole('button',{name:'Next records'}));
+  expect(await screen.findByText('INV-SECOND')).toBeVisible();
+  expect(screen.queryByText('INV-FIRST')).not.toBeInTheDocument();
+  expect(records).toHaveBeenLastCalledWith('backlog','unassigned',{date_from:'',date_to:'',vendor:'',outcome:''},0,'cursor-one');
+});

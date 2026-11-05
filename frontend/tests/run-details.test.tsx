@@ -118,3 +118,10 @@ describe('run details', () => {
     expect(screen.queryByAltText('Original invoice PDF page 1')).not.toBeInTheDocument();
   });
 });
+
+it.each([['paid','Approved'],['rejected','Rejected']] as const)('shows a later human %s decision instead of the earlier model hold',(outcome,label)=>{
+  const events=[{seq:1,timestamp:'2026-11-04T12:00:00Z',stage:'approval',type:'final_decision',payload:{action:'needs_review'}},{seq:2,timestamp:'2026-11-04T12:01:00Z',stage:'completion',type:'review_applied',payload:{outcome}}];
+  render(<RunDetails run={{...base,outcome}} events={events} source={null} sourceError={null} onExport={vi.fn()} exporting={false}/>);
+  expect(screen.getByText(`Decision recorded: ${label}`)).toBeVisible();
+  expect(screen.queryByText('Decision recorded: On hold')).not.toBeInTheDocument();
+});
