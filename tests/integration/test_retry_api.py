@@ -187,3 +187,44 @@ def test_unrelated_valid_correction_is_held_and_cannot_pay(alice, ctx):
             ).fetchone()[0]
             == 0
         )
+
+
+def test_unrelated_correction_cannot_pay_after_resolving_its_vendor_warning(alice, ctx):
+    from conftest import SAMPLES
+    from tests.integration.test_api import review_body
+    from workflow_helpers import payments
+
+    original = alice.run("invoice_1007.csv")
+    assert original["outcome"] == "rejected"
+    raw = (SAMPLES / "invoice_1012.txt").read_bytes()
+    uploaded = alice.post("/documents", files={"file": ("unrelated.txt", raw, "text/plain")})
+    assert uploaded.status_code == 201, uploaded.text
+    created = alice.post(
+        f"/runs/{original['run_id']}/correction",
+        json={
+            "mode": "mock",
+            "request_token": "correction-with-vendor-warning",
+            "document_id": uploaded.json()["document_id"],
+        },
+    )
+    assert created.status_code == 202, created.text
+    child = alice.wait(created.json()["run_id"])
+    assert child["outcome"] == "needs_review"
+    assert child["invoice"]["total"] == "9975.00"
+    assert "VENDOR_IDENTITY_CHANGE" in {finding["code"] for finding in child["findings"]}
+    assert child["receipt"] is None
+
+    # Bypass the UI and attempt to approve after resolving the otherwise-clearable warning.
+    response = alice.post(f"/runs/{child['run_id']}/review", json=review_body(child))
+    assert response.status_code == 422, response.text
+    assert response.json()["error"]["code"] == "not_approvable"
+    assert payments(ctx) == []
+    persisted = alice.get(f"/runs/{child['run_id']}").json()
+    assert persisted["outcome"] == "needs_review" and persisted["receipt"] is None
+    assert "could not be matched" in persisted["terminal_reason"]
+    assert not alice.get(f"/runs/{child['run_id']}/review-options").json()["can_approve"]
+    with ctx.db.read() as conn:
+        flag = conn.execute(
+            "SELECT identity_flag FROM invoice_versions WHERE version_id=?", (child["version_id"],)
+        ).fetchone()[0]
+    assert flag == "correction_identity"

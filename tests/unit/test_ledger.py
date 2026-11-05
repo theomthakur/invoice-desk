@@ -532,3 +532,39 @@ def test_same_workspace_approval_for_other_version_is_rejected_by_identity(db, p
         pay(db, policy, second.version_id, approval.approval_id)
     assert caught.value.code == "approval_missing"
     assert payments(db) == []
+
+
+@pytest.mark.parametrize("initial_flag", [None, "revision_conflict", "batch_hold"])
+def test_unrelated_correction_hold_cannot_be_hidden_by_another_identity_flag(
+    db, policy, initial_flag
+):
+    from invoice_flow.ledger import flag_version
+
+    reg, _ = submit(db, policy, make_draft())
+    with db.transaction() as conn:
+        if initial_flag:
+            flag_version(conn, "local", reg.version_id, initial_flag)
+        flag_version(conn, "local", reg.version_id, "correction_identity")
+        flag_version(conn, "local", reg.version_id, "revision_conflict")
+        flag = conn.execute(
+            "SELECT identity_flag FROM invoice_versions WHERE version_id=?", (reg.version_id,)
+        ).fetchone()[0]
+    assert flag == "correction_identity"
+    with pytest.raises(LedgerError, match="identity hold"):
+        approve(db, policy, reg.version_id)
+    assert payments(db) == []
+
+
+def test_correction_identity_flag_does_not_rewrite_a_paid_version(db, policy):
+    from invoice_flow.ledger import flag_version
+
+    reg, receipt = approve_and_pay(db, policy, make_draft())
+    with db.transaction() as conn:
+        flag_version(conn, "local", reg.version_id, "correction_identity")
+        assert (
+            conn.execute(
+                "SELECT identity_flag FROM invoice_versions WHERE version_id=?", (reg.version_id,)
+            ).fetchone()[0]
+            is None
+        )
+    assert receipt is not None and len(payments(db)) == 1

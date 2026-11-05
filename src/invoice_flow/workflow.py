@@ -335,8 +335,13 @@ def build_decide_graph(env: RunEnv):
             is_correction = bool(link and link["kind"] == "correction")
             if is_correction and link["payable_id"] and link["payable_id"] == reg.payable_id:
                 hold_reason = None
-            if hold_reason and route.outcome is None:
-                route = Route(Outcome.NEEDS_REVIEW, hold_reason, route.findings)
+            # Identity is an independent payment restriction, even when validation has
+            # already routed this invoice to review. Keep rejection/duplicate outcomes,
+            # but persist a mismatched correction hold so clearing another finding can
+            # never authorize payment of the unrelated invoice.
+            if hold_reason and (is_correction or route.outcome in (None, Outcome.NEEDS_REVIEW)):
+                if route.outcome in (None, Outcome.NEEDS_REVIEW):
+                    route = Route(Outcome.NEEDS_REVIEW, hold_reason, route.findings)
                 flag_version(
                     conn,
                     env.workspace_id,

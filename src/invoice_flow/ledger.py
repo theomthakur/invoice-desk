@@ -177,12 +177,13 @@ def load_document(
 
 def flag_version(conn: sqlite3.Connection, workspace_id: str, version_id: str, flag: str) -> None:
     """Block payment of a stored version until a person resolves ``flag``. A paid version is
-    never flagged (the payment already happened)."""
+    never flagged (the payment already happened). A mismatched correction takes
+    precedence over reviewable flags, such as a selectable revision conflict."""
     conn.execute(
         "UPDATE invoice_versions SET identity_flag = ? WHERE workspace_id = ? AND version_id = ?"
-        " AND identity_flag IS NULL"
+        " AND (identity_flag IS NULL OR ? = 'correction_identity')"
         " AND version_id NOT IN (SELECT version_id FROM payments WHERE workspace_id = ?)",
-        (flag, workspace_id, version_id, workspace_id),
+        (flag, workspace_id, version_id, flag, workspace_id),
     )
 
 
