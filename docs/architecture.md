@@ -50,7 +50,7 @@ The worker uses one process. Queued runs are recovered after restart; runs that 
 
 ## Provider boundary
 
-Mock mode uses a deterministic simulated reader, not a model. Live mode uses OpenRouter over HTTPS with an operator-provided key and configured model. It does not fall back to mock on a live failure. For genuine offline inference an optional Ollama adapter accepts only loopback HTTP, does not follow redirects, rejects remote model aliases after inspecting metadata before sending invoice text, and uses native JSON schemas and tool calls. Run the local Ollama server with OLLAMA_NO_CLOUD=1. Qwen 7B exercised the complete tool/approval/critique path but held a clean invoice unnecessarily, so this remains experimental. Cloud Grok remains the default. See [evaluation](evaluation.md) for what has and has not been measured.
+Mock mode uses a deterministic simulated reader, not a model. Live mode uses the selected OpenRouter or direct xAI adapter over HTTPS with its own server-side key and model name. Direct xAI has offline contract tests but no recorded paid run. It does not fall back to mock on a live failure. For genuine offline inference an optional Ollama adapter accepts only loopback HTTP, does not follow redirects, rejects remote model aliases after inspecting metadata before sending invoice text, and uses native JSON schemas and tool calls. Run the local Ollama server with OLLAMA_NO_CLOUD=1. Qwen 7B exercised the complete tool/approval/critique path but held a clean invoice unnecessarily, so this remains experimental. Cloud Grok remains the default. See [evaluation](evaluation.md) for what has and has not been measured.
 
 ## Internal department review
 

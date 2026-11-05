@@ -616,6 +616,7 @@
             "default": "openrouter",
             "enum": [
               "openrouter",
+              "xai",
               "ollama"
             ],
             "title": "Model Provider",

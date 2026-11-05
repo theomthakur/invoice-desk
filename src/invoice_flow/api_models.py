@@ -69,7 +69,7 @@ class LimitsInfo(StrictModel):
 
 
 class ConfigInfo(StrictModel):
-    model_provider: Literal["openrouter", "ollama"] = "openrouter"
+    model_provider: Literal["openrouter", "xai", "ollama"] = "openrouter"
     schema_version: str = SCHEMA_VERSION
     policy_version: str
     limits: LimitsInfo

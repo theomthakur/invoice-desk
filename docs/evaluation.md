@@ -2,11 +2,11 @@
 
 ## Current verification
 
-Local verification on 4 November 2026 uses the current working tree. These results do not establish CI on a future commit or a hosted deployment.
+Local verification on 5 November 2026 includes the direct xAI configuration update. These results do not establish CI on a future commit or a hosted deployment.
 
 | Check | Result | Scope |
 | --- | --- | --- |
-| Python tests | 779 passed, 4 live tests deselected | Rules, simulated/controlled providers, API, CLI, review, identity/version checks, source evidence, payment safety, restart/session behavior and workspace isolation. |
+| Python tests | 791 passed, 4 live tests deselected | Rules, simulated/controlled providers, direct xAI contracts and secret isolation, API, CLI, review, identity/version checks, source evidence, payment safety, restart/session behavior and workspace isolation. |
 | Frontend tests | 81 passed | Interactions, four-panel records, developer-only exports, CSV safety, review, history, theme and progress semantics. |
 | Browser tests | 21 passed | Real local mock backend; includes collapsed developer-toggle, Handoffs breadcrumb, four-panel layout, review, PDF inspection, isolation, responsive UI and exports. |
 | Frontend lint, TypeScript and build | Passed | Production frontend served by the local backend. |
@@ -14,6 +14,8 @@ Local verification on 4 November 2026 uses the current working tree. These resul
 | Shared-ledger sample batch | Earlier fingerprinted source: 6 paid, 8 rejected, 2 held, 3 duplicate, 1 superseded | 20 files, USD 30,375.00 in simulated receipts. No real payment or savings. |
 | Live OpenRouter acceptance | Four known Grok 4.7 cases passed | Recorded clean payment/tool use, messy invoice hold, invalid invoice rejection and usage accounting. |
 | Latest Grok known-set rerun | **16/16 expected matches** | Ten scenarios with three cases run three times each. The owner-approved missing-vendor label correction was committed before this rerun. No unsafe payments observed. |
+
+Direct xAI support was checked with HTTP fixtures only. No direct xAI paid run or new OpenRouter evaluation was performed for this update. The recorded Grok results below remain evidence for their original evaluated commits.
 
 ## Read the results correctly
 

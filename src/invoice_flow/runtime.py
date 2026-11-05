@@ -21,6 +21,7 @@ from .providers import OpenRouterProvider, Provider, ProviderError, redact
 from .providers.ollama import DEFAULT_OLLAMA_URL, OllamaProvider
 from .providers.openrouter import DEFAULT_BASE_URL
 from .providers.simulated import SimulatedProvider
+from .providers.xai import DEFAULT_XAI_MODEL, DEFAULT_XAI_URL, XAIProvider
 from .storage import Database, append_event, utc_now
 
 ProviderFactory = Callable[[str], Provider]
@@ -59,9 +60,10 @@ class AppConfig:
     default_mode: str = "mock"
     llm_provider: str = "openrouter"
     ollama_base_url: str = DEFAULT_OLLAMA_URL
-    openrouter_api_key: str | None = None
-    llm_model: str = DEFAULT_MODEL
-    llm_base_url: str = DEFAULT_BASE_URL
+    openrouter_api_key: str | None = field(default=None, repr=False)
+    xai_api_key: str | None = field(default=None, repr=False)
+    llm_model: str = ""
+    llm_base_url: str = ""
     model_call_limit: int = 8
     tool_call_limit: int = 6
     run_timeout_seconds: float = 90.0
@@ -76,11 +78,20 @@ class AppConfig:
     session_ttl_seconds: int = 8 * 3600
     allow_live_in_sessions: bool = False
 
+    def __post_init__(self) -> None:
+        # Programmatic configuration must select the same defaults as environment setup.
+        models = {"openrouter": DEFAULT_MODEL, "xai": DEFAULT_XAI_MODEL, "ollama": "qwen2.5:7b"}
+        if not self.llm_model:
+            object.__setattr__(self, "llm_model", models.get(self.llm_provider, DEFAULT_MODEL))
+        if not self.llm_base_url:
+            url = DEFAULT_XAI_URL if self.llm_provider == "xai" else DEFAULT_BASE_URL
+            object.__setattr__(self, "llm_base_url", url)
+
     @classmethod
     def from_env(cls) -> AppConfig:
         provider = os.environ.get("LLM_PROVIDER", "openrouter").strip()
-        if provider not in {"openrouter", "ollama"}:
-            raise ValueError("LLM_PROVIDER must be openrouter or ollama")
+        if provider not in {"openrouter", "xai", "ollama"}:
+            raise ValueError("LLM_PROVIDER must be openrouter, xai or ollama")
         key = os.environ.get("OPENROUTER_API_KEY", "").strip() or None
         app_env = os.environ.get("APP_ENV", "local")
         persistence = os.environ.get("STORAGE_PERSISTENCE", "").strip() or (
@@ -88,6 +99,12 @@ class AppConfig:
         )
         if persistence not in ("local", "persistent", "ephemeral"):
             raise ValueError("STORAGE_PERSISTENCE must be local, persistent or ephemeral")
+        default_model = {
+            "openrouter": DEFAULT_MODEL,
+            "xai": DEFAULT_XAI_MODEL,
+            "ollama": "qwen2.5:7b",
+        }[provider]
+        default_url = DEFAULT_XAI_URL if provider == "xai" else DEFAULT_BASE_URL
         return cls(
             app_env=app_env,
             llm_provider=provider,
@@ -96,12 +113,9 @@ class AppConfig:
             storage_persistence=persistence,
             default_mode=os.environ.get("MODEL_MODE", "mock").strip() or "mock",
             openrouter_api_key=key,
-            llm_model=os.environ.get(
-                "LLM_MODEL", "qwen2.5:7b" if provider == "ollama" else DEFAULT_MODEL
-            ).strip()
-            or DEFAULT_MODEL,
-            llm_base_url=os.environ.get("LLM_BASE_URL", DEFAULT_BASE_URL).strip()
-            or DEFAULT_BASE_URL,
+            xai_api_key=os.environ.get("XAI_API_KEY", "").strip() or None,
+            llm_model=os.environ.get("LLM_MODEL", default_model).strip() or default_model,
+            llm_base_url=os.environ.get("LLM_BASE_URL", default_url).strip() or default_url,
             model_call_limit=_int("MODEL_CALL_LIMIT", 8),
             tool_call_limit=_int("TOOL_CALL_LIMIT", 6),
             run_timeout_seconds=_float("RUN_TIMEOUT_SECONDS", 90.0) or 90.0,
@@ -125,8 +139,12 @@ class AppConfig:
         """Check configuration readiness, not server reachability or model quality."""
         if self.llm_provider == "ollama":
             return True, ""
-        if not self.openrouter_api_key:
-            return False, "OPENROUTER_API_KEY is not configured."
+        if self.llm_provider not in {"openrouter", "xai"}:
+            return False, "LLM_PROVIDER must be openrouter, xai or ollama."
+        key = self.xai_api_key if self.llm_provider == "xai" else self.openrouter_api_key
+        key_name = "XAI_API_KEY" if self.llm_provider == "xai" else "OPENROUTER_API_KEY"
+        if not key:
+            return False, f"{key_name} is not configured."
         if self.model_budget_usd is None or self.model_budget_usd <= 0:
             return False, "MODEL_BUDGET_USD (a positive spending cap) is not configured."
         return True, ""
@@ -165,6 +183,10 @@ def default_provider_factory(config: AppConfig) -> ProviderFactory:
                 raise ProviderError("live_not_configured", f"Live mode is unavailable: {why}")
             if config.llm_provider == "ollama":
                 return OllamaProvider(config.llm_model, base_url=config.ollama_base_url)
+            if config.llm_provider == "xai":
+                return XAIProvider(
+                    config.xai_api_key or "", config.llm_model, base_url=config.llm_base_url
+                )
             return OpenRouterProvider(
                 config.openrouter_api_key or "", config.llm_model, base_url=config.llm_base_url
             )

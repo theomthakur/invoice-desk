@@ -92,6 +92,7 @@ def _make_env(
         budget.cancel_event = cancel
     secrets = (
         app.config.openrouter_api_key,
+        app.config.xai_api_key,
         app.config.session_secret,
         app.config.demo_access_code,
     )

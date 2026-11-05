@@ -9,7 +9,7 @@ export interface SessionInfo {
   csrf_token?: string | null;
 }
 export interface ConfigInfo {
-  model_provider?: 'openrouter' | 'ollama';
+  model_provider?: 'openrouter' | 'xai' | 'ollama';
   schema_version: string;
   policy_version: string;
   limits: { max_file_bytes: number; max_pdf_pages: number; max_line_items: number };

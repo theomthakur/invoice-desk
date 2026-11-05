@@ -84,7 +84,7 @@ flowchart LR
     Review --> Gate[Code checks payment rules]
     Gate --> Result[Receipt, rejection or review hold]
     API <--> DB[(SQLite)]
-    Read -.-> Model[Simulation, OpenRouter or local Ollama]
+    Read -.-> Model[Simulation, OpenRouter, xAI or local Ollama]
     Review -.-> Model
 ```
 
@@ -100,7 +100,10 @@ Duplicate files and revisions are checked before payment. Queued batches resume 
 | --- | --- |
 | **Simulated, default** | Run the app offline without a key or provider charges. This does not test real model reasoning. |
 | **OpenRouter with Grok 4.7** | Use real model responses. Set `OPENROUTER_API_KEY` and a positive `MODEL_BUDGET_USD`, then use `--mode live` in the CLI. Internet and provider credit are required. |
+| **Direct xAI with Grok 4.7** | Set `LLM_PROVIDER=xai`, `XAI_API_KEY` and a positive `MODEL_BUDGET_USD`, then choose live mode. Uses xAI directly. Offline adapter tests pass; a live direct-xAI run has not been recorded. |
 | **Local Ollama, experimental** | Run an installed tool-capable model with `LLM_PROVIDER=ollama`. Start the daemon with `OLLAMA_NO_CLOUD=1`. Tested Qwen models held clean invoices unnecessarily, so this is not the recommended demo option. |
+
+For step-by-step setup with either cloud provider, see [model setup](docs/model-setup.md). Payments stay simulated with every model option.
 
 Configuration is listed in [.env.example](.env.example); the app reads environment variables and does not load that file automatically. Live errors remain visible rather than silently switching to simulation. Set a provider-side spending limit too: the application cannot count costs the provider does not report.
 
@@ -108,7 +111,7 @@ Configuration is listed in [.env.example](.env.example); the app reads environme
 
 | Check | Recorded result |
 | --- | --- |
-| Backend tests | **779 passed**; four paid tests excluded from the default run |
+| Backend tests | **791 passed**; four paid tests excluded from the default run |
 | Frontend tests | **81 passed** |
 | Browser tests | **21 passed** |
 | Supplied sample files | **20/20 expected outcomes** using simulated responses |

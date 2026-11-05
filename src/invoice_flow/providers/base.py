@@ -87,6 +87,7 @@ class Provider(ABC):
 
 
 _KEY_PATTERNS = [
+    re.compile(r"xai-[A-Za-z0-9_\-]{8,}"),
     re.compile(r"sk-[A-Za-z0-9_\-]{8,}"),
     re.compile(r"Bearer\s+[A-Za-z0-9._\-]{8,}", re.IGNORECASE),
 ]
