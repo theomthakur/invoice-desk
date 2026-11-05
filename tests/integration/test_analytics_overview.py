@@ -285,3 +285,49 @@ def test_cursor_does_not_skip_records_when_a_previous_page_is_resolved(alice, ct
     assert (
         alice.get("/analytics/records", params={**query, "cursor": "h1.invalid"}).status_code == 422
     )
+
+
+def test_lifecycle_filters_include_failures_and_pending_work_without_business_outcomes(alice, ctx):
+    with ctx.db.transaction() as conn:
+        for index, state in enumerate(["failed", "interrupted", "queued", "running"]):
+            conn.execute(
+                "INSERT INTO runs (run_id,workspace_id,lifecycle,started_at) VALUES (?,?,?,?)",
+                (f"run_lifecycle_{index}", alice.workspace, state, ctx.db.now()),
+            )
+    failed = alice.get("/analytics/overview", params={"outcome": "failed"}).json()
+    assert failed["total_runs"] == 2 and failed["failed_runs"] == 2
+    active = alice.get("/analytics/overview", params={"outcome": "in_progress"}).json()
+    assert active["total_runs"] == 2 and active["active_runs"] == 2
+    assert active["current_review_count"] == failed["current_review_count"] == 0
+    assert (
+        alice.get(
+            "/analytics/records",
+            params={"view": "backlog", "key": "unassigned", "outcome": "failed"},
+        ).json()["record_count"]
+        == 0
+    )
+
+
+def test_vendor_filter_and_chart_include_drafts_without_a_payable_identity(alice, ctx):
+    import json
+
+    with ctx.db.transaction() as conn:
+        conn.execute(
+            "INSERT INTO runs (run_id,workspace_id,lifecycle,outcome,started_at,result_json) "
+            "VALUES (?,?,'completed','rejected',?,?)",
+            (
+                "run_vendor_draft",
+                alice.workspace,
+                ctx.db.now(),
+                json.dumps({"draft": {"vendor_name": "Harbor Parts"}, "findings": []}),
+            ),
+        )
+    data = alice.get("/analytics/overview", params={"vendor": "Harbor"}).json()
+    assert data["total_runs"] == data["current_exception_count"] == 1
+    assert data["identified_invoices"] == 0
+    assert data["vendor_runs"] == [{"vendor": "Harbor Parts", "count": 1}]
+    matches = alice.get(
+        "/analytics/records", params={"view": "exceptions", "key": "REJECTED", "vendor": "Harbor"}
+    ).json()
+    assert matches["record_count"] == 1
+    assert matches["records"][0]["vendor"] == "Harbor Parts"

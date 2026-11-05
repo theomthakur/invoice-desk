@@ -325,16 +325,18 @@ def ensure_workspace(conn: sqlite3.Connection, workspace_id: str, kind: str, now
 
 
 def reset_workspace(db: Database, workspace_id: str) -> None:
-    """Delete one workspace's records. Refuses while a run is active. Inventory is shared and
-    untouched. This is the only reset a browser session may trigger."""
+    """Delete one workspace's records. Refuses while a run or batch is active.
+    Shared inventory is untouched. This is the only reset a browser session may trigger."""
     with db.transaction() as conn:
         active = conn.execute(
-            "SELECT COUNT(*) FROM runs WHERE workspace_id = ?"
-            " AND lifecycle IN ('queued','running')",
-            (workspace_id,),
+            "SELECT (SELECT count(*) FROM runs WHERE workspace_id=? "
+            "AND lifecycle IN ('queued','running')) + "
+            "(SELECT count(*) FROM batches WHERE workspace_id=? "
+            "AND lifecycle IN ('queued','running'))",
+            (workspace_id, workspace_id),
         ).fetchone()[0]
         if active:
-            raise RuntimeError("A run is still active in this workspace.")
+            raise RuntimeError("A run or batch is still active in this workspace.")
         conn.execute("DELETE FROM workspaces WHERE workspace_id = ?", (workspace_id,))
         kind = "local" if workspace_id == LOCAL_WORKSPACE else "session"
         ensure_workspace(conn, workspace_id, kind, db.now())

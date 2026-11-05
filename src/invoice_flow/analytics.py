@@ -50,7 +50,9 @@ def _current_query(
         sql += " AND date(started_at)<=?"
         params.append(date_to.isoformat())
     if vendor:
-        sql += " AND instr(lower(coalesce(vendor_name,'')),lower(?))>0"
+        sql += " AND instr(lower(coalesce(vendor_name,"
+        sql += "json_extract(result_json,'$.invoice.vendor_name'),"
+        sql += "json_extract(result_json,'$.draft.vendor_name'),'')),lower(?))>0"
         params.append(vendor)
     if outcome:
         sql += " AND outcome=?"
@@ -80,7 +82,9 @@ def _record(row) -> dict:
         "run_id": row["run_id"],
         "version_id": row["version_id"],
         "invoice_number": invoice.get("invoice_number"),
-        "vendor": row["vendor_name"] or invoice.get("vendor_name"),
+        "vendor": row["vendor_name"]
+        or invoice.get("vendor_name")
+        or (payload.get("draft") or {}).get("vendor_name"),
         "filename": row["filename"],
         "outcome": row["outcome"],
         "department": department,

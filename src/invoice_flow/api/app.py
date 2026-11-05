@@ -82,6 +82,7 @@ from ..storage import (
     reset_workspace,
 )
 from ..textnorm import invoice_number_key
+from .batches import BatchRunner
 from .jobs import JobRunner, QueueFull, RetryError
 from .security import (
     CSRF_HEADER,
@@ -175,6 +176,14 @@ def create_app(
     sessions = SessionManager(secret, config.session_ttl_seconds)
     limiter = RateLimiter(config.rate_limit_per_minute)
     runner = JobRunner(ctx)
+
+    def process_queued_batch(ws, names, mode, cancel):
+        files = _sample_files()
+        return process_batch(
+            [files[name] for name in names], app=ctx, mode=mode, workspace_id=ws, cancel=cancel
+        )
+
+    batch_runner = BatchRunner(ctx, process_queued_batch)
     allowed_origins = extra_allowed_origins or set()
     secure_cookie = config.app_env == "production"
 
@@ -182,7 +191,9 @@ def create_app(
     async def lifespan(_: FastAPI):
         if start_worker:
             runner.start()
+            batch_runner.start()
         yield
+        batch_runner.stop()
         runner.stop()
 
     api = FastAPI(
@@ -207,6 +218,7 @@ def create_app(
         },
     )
     api.state.ctx, api.state.runner, api.state.sessions = ctx, runner, sessions
+    api.state.batch_runner = batch_runner
 
     # ------------------------------------------------------------------ errors
 
@@ -814,42 +826,17 @@ def create_app(
         if unknown:
             raise ApiError(404, "not_found", "Unknown sample in the request.")
         payload = _payload_hash("batch", sorted(names), body.mode)
-        existing = _dedupe(ws, body.request_token, payload)
-        batch_id = existing or "bat_" + uuid.uuid4().hex[:16]
-        if existing is not None:
-            response.status_code = 200
-            return BatchAccepted(batch_id=batch_id, already_existed=True)
-        _remember(ws, body.request_token, batch_id, payload)
-        with ctx.db.transaction() as conn:
-            conn.execute(
-                "INSERT INTO batches (batch_id, workspace_id, lifecycle, mode, document_ids_json,"
-                " created_at) VALUES (?,?,?,?,?,?)",
-                (batch_id, ws, "queued", body.mode, json.dumps(names), ctx.db.now()),
-            )
-        import threading
-
-        threading.Thread(
-            target=_run_batch, args=(batch_id, ws, names, body.mode), daemon=True
-        ).start()
-        return BatchAccepted(batch_id=batch_id, already_existed=False)
-
-    def _run_batch(batch_id: str, ws: str, names: list[str], mode: str) -> None:
-        from ..storage import update_run  # noqa: F401
-
-        files = _sample_files()
-        with ctx.db.transaction() as conn:
-            conn.execute("UPDATE batches SET lifecycle = 'running' WHERE batch_id = ?", (batch_id,))
         try:
-            report = process_batch([files[n] for n in names], app=ctx, mode=mode, workspace_id=ws)
-            lifecycle, body = "completed", json.dumps(report)
-        except Exception as exc:  # noqa: BLE001 - recorded, never raised into the thread
-            lifecycle, body = "failed", json.dumps({"error": type(exc).__name__})
-        with ctx.db.transaction() as conn:
-            conn.execute(
-                "UPDATE batches SET lifecycle = ?, result_json = ?, finished_at = ?"
-                " WHERE batch_id = ?",
-                (lifecycle, body, ctx.db.now(), batch_id),
+            batch_id, existed = batch_runner.submit(
+                ws, names, body.mode, body.request_token, payload
             )
+        except QueueFull as exc:
+            raise ApiError(429, "queue_full", str(exc), retryable=True) from exc
+        except RetryError as exc:
+            raise ApiError(exc.status, exc.code, exc.message) from exc
+        if existed:
+            response.status_code = 200
+        return BatchAccepted(batch_id=batch_id, already_existed=existed)
 
     @api.get(f"{API}/batches/{{batch_id}}", response_model=BatchResult)
     async def get_batch(batch_id: str, ws: str = Depends(workspace)):
@@ -876,6 +863,7 @@ def create_app(
         return BatchResult(
             batch_id=batch_id,
             lifecycle=RunLifecycle(row["lifecycle"]),
+            terminal_reason=report.get("error"),
             files=files,
             counts=report.get("counts", {}),
             paid_by_currency=report.get("paid_by_currency", {}),
@@ -886,13 +874,19 @@ def create_app(
         date_from: date | None = None,
         date_to: date | None = None,
         vendor: str | None = Query(None, max_length=128),
-        outcome: Literal["paid", "needs_review", "rejected", "duplicate", "superseded"]
+        outcome: Literal[
+            "paid", "needs_review", "rejected", "duplicate", "superseded", "failed", "in_progress"
+        ]
         | None = None,
         ws: str = Depends(workspace),
     ):
         if date_from and date_to and date_from > date_to:
             raise ApiError(422, "invalid_request", "The start date must be before the end date.")
         vendor = vendor.strip() if vendor else None
+        vendor_value = (
+            "coalesce(p.vendor_name,json_extract(r.result_json,'$.invoice.vendor_name'),"
+            "json_extract(r.result_json,'$.draft.vendor_name'))"
+        )
         clauses = ["r.workspace_id = ?"]
         params: list[Any] = [ws]
         if date_from:
@@ -902,9 +896,13 @@ def create_app(
             clauses.append("date(r.started_at) <= ?")
             params.append(date_to.isoformat())
         if vendor:
-            clauses.append("instr(lower(coalesce(p.vendor_name, '')), lower(?)) > 0")
+            clauses.append(f"instr(lower(coalesce({vendor_value},'')),lower(?))>0")
             params.append(vendor)
-        if outcome:
+        if outcome == "failed":
+            clauses.append("r.lifecycle IN ('failed','interrupted')")
+        elif outcome == "in_progress":
+            clauses.append("r.lifecycle IN ('queued','running')")
+        elif outcome:
             clauses.append("r.outcome = ?")
             params.append(outcome)
         where = " AND ".join(clauses)
@@ -948,12 +946,12 @@ def create_app(
                 params,
             ).fetchall()
             vendor_rows = conn.execute(
-                "SELECT p.vendor_name AS vendor, COUNT(*) AS count"
+                f"SELECT {vendor_value} AS vendor, COUNT(*) AS count"
                 + joins
                 + " WHERE "
                 + where
-                + " AND p.payable_id IS NOT NULL GROUP BY p.vendor_name"
-                + " ORDER BY count DESC, p.vendor_name LIMIT 8",
+                + f" AND {vendor_value} IS NOT NULL GROUP BY {vendor_value}"
+                + " ORDER BY count DESC, vendor LIMIT 8",
                 params,
             ).fetchall()
             if filtered:
@@ -1028,7 +1026,9 @@ def create_app(
         date_from: date | None = None,
         date_to: date | None = None,
         vendor: str | None = Query(None, max_length=128),
-        outcome: Literal["paid", "needs_review", "rejected", "duplicate", "superseded"]
+        outcome: Literal[
+            "paid", "needs_review", "rejected", "duplicate", "superseded", "failed", "in_progress"
+        ]
         | None = None,
         offset: int = Query(0, ge=0, le=100000),
         cursor: str | None = Query(None, max_length=512),

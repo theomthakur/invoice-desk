@@ -157,6 +157,7 @@ class BatchResult(StrictModel):
     batch_id: str
     lifecycle: RunLifecycle
     files: list[BatchFileResult]
+    terminal_reason: str | None = None
     counts: dict[str, int]  # by outcome label
     paid_by_currency: dict[str, str]  # never summed across currencies
 

@@ -26,7 +26,7 @@ it('applies and clears ledger filters without presenting filtered receipts as wo
   render(<AnalyticsPage api={api} openHistory={vi.fn()}/>);
   expect(await screen.findByText('$5,000.00')).toBeVisible();
   expect(screen.getByRole('img',{name:'Run counts by date: 2026-11-04: 2'})).toBeVisible();
-  expect(screen.getByText('Failed or interrupted')).toBeVisible();
+  expect(screen.getByText('Failed or interrupted',{selector:'span'})).toBeVisible();
   expect(screen.getByRole('row',{name:/Conflicting revisions\s*1/})).toBeVisible();
   await user.type(screen.getByLabelText('Vendor contains'),'Acme');
   await user.selectOptions(screen.getByLabelText('Run outcome'),'rejected');
@@ -79,4 +79,14 @@ it('replaces the prior page and uses a stable cursor for the next records',async
   expect(await screen.findByText('INV-SECOND')).toBeVisible();
   expect(screen.queryByText('INV-FIRST')).not.toBeInTheDocument();
   expect(records).toHaveBeenLastCalledWith('backlog','unassigned',{date_from:'',date_to:'',vendor:'',outcome:''},0,'cursor-one');
+});
+
+it('lets the operator filter failed or interrupted processing separately from invoice outcomes',async()=>{
+  const api=new ApiClient();const user=userEvent.setup();
+  const lookup=vi.spyOn(api,'analyticsOverview').mockResolvedValue({identified_invoices:0,total_runs:2,active_runs:0,failed_runs:2,review_runs:0,flagged_active_versions:0,simulated_receipts:0,paid_by_currency:[],outcomes:{failed:2}});
+  render(<AnalyticsPage api={api} openHistory={vi.fn()}/>);
+  await screen.findByRole('heading',{name:'Invoice outcomes'});
+  await user.selectOptions(screen.getByLabelText('Run outcome'),'failed');
+  await user.click(screen.getByRole('button',{name:'Apply filters'}));
+  expect(lookup).toHaveBeenLastCalledWith({date_from:'',date_to:'',vendor:'',outcome:'failed'});
 });

@@ -97,3 +97,26 @@ describe('invoice workspace', () => {
     expect(await screen.findByText('Missing total')).toBeInTheDocument();
   });
 });
+
+it('shows an interrupted batch reason and requires an explicit new request to run it again',async()=>{
+  const original=vi.mocked(fetch).getMockImplementation()!;let submitted=0;
+  vi.mocked(fetch).mockImplementation(async(input,init)=>{
+    const path=String(input);
+    if(path.endsWith('/batches') && init?.method==='POST'){
+      submitted++;calls.push({path,method:'POST',body:String(init.body)});
+      return json({batch_id:`bat_${submitted}`,already_existed:false},202);
+    }
+    if(path.includes('/batches/bat_'))return json({batch_id:`bat_${submitted}`,lifecycle:submitted===1?'interrupted':'completed',terminal_reason:submitted===1?'Processing stopped during a server restart.':null,files:[],counts:{},paid_by_currency:{}});
+    return original(input,init);
+  });
+  const user=userEvent.setup();render(<App/>);
+  await waitFor(()=>expect(screen.getByRole('button',{name:'Start a new invoice'})).toBeEnabled());
+  await user.click(screen.getByRole('button',{name:/try a sample/i}));
+  await user.click(await screen.findByRole('button',{name:/Run sample batch/}));
+  expect(await screen.findByText('Processing stopped during a server restart.')).toBeVisible();
+  expect(submitted).toBe(1);
+  await user.click(screen.getByRole('button',{name:'Run sample batch again'}));
+  await waitFor(()=>expect(submitted).toBe(2));
+  const posts=calls.filter(c=>c.path.endsWith('/batches') && c.method==='POST');
+  expect(JSON.parse(posts[0].body!).request_token).not.toBe(JSON.parse(posts[1].body!).request_token);
+});

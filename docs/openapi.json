@@ -554,6 +554,17 @@
             "default": "1",
             "title": "Schema Version",
             "type": "string"
+          },
+          "terminal_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Terminal Reason"
           }
         },
         "required": [
@@ -2787,7 +2798,9 @@
                     "needs_review",
                     "rejected",
                     "duplicate",
-                    "superseded"
+                    "superseded",
+                    "failed",
+                    "in_progress"
                   ],
                   "type": "string"
                 },
@@ -2985,7 +2998,9 @@
                     "needs_review",
                     "rejected",
                     "duplicate",
-                    "superseded"
+                    "superseded",
+                    "failed",
+                    "in_progress"
                   ],
                   "type": "string"
                 },

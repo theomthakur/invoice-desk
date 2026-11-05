@@ -85,7 +85,7 @@ export interface BatchFile {
   related_file?: string | null; reason: string; amount?: string | null; currency?: string | null;
 }
 export interface BatchResult {
-  batch_id: string; lifecycle: Lifecycle; files: BatchFile[]; counts: Record<string, number>;
+  batch_id: string; lifecycle: Lifecycle; terminal_reason?:string|null; files: BatchFile[]; counts: Record<string, number>;
   paid_by_currency: Record<string, string>;
 }
 
@@ -97,4 +97,4 @@ export interface AnalyticsRecord {run_id:string;version_id:string|null;invoice_n
 export interface AnalyticsRecords {records:AnalyticsRecord[];record_count:number;next_offset:number|null;next_cursor?:string|null}
 export interface AnalyticsOverview { current_review_count?:number; current_exception_count?:number; backlog_by_department?:AnalyticsGroup[]; exception_reasons?:AnalyticsGroup[]; identified_invoices:number; total_runs:number; active_runs:number; failed_runs:number; review_runs:number; flagged_active_versions:number; simulated_receipts:number; paid_by_currency:{currency:string; amount:string; receipts:number}[]; outcomes?:Record<string,number>; daily_runs?:{day:string;count:number}[]; vendor_runs?:{vendor:string;count:number}[]; identity_flags?:{flag:string;count:number}[] }
 
-export interface AnalyticsFilters { date_from:string; date_to:string; vendor:string; outcome:Outcome | '' }
+export interface AnalyticsFilters { date_from:string; date_to:string; vendor:string; outcome:Outcome | 'failed' | 'in_progress' | '' }
