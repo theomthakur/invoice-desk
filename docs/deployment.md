@@ -21,7 +21,7 @@ For durable storage, mount a writable directory and set `DATA_DIR` to that mount
 
 Render prompts for `sync: false` secrets only when initially creating a Blueprint. Existing services must have `DEMO_ACCESS_CODE` configured manually; an unset code permits open demo access. Confirm that missing and incorrect codes fail before sharing the URL. A generated `SESSION_SECRET` is created only when absent, so retain an existing valid secret unless intentionally ending sessions. Keep `MODEL_MODE=mock`, `ALLOW_LIVE_IN_SESSIONS=0`, and no provider key for the free demonstration.
 
-The case instructions require local operation and say no cloud deployment. The hosted app is an optional supplement. The requested submission remains the GitHub repository URL.
+Local operation is the primary supported setup. The hosted app is an optional demo.
 
 For the free service, local files and SQLite are lost when the instance is redeployed, restarted or spun down. According to [Render's free service documentation](https://render.com/docs/free), it spins down after 15 minutes without inbound traffic, and waking can take about a minute. The UI reports ephemeral storage. If persistence is required, use an appropriate paid disk or managed service, set the storage flag truthfully, test restart and backups, and keep one server process. Do not assume a free instance is durable. The configuration follows the [Render Blueprint reference](https://render.com/docs/blueprint-spec).
 

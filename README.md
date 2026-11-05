@@ -2,11 +2,11 @@
 
 Invoice Desk helps an accounts-payable team answer three questions: **What does this invoice say? Is it valid? What should happen next?**
 
-Built for Galatiq’s fictional Acme Corp case, it reads invoices, checks them against inventory, runs an approval and a separate review of that approval, and records a simulated payment when the checks pass. Invoices with problems show a reason and a next step.
+It reads invoices, checks them against a sample inventory, runs an approval and a separate review of that approval, and records a simulated payment when the checks pass. Invoices with problems show a reason and a next step.
 
 ![Invoice Desk workspace](frontend/docs/screenshots/dark-workspace.png)
 
-**Start here:** [Run locally](#run-locally) · [Try the demo](#try-the-demo) · [Requirements](#how-it-meets-the-case-requirements) · [Test results](#tests-and-results)
+**Start here:** [Run locally](#run-locally) · [Try the demo](#try-the-demo) · [Features](#what-it-does) · [Test results](#tests-and-results)
 
 ## Run locally
 
@@ -44,9 +44,9 @@ A rejected invoice is a valid business result, not a program crash. Running an i
 
 The **Guided walkthrough** in the sidebar points out the actual controls. It waits for your actions and does not approve invoices for you. **System design** explains the flow, and **Presentation** provides a short, full-screen walkthrough.
 
-## How it meets the case requirements
+## What it does
 
-| Requirement | What is implemented |
+| Feature | What is implemented |
 | --- | --- |
 | Read invoices in different formats | PDF, TXT, CSV, JSON and XML. CSV supports comma, semicolon and tab separators. |
 | Extract and validate data | Required fields, totals, quantities, inventory, dates and currency checks. The original source remains available. |
@@ -66,7 +66,7 @@ Each role has a different job and exchanges results in a checked format:
 
 These roles can share one model. They are separate steps, not four parallel services. Invalid invoices can stop early. A model’s approval alone cannot authorize payment.
 
-## Useful additions
+## Workspace features
 
 - **Review and handoffs:** choose a reason, add an optional note, or assign an invoice to a department. Assignment does not authorize payment or send a notification.
 - **Corrections and retries:** submit a corrected file or retry failed work while keeping the original record.
@@ -139,7 +139,7 @@ npm run test:e2e
 
 - **`main`** is the reviewed product. **`deployment`** is the hosting release branch. Shared fixes go into main first, then are merged into deployment.
 - Render configuration is prepared, but a live hosted service has not been verified. The free configuration uses simulation and temporary storage, so records can be lost when the service restarts.
-- The case asks for local execution. Hosting is an optional supplement.
+- The application runs locally. The prepared hosting configuration is an optional demo.
 - Payments, approvals and inventory are simulated. No bank, ERP, email or vendor-master service is connected.
 - Scanned pages need OCR, which is not included. A scan inside a text PDF is reported rather than silently skipped.
 - Run one server process. Distributed recovery, production load and accessibility conformance have not been verified.

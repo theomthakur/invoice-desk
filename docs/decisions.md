@@ -1,7 +1,7 @@
 # Decisions and discovery record
 
 Status: current prototype policy. Updated 3 November 2026.
-Source of truth: the [Galatiq case brief](https://github.com/galatiq-ai/galatiq-case-invoices), commit `2f150152b962ccd24b35e515e56b04f673d410bc`.
+Sample invoice provenance is recorded in [SOURCE.md](../data/invoices/SOURCE.md).
 This file records our assumptions. None of it comes from client interviews, and no business
 figure here is measured.
 
@@ -10,21 +10,21 @@ figure here is measured.
 | Question | Answer used for this build |
 | --- | --- |
 | Who is the user? | A fictional accounts-payable operator at Acme Corp. |
-| What happens today? | Invoices arrive by email in mixed formats. Staff retype them, check them against a legacy inventory database, chase a VP by email, then pay through a bank API. The brief quotes a 30% error rate and 5-day delays. Those are scenario context. This prototype does not measure them. |
+| What happens today? | Invoices arrive by email in mixed formats. Staff retype them, check them against a legacy inventory database, chase a VP by email, then pay through a bank API. The original scenario describes a 30% error rate and 5-day delays. Those are scenario context. This prototype does not measure them. |
 | Minimum useful outcome | Every invoice ends as exactly one of: paid, rejected with reasons, held for a person, duplicate, or superseded. The reason is always visible. |
 | Who reviews exceptions? | A simulated human reviewer (labelled as such). Real authentication is out of scope. |
 | Which inputs are trusted? | Only the inventory database and `config/policy.yaml`. Invoice text is untrusted data. Wording inside an invoice can never approve, pay, or change a rule. |
 | What is mocked? | The bank (`mock_payment`), the VP, and the inventory database. |
 | What stops payment when a fact is uncertain? | Unknown stays unknown. A missing or unreadable value is a finding, never a guess. Uncertain identity or currency holds the invoice for review. |
-| Which policy choices are ours? | Listed in section 3. The brief supplies the stock numbers and gives the USD 10,000 threshold as an example. |
+| Which policy choices are ours? | Listed in section 3. The sample scenario supplies the stock numbers and gives the USD 10,000 threshold as an example. |
 | Revisions and duplicates | One payment per payable, ever. Revisions are stored as separate versions under that payable (section 3, rows 9-11). |
-| Local vs hosted | Local CLI and SQLite is the deliverable. A hosted demo is an optional supplement (Part 04). |
+| Local vs hosted | The CLI and SQLite support local operation. A hosted demo is optional. |
 
-## 2. Requirement matrix
+## 2. Features and evidence
 
 The test and evidence details are in [evaluation.md](evaluation.md). A check marked implemented still has the limitations listed below.
 
-| Case requirement | Implementation | Verification or limitation |
+| Feature | Implementation | Verification or limitation |
 | --- | --- | --- |
 | Read PDF/TXT, CSV, JSON and XML | `parsers/`, ingestion agent | All 20 supplied files run in mock mode; image-only PDFs need OCR and are rejected. |
 | SQLite inventory and stock checks | `storage.py`, `rules/inventory.py`, catalog tool | Unit tests and mock regression run. Stock is a fixed snapshot. |
@@ -43,7 +43,7 @@ The test and evidence details are in [evaluation.md](evaluation.md). A check mar
 | --- | --- | --- |
 | 1 | **Stock is a read-only snapshot.** Paying an invoice does not reduce it. | Keeps each run reproducible. A real system would reserve stock against receiving. |
 | 2 | **Quantities are summed per item** before comparing with stock. Each priced line is kept. | Splitting an order across lines must not hide an over-order. Sample 1013 relies on this. |
-| 3 | **Approval threshold: strictly above USD 10,000** needs completed extra scrutiny. Exactly 10,000 does not. | The brief gives "over $10K". The boundary is tested. |
+| 3 | **Approval threshold: strictly above USD 10,000** needs completed extra scrutiny. Exactly 10,000 does not. | The sample scenario specifies "over $10K". The boundary is tested. |
 | 4 | **USD only for automatic payment.** Other currencies are held as `UNSUPPORTED_CURRENCY`. A reviewer cannot clear it. | No exchange rate was supplied. Converting with an invented rate would be fabricating a payment amount. |
 | 5 | **A missing currency defaults to USD, with an INFO finding.** The three supplied CSV files state no currency. | Otherwise three valid samples could never be paid. This is configurable (`assume_currency_when_missing`). |
 | 6 | **A former vendor name ("formerly X") holds the invoice for review.** | This is a common payment-redirection pattern. It is a signal, not proof. Switch: `review_on_vendor_identity_change`. |
@@ -51,7 +51,7 @@ The test and evidence details are in [evaluation.md](evaluation.md). A check mar
 | 8 | **Document text is data.** Text that tries to instruct the system is a REVIEW finding. | Prompt-injection defense. The rules run in code, so the text cannot switch them off. |
 | 9 | **Payable identity = normalized vendor + normalized invoice number**, stable across revisions. | One payment per payable, enforced by a database UNIQUE constraint. |
 | 10 | **Identity normalization is conservative.** Case, spacing and punctuation are ignored. `Widgets Inc.` and `Widgets LLC` stay different. `INV-1002` and `1002` stay different. Leading zeros are kept. | Wrongly merging two vendors is worse than holding a duplicate. |
-| 11 | **Revisions.** An explicit source-supported newer revision of an unpaid invoice supersedes the older one. A revision after payment is held for reconciliation. Versions with no usable order remain held across resubmission until a reviewer explicitly selects an eligible unpaid version using its content hash. We never pay a difference automatically. | Credits, tax and partial payments are not specified by the brief. Other errors and identity holds still block selection. |
+| 11 | **Revisions.** An explicit source-supported newer revision of an unpaid invoice supersedes the older one. A revision after payment is held for reconciliation. Versions with no usable order remain held across resubmission until a reviewer explicitly selects an eligible unpaid version using its content hash. We never pay a difference automatically. | Credits and partial payments are not specified by the sample scenario. Other errors and identity holds still block selection. |
 | 12 | **Batch preflight decides versions before any payment.** Filename order alone never selects what is paid. | Sorting by name could pay the wrong version. |
 | 13 | **Overdue is INFO.** The clock is injected. | Every sample due date is in the past today. Rejecting them all would hide real problems. |
 | 14 | **Unresolved dates stay unknown.** Evidence-backed extraction corrections are recorded; unsupported guesses such as `yesterday` are not accepted. Numeric `NN/NN/YYYY` dates get a WARNING when the order is ambiguous. | Wrong dates are worse than missing dates. |
@@ -60,7 +60,7 @@ The test and evidence details are in [evaluation.md](evaluation.md). A check mar
 | 17 | **Model repairs need evidence.** A correction must quote the source. It is accepted as a plain repair only if it differs by look-alike characters (`O`/`0`). A change of magnitude (`3,500.O0` to `350,000`) is held. Extracted numbers and field-specific dates/revisions need source support; supported date normalization and grounded payment-term derivation are allowed. | A model repeating itself is not proof. |
 | 18 | **Approvals bind to invoice content and policy.** Changing either voids the approval. | Prevents approving one thing and paying another. |
 | 19 | **The payment gate reloads and re-validates everything inside one transaction.** The caller passes identifiers only. | A UI boolean or a model's say-so is never authorization. |
-| 20 | **Demo limits are ours:** 2 MB per file, 200,000 characters of text, 20 PDF pages, 1,000 CSV rows, 200 lines. | Not requirements of the brief. They are policy values and can be changed. |
+| 20 | **Demo limits are ours:** 2 MB per file, 200,000 characters of text, 20 PDF pages, 1,000 CSV rows, 200 lines. | These policy values can be changed. |
 
 ## 4. Findings, severity and route
 
