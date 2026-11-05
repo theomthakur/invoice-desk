@@ -8,6 +8,10 @@ It reads invoices, checks them against a sample inventory, runs an approval and 
 
 **Start here:** [Run locally](#run-locally) · [Try the demo](#try-the-demo) · [Features](#what-it-does) · [Test results](#tests-and-results)
 
+**[Live demo](https://invoice-desk-823q.onrender.com/)** · **[Watch the walkthrough](https://youtu.be/3wwiXjCHQoQ)**
+
+The hosted demo may take a minute to wake after inactivity. Payments and inventory are simulated, and hosted records may be lost when the service restarts.
+
 ## Run locally
 
 You need **Python 3.12, uv, Node 22 and npm**. Run these commands from the repository root:
@@ -138,8 +142,8 @@ npm run test:e2e
 ## Deployment and limits
 
 - **`main`** is the reviewed product. **`deployment`** is the hosting release branch. Shared fixes go into main first, then are merged into deployment.
-- Render configuration is prepared, but a live hosted service has not been verified. The free configuration uses simulation and temporary storage, so records can be lost when the service restarts.
-- The application runs locally. The prepared hosting configuration is an optional demo.
+- The [hosted Render demo](https://invoice-desk-823q.onrender.com/) uses temporary storage, so records can be lost when the service restarts.
+- The application also runs locally; hosting is an optional demo.
 - Payments, approvals and inventory are simulated. No bank, ERP, email or vendor-master service is connected.
 - Scanned pages need OCR, which is not included. A scan inside a text PDF is reported rather than silently skipped.
 - Run one server process. Distributed recovery, production load and accessibility conformance have not been verified.
