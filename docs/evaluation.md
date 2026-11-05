@@ -7,7 +7,7 @@ Local verification on 5 November 2026 includes the direct xAI configuration upda
 | Check | Result | Scope |
 | --- | --- | --- |
 | Python tests | 791 passed, 4 live tests deselected | Rules, simulated/controlled providers, direct xAI contracts and secret isolation, API, CLI, review, identity/version checks, source evidence, payment safety, restart/session behavior and workspace isolation. |
-| Frontend tests | 81 passed | Interactions, four-panel records, developer-only exports, CSV safety, review, history, theme and progress semantics. |
+| Frontend tests | 81 passed on Node 22 and Node 24 | Interactions, four-panel records, developer-only exports, CSV safety, review, history, theme and progress semantics. |
 | Browser tests | 21 passed | Real local mock backend; includes collapsed developer-toggle, Handoffs breadcrumb, four-panel layout, review, PDF inspection, isolation, responsive UI and exports. |
 | Frontend lint, TypeScript and build | Passed | Production frontend served by the local backend. |
 | Supplied-file regression | Earlier fingerprinted source: 20/20 expected outcomes | Each supplied file uses an isolated fresh ledger and a simulated reader. This is a known regression set, not blind LLM accuracy. |
