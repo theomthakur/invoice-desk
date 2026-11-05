@@ -109,6 +109,6 @@ Verified by running the code, not only by reading:
 - No OCR. A scanned PDF without a text layer is refused. New PDF records retain original bytes plus text; historical text-only records need the source loaded again to recover the original.
 - No vendor master, authoritative price list or FX source was supplied, so none is checked. A reviewer can only clear a finding if its policy marks it resolvable.
 - Payments, inventory and review identities are simulated. A mock receipt is not proof of bank settlement. Workspaces are sandboxed by a signed session cookie, not enterprise authentication.
-- Run exactly one server process. A running job is marked interrupted after a restart. Batches are not automatically recovered after restart. Free hosted storage is ephemeral.
+- Run exactly one server process. A running job is marked interrupted after a restart. Queued batches resume; running batches become interrupted with a visible rerun option. Free hosted storage is ephemeral.
 - The application spending cap counts only costs reported by the provider; an unknown provider cost is not counted. Public live mode is disabled by default and needs a provider-side cap before enabling.
 - Coverage is risk-based, not exhaustive. No cross-process load, production backup/restore or accessibility conformance audit has been performed.

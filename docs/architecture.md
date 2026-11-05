@@ -46,7 +46,7 @@ SQLite stores extracted text, original PDF bytes for newly loaded PDFs, runs, or
 
 A signed HttpOnly session cookie identifies a demo workspace; same-origin and CSRF checks protect mutations, and queries are scoped to the workspace. Local startup securely persists an owner-only signing key in DATA_DIR when no explicit secret is configured. Production still requires an explicit secret. History uses a validated timestamp-plus-run-ID cursor, so tied timestamps do not skip records. The passcode is a shared demo gate, not enterprise identity or access management. A run has a technical lifecycle and a separate business outcome. A browser disconnect does not make a payment or erase the result.
 
-The worker uses one process. Queued runs are recovered after restart; runs that were in progress become interrupted. Batches are not automatically recovered after restart. In-memory rate limiting and the worker are not distributed. Horizontal scaling requires a proper shared database/queue, worker ownership, global rate and cost controls, object storage and safe migration/backups.
+The worker uses one process. Queued runs are recovered after restart; runs that were in progress become interrupted. One dedicated batch worker resumes queued batches. Batches stopped mid-processing become interrupted and need an explicit rerun; existing payment checks remain in force. In-memory rate limiting and the worker are not distributed. Horizontal scaling requires a proper shared database/queue, worker ownership, global rate and cost controls, object storage and safe migration/backups.
 
 ## Provider boundary
 
@@ -94,3 +94,8 @@ The read-only /analytics/records endpoint returns paginated records for a chart 
 Current analytics aggregate department and blocking-reason counts inside SQLite. Record queries filter before applying a bounded limit, so Python parses only the returned page. Composite cursors use the recorded start timestamp and run ID. Resolving a prior-page item does not shift the next page. The UI replaces pages rather than retaining previously loaded stale records; refreshing the first page shows new arrivals. Each response is a read snapshot, not a cross-request frozen report. These changes do not make the single-process SQLite design a distributed production deployment.
 
 The progress strip marks an actual recorded approval, hold or rejection as a completed review step and shows the decision. Payment completion still requires a stored receipt. A refused gate remains blocked.
+
+
+Batch submissions claim their request token and persist the queued row in one SQLite write transaction. Repeated concurrent requests share the same batch. Capacity is checked before accepting a new token. A failed batch leaves a readable reason and does not stop the next queued batch. Shutdown requests cooperative cancellation and waits up to five seconds, not guaranteed immediate termination. Workspace reset checks both active runs and batches in its write transaction, preventing a worker from recreating data after a reset. This still requires one server process and durable local storage.
+
+CSV headers select comma, semicolon or tab delimiters. Recognized aliases cannot repeat a field, quoting is strict, and nonempty extra columns create a parse finding. PDF extraction checks each page; an image-only page cannot silently disappear from an otherwise text-based invoice. Truly blank pages are allowed. OCR is not implemented.

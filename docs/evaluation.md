@@ -6,8 +6,8 @@ Local verification on 4 November 2026 uses the current working tree. These resul
 
 | Check | Result | Scope |
 | --- | --- | --- |
-| Python tests | 754 passed, 4 live tests deselected | Rules, simulated/controlled providers, API, CLI, review, identity/version checks, source evidence, payment safety, restart/session behavior and workspace isolation. |
-| Frontend tests | 79 passed | Interactions, four-panel records, developer-only exports, CSV safety, review, history, theme and progress semantics. |
+| Python tests | 774 passed, 4 live tests deselected | Rules, simulated/controlled providers, API, CLI, review, identity/version checks, source evidence, payment safety, restart/session behavior and workspace isolation. |
+| Frontend tests | 81 passed | Interactions, four-panel records, developer-only exports, CSV safety, review, history, theme and progress semantics. |
 | Browser tests | 21 passed | Real local mock backend; includes collapsed developer-toggle, Handoffs breadcrumb, four-panel layout, review, PDF inspection, isolation, responsive UI and exports. |
 | Frontend lint, TypeScript and build | Passed | Production frontend served by the local backend. |
 | Supplied-file regression | Earlier fingerprinted source: 20/20 expected outcomes | Each supplied file uses an isolated fresh ledger and a simulated reader. This is a known regression set, not blind LLM accuracy. |
@@ -103,3 +103,14 @@ Backend tests cover local transport, schema/tool conversion, malformed responses
 
 
 Independent follow-up review found two issues that were corrected before the final checks: a local model name alone did not rule out a remote Ollama alias, and a human decision could leave an earlier model hold visible. The adapter now inspects model metadata before transmitting invoice text and refuses remote aliases or unverifiable local weights; the daemon must still run with cloud routing disabled. The review strip uses the latest applied human decision and does not treat it as a payment receipt. Tests cover both fixes.
+
+
+## Format, analytics and recovery follow-up
+
+New checks cover semicolon and tab CSV exports with quoted thousands separators, duplicate column aliases, malformed quoting and extra cells in both supported CSV layouts. The extra-cell test ensures an unquoted `1,000` cannot silently become `1`. Mixed text/scanned PDFs fail with the scanned page number; genuinely blank pages remain accepted. Text limits are checked while pages are read.
+
+Analytics filters can now select failed/interrupted and queued/running attempts separately from invoice business outcomes. Vendor filtering and charts include stored draft vendor names when an invoice lacks a payable identity; this does not claim that the vendor is verified. Counts and current exception drill-through remain workspace-scoped.
+
+Batch recovery tests use fresh temporary databases. Queued work survives restart and runs once. A subsequent explicit rerun does not create a second payment. In-flight work becomes interrupted instead of being automatically replayed. Concurrent same-token submissions create one batch, full queues do not consume new request tokens, a failed batch does not kill the worker, and cooperative cancellation records an interrupted result. Workspace reset refuses queued and running batches even before the first child run exists. The UI test checks the reason is shown and rerunning requires an explicit action with a new request token.
+
+These are concrete local correctness improvements. They do not establish distributed recovery, hosted persistence, OCR, or better Qwen extraction accuracy. No additional paid model calls were made for this follow-up, so the previously recorded Grok and Qwen outcomes are unchanged.

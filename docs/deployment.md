@@ -17,7 +17,7 @@ For durable storage, mount a writable directory and set `DATA_DIR` to that mount
 
 ## Render blueprint
 
-`render.yaml` is a prepared **free, ephemeral, mock-only** web service, with a generated session secret and a required manually entered demo access code. It uses the root Dockerfile and health endpoint. No service is claimed as deployed. Connect the public repository, select the intended branch and root blueprint, enter the access code in Render, then deploy. The access code is a shared demo gate, not personal authentication. Do not put it or a model key in the repository or client bundle.
+`render.yaml` is a prepared **free, ephemeral, mock-only** web service, with a generated session secret and a required manually entered demo access code. It uses the root Dockerfile and health endpoint. No service is claimed as deployed. Connect the public repository, select the `deployment` branch and root blueprint, enter the access code in Render, then deploy. The access code is a shared demo gate, not personal authentication. Do not put it or a model key in the repository or client bundle.
 
 Render prompts for `sync: false` secrets only when initially creating a Blueprint. Existing services must have `DEMO_ACCESS_CODE` configured manually; an unset code permits open demo access. Confirm that missing and incorrect codes fail before sharing the URL. A generated `SESSION_SECRET` is created only when absent, so retain an existing valid secret unless intentionally ending sessions. Keep `MODEL_MODE=mock`, `ALLOW_LIVE_IN_SESSIONS=0`, and no provider key for the free demonstration.
 
@@ -25,7 +25,7 @@ The case instructions require local operation and say no cloud deployment. The h
 
 For the free service, local files and SQLite are lost when the instance is redeployed, restarted or spun down. According to [Render's free service documentation](https://render.com/docs/free), it spins down after 15 minutes without inbound traffic, and waking can take about a minute. The UI reports ephemeral storage. If persistence is required, use an appropriate paid disk or managed service, set the storage flag truthfully, test restart and backups, and keep one server process. Do not assume a free instance is durable. The configuration follows the [Render Blueprint reference](https://render.com/docs/blueprint-spec).
 
-Free compute provides 0.1 CPU and 512 MB RAM, according to the [compute plan reference](https://render.com/docs/compute-plans). Use this as a controlled, single-operator demo and run one sample batch at a time. The individual-job worker is bounded, but sample batches use separate threads; this is not a concurrent load-tested service. The React app and API share the same origin, so a second frontend service and CORS configuration are unnecessary.
+Free compute provides 0.1 CPU and 512 MB RAM, according to the [compute plan reference](https://render.com/docs/compute-plans). Use this as a controlled, single-operator demo and run one sample batch at a time. Individual runs use the bounded worker pool and batches use one bounded, persisted queue; this is not a concurrent load-tested service. The React app and API share the same origin, so a second frontend service and CORS configuration are unnecessary.
 
 For a Docker build on an ARM development machine that targets Render, use `docker build --platform linux/amd64 -t invoice-desk:local .`. Building locally and checking a container does not create a hosted service or verify its eventual HTTPS domain. After deployment, the browser must confirm login, processing, source inspection and export over the actual HTTPS URL.
 
@@ -37,4 +37,17 @@ Public live inference is off (`ALLOW_LIVE_IN_SESSIONS=0`). Four known live Grok 
 
 ## Restart and rollback
 
-Queued individual runs may resume; in-progress runs become interrupted. Batches are not automatically recovered after restart. A retry still reaches the same payment gate. Before a persistent deployment, take a SQLite-consistent backup, test a restore, and record the application commit and schema compatibility. Rolling back code does not roll back database changes. No persistent-host backup or restore has been verified for this project.
+Queued individual runs may resume; in-progress runs become interrupted. Queued batches resume after restart. Running batches become interrupted with a visible reason and explicit rerun action. Shutdown is cooperative, with a five-second wait; it is not distributed recovery. A retry still reaches the same payment gate. Before a persistent deployment, take a SQLite-consistent backup, test a restore, and record the application commit and schema compatibility. Rolling back code does not roll back database changes. No persistent-host backup or restore has been verified for this project.
+
+
+## Main and deployment branches
+
+`main` remains the reviewed product and the repository default. `deployment` is the release branch selected by Render. Both begin at the same tested commit; no live service is created by pushing the branch. Make shared fixes on main, verify them, then merge main into deployment. Keep hosting-only configuration changes on deployment. Do not force-push or copy a ZIP over either history. The branches need an explicit merge for each release and do not automatically stay in sync.
+
+```bash
+git fetch origin
+git switch deployment
+git merge origin/main
+# Resolve any hosting configuration conflicts, then run the checks before pushing.
+git push origin deployment
+```

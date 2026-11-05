@@ -43,7 +43,7 @@ Open **http://127.0.0.1:8000**. Select **New invoice**, then upload a file or ch
 - **Review and handoffs:** eligible holds support a selected decision reason and optional note. A handoff records an internal department assignment; it does not notify anyone or authorize payment. Rejected records support a correction request and linked corrected-file submission. Interrupted or failed records can be retried.
 - **Reports:** Save decision PDF and Save activity PDF use branded browser print views. Download report CSV exports recorded details with spreadsheet-formula escaping. Developer mode reveals technical JSON and raw event payloads; it is off by default and has a visible, saved on/off state.
 - **Finding records:** Find invoice searches the workspace ledger by invoice number. The inbox has status filters and ten rows per page; Next fetches more when needed. Selection and list filters apply to loaded records. Bulk selection supports CSV export and individually checked department handoffs, never bulk payment approval.
-- **Analytics:** current review backlog by department and current blocking reasons link to matching invoice records. Matching pages use a stable cursor and database-side filtering; refresh the first page to see new records. Separate historical charts cover outcomes, activity dates and vendors, with date/vendor/outcome filters and simulated receipts separated by currency. Counts distinguish processing attempts from distinct invoices. They are not outstanding balances or claimed savings.
+- **Analytics:** failed/interrupted and in-progress filters, including vendor names from drafts that lack a payable identity. Current review backlog by department and current blocking reasons link to matching invoice records. Matching pages use a stable cursor and database-side filtering; refresh the first page to see new records. Separate historical charts cover outcomes, activity dates and vendors, with date/vendor/outcome filters and simulated receipts separated by currency. Counts distinguish processing attempts from distinct invoices. They are not outstanding balances or claimed savings.
 
 The Multi-agent workflow explanation identifies the reader, validator, approver and critic, and explains early exits and the final code-controlled payment gate. Activity shows the steps actually recorded for each attempt. See [architecture](docs/architecture.md) for responsibilities and terminology, and [evaluation](docs/evaluation.md) for current checks and limitations.
 
@@ -55,7 +55,7 @@ For frontend development, run `npm run dev` in `frontend/` while the backend run
 
 | Case requirement | Implementation | Evidence and limits |
 | --- | --- | --- |
-| Read invoices in several formats | PDF/TXT text extraction, structured CSV/JSON/XML parsing and a model-provider interface | 20 supplied files exercised in mock mode. Image-only PDFs are rejected; OCR is not included. |
+| Read invoices in several formats | PDF/TXT text extraction, structured CSV/JSON/XML parsing and a model-provider interface | 20 supplied files exercised in mock mode. Image-only pages are rejected, including scans mixed into a text PDF; OCR is not included. |
 | Validate against SQLite inventory | Quantity aggregation, item lookup, arithmetic, dates and currency checks | Unit tests and the 20-case regression; inventory is a fixed mock snapshot. |
 | Simulate VP approval and critique | Separate LangGraph preparation and decision graphs, typed tool calls and bounded revision | Controlled-provider and simulated-reader tests. Real model performance is unverified. |
 | Process or reject | Transactional payment gate and simulated receipt; recorded rejection reasons | Duplicate/revision, stale approval and browser tests. No real bank API is called. |
@@ -115,12 +115,22 @@ npm run test:e2e
 
 The offline regression compares all 20 supplied files with predefined expected outcomes on a fresh ledger per file. It is a **known regression set using a simulated reader**, not an independent or blind estimate of LLM accuracy. Additional authored fixtures check fields and outcomes for new layouts, an unknown item, arithmetic errors, and above-threshold scrutiny. A batch uses a shared ledger and groups revisions/duplicates before payment. See [evaluation results](docs/evaluation.md), including case-level output and known gaps. Live tests are disabled by default and require explicit opt-in, credentials and a budget. The positive live test requires a successful paid clean invoice, actual inventory tool use, and approval/critique records; provider failures cannot count as success.
 
+## Branches
+
+- `main`: reviewed application code and the default repository branch.
+- `deployment`: hosting release branch. Start with the same tested code as main, then keep hosting-specific changes here. Select this branch in Render.
+
+Shared product fixes go into main first and are merged into deployment after checks. The branches do not synchronize automatically. Hosting credentials stay in Render, not in either branch.
+
 ## Container and optional hosting
 
 The [Dockerfile](Dockerfile) builds the React app and Python service into one image. `render.yaml` configures an optional single-instance free Render service with mock mode, a passcode, and **ephemeral storage**. The original case says local operation and no cloud deployment; hosting is an optional supplement, not a replacement for the requested repository and local run. No hosted deployment is claimed here. See [deployment](docs/deployment.md) for a local container test, persistence and rollback details.
 
 ## Important limitations
 
-This is a prototype: no real payment, email, ERP, FX or vendor-master integration; no OCR; one server process; and no production load or accessibility conformance claim. Historical PDF records created before original-byte retention keep their extracted text; recovering their originals requires loading those documents again. Batches interrupted by server restart do not automatically recover. [Full limitations and policy choices](docs/decisions.md) are documented.
+This is a prototype: no real payment, email, ERP, FX or vendor-master integration; no OCR; one server process; and no production load or accessibility conformance claim. Historical PDF records created before original-byte retention keep their extracted text; recovering their originals requires loading those documents again. Queued batches resume after restart. A batch stopped mid-processing is marked interrupted with an explicit rerun option; it is not silently replayed. [Full limitations and policy choices](docs/decisions.md) are documented.
 
 The sample files are from the [Galatiq case repository](https://github.com/galatiq-ai/galatiq-case-invoices), as recorded in [SOURCE.md](data/invoices/SOURCE.md). Developed with AI coding assistance; the implementation, tests and limitations are available for review.
+
+
+CSV input supports comma, semicolon and tab separators. Duplicate alias columns, malformed quoting and unexpected extra values are reported instead of silently replacing or truncating fields. Sample batches use a single bounded queue backed by SQLite. Request ownership and batch creation are atomic, and workspace reset is blocked during queued or running work.
