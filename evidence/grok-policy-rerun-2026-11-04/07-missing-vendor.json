@@ -1,0 +1,75 @@
+{
+  "schema_version": "1",
+  "run_id": "run_afd7f9f0d9244e41a5ef",
+  "workspace_id": "local",
+  "lifecycle": "completed",
+  "outcome": "rejected",
+  "terminal_reason": "Validation found errors that block payment.",
+  "document_id": "doc_a5d87eded332b23b",
+  "filename": "invoice.txt",
+  "payable_id": null,
+  "version_id": "ver_8650dea1beb94fb18e77",
+  "invoice": null,
+  "draft": {
+    "origin": "model",
+    "invoice_number": "HBR-716",
+    "revision": null,
+    "vendor_name": null,
+    "vendor_address": null,
+    "invoice_date_raw": "2026-11-04",
+    "due_date_raw": "2026-12-04",
+    "currency": "USD",
+    "line_items": [
+      {
+        "line_no": 1,
+        "description": "WidgetA",
+        "quantity": "2",
+        "unit_price": "25.00",
+        "amount": "50.00",
+        "note": null
+      }
+    ],
+    "subtotal": "50.00",
+    "tax_rate": "0",
+    "tax_amount": "0.00",
+    "shipping": "0.00",
+    "total": "50.00",
+    "payment_terms": "Net 30",
+    "notes": null,
+    "corrections": [],
+    "parse_findings": []
+  },
+  "findings": [
+    {
+      "code": "MISSING_FIELD",
+      "severity": "ERROR",
+      "message": "Vendor name is missing.",
+      "field": "vendor_name",
+      "item_ref": null,
+      "observed": null,
+      "expected": null,
+      "evidence": null
+    }
+  ],
+  "requires_scrutiny": false,
+  "approval": [],
+  "receipt": null,
+  "mode": "live",
+  "provider": "openrouter",
+  "model": "x-ai/grok-4.7",
+  "usage": {
+    "model_calls": 1,
+    "tool_calls": 0,
+    "prompt_tokens": 2366,
+    "completion_tokens": 834,
+    "usage_complete": true,
+    "estimated_cost_usd": "0.008008"
+  },
+  "policy_version": "2026-11-03.1",
+  "content_hash": null,
+  "review_summary": null,
+  "attempt_of": null,
+  "relation_kind": null,
+  "started_at": null,
+  "finished_at": "2026-11-05T04:45:46.398689Z"
+}

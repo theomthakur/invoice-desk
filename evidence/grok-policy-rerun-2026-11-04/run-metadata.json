@@ -1,0 +1,11 @@
+{
+  "evaluated_commit": "281af92cfd9de7fede340b46666a0fef781700d7",
+  "label_freeze_commit": "281af92",
+  "runtime_changes_since_previous_release": false,
+  "runner_sha256": "914b224d2b2acdbb4653cd71a765e89248d9a43d0dca779efbbc19743ea77857",
+  "manifest_sha256": "2aad20c7f8260e43e58e0c2490be8ab907adff2ebdd85de7ebf5f33e972897b2",
+  "previous_reported_spend_usd": "0.200568",
+  "rerun_budget_usd": "0.75",
+  "test_today": "2026-11-04",
+  "notes": "Same ten inputs and three-case repeat schedule. One owner-approved label correction was committed before inference. Payment is simulated."
+}

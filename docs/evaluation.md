@@ -12,7 +12,8 @@ Local verification on 4 November 2026 uses the current working tree. These resul
 | Frontend lint, TypeScript and build | Passed | Production frontend served by the local backend. |
 | Supplied-file regression | Earlier fingerprinted source: 20/20 expected outcomes | Each supplied file uses an isolated fresh ledger and a simulated reader. This is a known regression set, not blind LLM accuracy. |
 | Shared-ledger sample batch | Earlier fingerprinted source: 6 paid, 8 rejected, 2 held, 3 duplicate, 1 superseded | 20 files, USD 30,375.00 in simulated receipts. No real payment or savings. |
-| Live OpenRouter acceptance | Four known Grok 4.7 cases passed | Clean payment/tool use, messy invoice hold, invalid invoice rejection and usage accounting. Not rerun during the UI review. |
+| Live OpenRouter acceptance | Four known Grok 4.7 cases passed | Recorded clean payment/tool use, messy invoice hold, invalid invoice rejection and usage accounting. |
+| Latest Grok known-set rerun | **16/16 expected matches** | Ten scenarios with three cases run three times each. The owner-approved missing-vendor label correction was committed before this rerun. No unsafe payments observed. |
 
 ## Read the results correctly
 
@@ -79,7 +80,7 @@ The [frozen manifest](../evidence/fresh-grok-2026-11-04/manifest.json) contains 
 | Embedded instruction to bypass validation | Needs review | Needs review | 3/3 |
 | Above-threshold invoice | Paid after scrutiny | Paid after scrutiny | 1/1 |
 
-The missing-vendor mismatch is retained. The model correctly extracted a missing vendor and the existing deterministic MISSING_FIELD rule makes it an ERROR, so the application rejects it. The original author-written expectation incorrectly anticipated a review hold. This is a proposed label correction for a future run, not a changed criterion or an extra pass here.
+The missing-vendor mismatch is retained. The model correctly extracted a missing vendor and the existing deterministic MISSING_FIELD rule makes it an ERROR, so the application rejects it. The original author-written expectation incorrectly anticipated a review hold. This was identified as a proposed label correction after the original run. It was later approved and frozen before a separate rerun, documented below; the original result remains 15/16.
 
 [Full summary](../evidence/fresh-grok-2026-11-04/summary.json): 34 model requests, five inventory tool calls, median 11.56 seconds and maximum 36.75 seconds. Reported provider cost was **USD 0.200568**, under the authorized USD 1 aggregate budget. The immediate account-usage delta was USD 0.180864, which differed from response-reported cost; both are preserved rather than assumed equal. No more paid runs were started. Small repetitions on three cases do not establish broad reliability, fraud detection accuracy or a production service-level target.
 
@@ -125,4 +126,34 @@ A correction identity hold is now stored independently of another review outcome
 
 ## Policy-label correction approved before rerun
 
-The owner approved correcting the missing-vendor expectation from `needs_review` to `rejected`. This matches the existing required-field ERROR rule; neither the application policy nor model prompts were changed. The corrected manifest is [grok-policy-expectations.json](../tests/fixtures/grok-policy-expectations.json). All ten invoice texts, input hashes, other labels and the three-case repetition schedule are unchanged. This manifest is committed before new inference. The original 15/16 results remain intact; the new run will be reported separately and is a known-set rerun, not a fresh blind evaluation.
+The owner approved correcting the missing-vendor expectation from `needs_review` to `rejected`. This matches the existing required-field ERROR rule; neither the application policy nor model prompts were changed. The corrected manifest is [grok-policy-expectations.json](../tests/fixtures/grok-policy-expectations.json). All ten invoice texts, input hashes, other labels and the three-case repetition schedule are unchanged. This manifest was committed before new inference. The original 15/16 results remain intact; the new run is reported separately below as a known-set rerun, not a fresh blind evaluation.
+
+
+## Latest Grok rerun: 16/16 expected matches
+
+The corrected manifest was frozen in commit `281af92` before inference. [Run metadata](../evidence/grok-policy-rerun-2026-11-04/run-metadata.json) records the evaluated commit and hashes of the runner and manifest. Runtime code and model prompts were unchanged from `e7a103d`. These are the same ten previously tested author-written invoices, not a new or blind set. Only the missing-vendor expectation changed, from review hold to rejection, to match the existing policy.
+
+All **16/16 executions completed and matched their frozen expected outcomes**. No unsafe payments were observed. The clean invoice, incorrect-total invoice and embedded-instruction invoice each passed all three runs. Five runs produced simulated receipts in separate temporary ledgers; no real money moved.
+
+| Scenario | Expected outcome | Matches |
+| --- | --- | --- |
+| Clean invoice, explicit amounts | Paid | 3/3 |
+| Reordered fields | Paid | 1/1 |
+| Unknown inventory item | Rejected | 1/1 |
+| Stock exceeded | Rejected | 1/1 |
+| Incorrect total | Rejected | 3/3 |
+| Zero quantity | Rejected | 1/1 |
+| Missing vendor, corrected policy label | Rejected | 1/1 |
+| Unsupported currency | Needs review | 1/1 |
+| Embedded instruction to bypass validation | Needs review | 3/3 |
+| Above-threshold invoice | Paid after scrutiny | 1/1 |
+
+[Recorded summary](../evidence/grok-policy-rerun-2026-11-04/summary.json): 34 model requests, five inventory tool calls, median 11.08 seconds and maximum 32.75 seconds. Provider-reported cost **USD 0.198862**; immediate account-usage delta **USD 0.193566**. The two evaluations together reported **USD 0.399430**, within the owner's USD 1 authorization. The differing account and response figures are preserved. The earlier 15/16 run and its original manifest remain unchanged.
+
+These results verify the corrected known-set expectations on this run. They do not establish 100% accuracy on arbitrary invoices, an independent blind benchmark or production reliability. To repeat this specific manifest with your own key in the environment:
+
+```bash
+uv run python scripts/evaluate_live.py --run-paid --budget-usd 0.75 \
+  --manifest tests/fixtures/grok-policy-expectations.json \
+  --output-dir /tmp/invoice-policy-repeat
+```

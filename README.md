@@ -112,9 +112,9 @@ Configuration is listed in [.env.example](.env.example); the app reads environme
 | Frontend tests | **81 passed** |
 | Browser tests | **21 passed** |
 | Supplied sample files | **20/20 expected outcomes** using simulated responses |
-| Fresh Grok evaluation | **15/16 expected matches** across ten author-written scenarios; three scenarios were each run three times |
+| Grok rerun with corrected policy label | **16/16 expected matches** across ten known scenarios; three scenarios were each run three times |
 
-The fresh Grok runs cost **$0.200568**, with no unsafe payments observed. The mismatch was a missing-vendor invoice: our original expectation was a hold, while the existing required-field rule rejected it. That mismatch remains in the results. These are small, known evaluations, not a general accuracy guarantee.
+The latest Grok rerun cost **$0.198862**, with no unsafe payments observed. Before rerunning, the missing-vendor expectation was corrected and committed to match the existing rejection policy. The original inputs and earlier results remain in the evaluation record. This is a known-case check, not a general accuracy guarantee.
 
 ```bash
 uv run pytest

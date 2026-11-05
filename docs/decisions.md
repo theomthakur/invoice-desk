@@ -30,7 +30,7 @@ The test and evidence details are in [evaluation.md](evaluation.md). A check mar
 | SQLite inventory and stock checks | `storage.py`, `rules/inventory.py`, catalog tool | Unit tests and mock regression run. Stock is a fixed snapshot. |
 | Simulated VP decision and critique | `agents/review.py`, LangGraph in `workflow.py` | Controlled-provider, mock and browser tests, plus recorded live Grok approval/critique checks. Broader reliability is not established; see evaluation. |
 | Mock payment or rejection with reasons | `ledger.py`, `tools/payment.py`, event log | Payment gate and duplicate/revision tests. No real bank. |
-| LLM / Grok | `providers/openrouter.py` | Four known live Grok acceptance checks passed, followed by 16 fresh runs with 15 expected matches. Default mock mode is a simulation; see evaluation for the retained mismatch. |
+| LLM / Grok | `providers/openrouter.py` | Four known acceptance checks passed. The latest policy-corrected Grok rerun matched 16/16 outcomes after an approved label correction was frozen. The original 15/16 run is retained in evaluation. Default mock mode is a simulation. |
 | Local operation without external APIs | mock provider, SQLite, CLI, API | Default simulation runs offline. Optional local Ollama inference is implemented but produced unnecessary holds; OpenRouter requires internet. |
 | Multiple agents, tool calls, structured outputs and correction | `agents/`, `workflow.py`, `llm.py` | Controlled tests plus recorded real Grok tool calls and structured responses. Limited live coverage does not establish reliability on arbitrary invoices. |
 | CLI, structured logs and result | `main.py`, `cli.py`, `storage.py` | CLI and event tests; commands in the root README. |
