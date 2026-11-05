@@ -18,6 +18,7 @@ from typing import Any, Literal
 from .budget import RunBudget
 from .config import Policy, Settings, load_policy
 from .providers import OpenRouterProvider, Provider, ProviderError, redact
+from .providers.ollama import DEFAULT_OLLAMA_URL, OllamaProvider
 from .providers.openrouter import DEFAULT_BASE_URL
 from .providers.simulated import SimulatedProvider
 from .storage import Database, append_event, utc_now
@@ -56,6 +57,8 @@ class AppConfig:
     data_dir: Path = Path("data/runtime")
     storage_persistence: Literal["local", "persistent", "ephemeral"] = "ephemeral"
     default_mode: str = "mock"
+    llm_provider: str = "openrouter"
+    ollama_base_url: str = DEFAULT_OLLAMA_URL
     openrouter_api_key: str | None = None
     llm_model: str = DEFAULT_MODEL
     llm_base_url: str = DEFAULT_BASE_URL
@@ -75,6 +78,9 @@ class AppConfig:
 
     @classmethod
     def from_env(cls) -> AppConfig:
+        provider = os.environ.get("LLM_PROVIDER", "openrouter").strip()
+        if provider not in {"openrouter", "ollama"}:
+            raise ValueError("LLM_PROVIDER must be openrouter or ollama")
         key = os.environ.get("OPENROUTER_API_KEY", "").strip() or None
         app_env = os.environ.get("APP_ENV", "local")
         persistence = os.environ.get("STORAGE_PERSISTENCE", "").strip() or (
@@ -84,11 +90,16 @@ class AppConfig:
             raise ValueError("STORAGE_PERSISTENCE must be local, persistent or ephemeral")
         return cls(
             app_env=app_env,
+            llm_provider=provider,
+            ollama_base_url=os.environ.get("OLLAMA_BASE_URL", DEFAULT_OLLAMA_URL),
             data_dir=Path(os.environ.get("DATA_DIR", "data/runtime")),
             storage_persistence=persistence,
             default_mode=os.environ.get("MODEL_MODE", "mock").strip() or "mock",
             openrouter_api_key=key,
-            llm_model=os.environ.get("LLM_MODEL", DEFAULT_MODEL).strip() or DEFAULT_MODEL,
+            llm_model=os.environ.get(
+                "LLM_MODEL", "qwen2.5:7b" if provider == "ollama" else DEFAULT_MODEL
+            ).strip()
+            or DEFAULT_MODEL,
             llm_base_url=os.environ.get("LLM_BASE_URL", DEFAULT_BASE_URL).strip()
             or DEFAULT_BASE_URL,
             model_call_limit=_int("MODEL_CALL_LIMIT", 8),
@@ -111,7 +122,9 @@ class AppConfig:
         return Settings(app_env=self.app_env, data_dir=self.data_dir)
 
     def live_ready(self) -> tuple[bool, str]:
-        """Is a live run permitted? A key and a positive numeric cap are both required."""
+        """Check configuration readiness, not server reachability or model quality."""
+        if self.llm_provider == "ollama":
+            return True, ""
         if not self.openrouter_api_key:
             return False, "OPENROUTER_API_KEY is not configured."
         if self.model_budget_usd is None or self.model_budget_usd <= 0:
@@ -150,6 +163,8 @@ def default_provider_factory(config: AppConfig) -> ProviderFactory:
             ready, why = config.live_ready()
             if not ready:
                 raise ProviderError("live_not_configured", f"Live mode is unavailable: {why}")
+            if config.llm_provider == "ollama":
+                return OllamaProvider(config.llm_model, base_url=config.ollama_base_url)
             return OpenRouterProvider(
                 config.openrouter_api_key or "", config.llm_model, base_url=config.llm_base_url
             )
@@ -217,6 +232,8 @@ class App:
         ready, why = self.config.live_ready()
         if not ready:
             raise ProviderError("live_not_configured", f"Live mode is unavailable: {why}")
+        if self.config.llm_provider == "ollama":
+            return  # Local inference has no provider API charge. Other run limits still apply.
         cap = self.config.model_budget_usd or 0.0
         if self.live_spend_usd() >= cap:
             raise ProviderError(
