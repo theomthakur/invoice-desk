@@ -354,3 +354,74 @@ def test_long_names_are_shortened_without_losing_the_extension():
 )
 def test_safe_filename(raw, safe):
     assert safe_filename(raw) == safe
+
+
+@pytest.mark.parametrize("delimiter", [";", "\t"])
+def test_csv_accepts_spreadsheet_delimiters_without_losing_quoted_money(policy, delimiter):
+    import csv
+    import io
+
+    output = io.StringIO()
+    writer = csv.writer(output, delimiter=delimiter)
+    writer.writerow(
+        ["invoice_number", "vendor", "item", "quantity", "unit_price", "amount", "total"]
+    )
+    writer.writerow(["ALT-42", "Harbor Supply", "WidgetA", "2", "1,250.00", "2,500.00", "2,500.00"])
+    draft = parse("invoice.csv", output.getvalue(), policy).draft
+    assert draft.invoice_number == "ALT-42"
+    assert draft.line_items[0].unit_price == Decimal("1250.00")
+    assert draft.total == Decimal("2500.00")
+
+
+def test_csv_duplicate_alias_columns_cannot_silently_replace_quantities(policy):
+    with pytest.raises(SourceError, match="repeats a column"):
+        parse("invoice.csv", "item,qty,quantity,unit_price\nWidgetA,100,1,25.00\n", policy)
+
+
+def test_csv_unterminated_quote_is_a_visible_parse_failure(policy):
+    with pytest.raises(SourceError, match="valid CSV"):
+        parse("invoice.csv", 'field,value\nvendor,"unfinished\n', policy)
+
+
+def test_csv_extra_nonempty_columns_are_not_silently_discarded(policy):
+    draft = parse(
+        "invoice.csv", "item,quantity,unit_price\nWidgetA,1,25.00,unexpected\n", policy
+    ).draft
+    assert any(f.field == "row" for f in draft.parse_findings)
+
+
+def test_pdf_mixed_text_and_scan_cannot_silently_omit_the_scanned_page(policy):
+    from fpdf import FPDF
+    from PIL import Image
+
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Helvetica", size=12)
+    pdf.cell(0, 10, "Invoice header: additional line items follow on page 2.")
+    pdf.add_page()
+    pdf.image(Image.new("RGB", (100, 100), "white"), x=10, y=10, w=50)
+    with pytest.raises(SourceError) as error:
+        parse("mixed.pdf", bytes(pdf.output()), policy)
+    assert error.value.code == "partial_text_layer"
+    assert "Page 2" in error.value.message
+
+
+def test_pdf_truly_blank_page_does_not_block_a_text_invoice(policy):
+    from fpdf import FPDF
+
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Helvetica", size=12)
+    pdf.cell(0, 10, "Invoice number: PAPER-43")
+    pdf.add_page()
+    parsed = parse("blank-page.pdf", bytes(pdf.output()), policy)
+    assert "PAPER-43" in parsed.source.text
+    assert len(parsed.source.pages) == 2
+
+
+@pytest.mark.parametrize("delimiter", [",", ";", "\t"])
+def test_key_value_csv_does_not_truncate_a_value_at_an_extra_column(policy, delimiter):
+    text = delimiter.join(["field", "value"]) + "\n" + delimiter.join(["total", "1", "000"]) + "\n"
+    draft = parse("bad-export.csv", text, policy).draft
+    assert draft.total is None
+    assert any(f.field == "row" for f in draft.parse_findings)

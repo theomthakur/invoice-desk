@@ -82,10 +82,32 @@ def _key(text: str) -> str:
     return _NON_ALNUM.sub("", text.lower())
 
 
+def _delimiter(text: str) -> str:
+    """Recognize a supported invoice header, not commas inside quoted money values."""
+    for delimiter in (",", ";", "\t"):
+        try:
+            header = next(
+                csv.reader(
+                    io.StringIO(text.lstrip(), newline=""), delimiter=delimiter, strict=True
+                ),
+                [],
+            )
+        except csv.Error:
+            continue
+        keys = [_key(cell) for cell in header]
+        if (len(keys) >= 2 and keys[:2] == ["field", "value"]) or any(
+            _KEY_ALIASES.get(key) == "item" for key in keys
+        ):
+            return delimiter
+    return ","  # The normal parser will report an unsupported shape or malformed quoting.
+
+
 def _rows(text: str, max_rows: int) -> list[list[str]]:
     rows: list[list[str]] = []
     try:
-        for row in csv.reader(io.StringIO(text, newline="")):
+        for row in csv.reader(
+            io.StringIO(text, newline=""), delimiter=_delimiter(text), strict=True
+        ):
             if any(cell.strip() for cell in row):
                 rows.append([cell.strip() for cell in row])
             if len(rows) > max_rows:
@@ -173,6 +195,9 @@ def _key_value(rows: list[list[str]], max_lines: int) -> InvoiceDraft:
         if len(row) < 2:
             reader.invalid("row", ",".join(row), "expected_field_and_value")
             continue
+        if len(row) > 2 and any(row[2:]):
+            reader.invalid("row", ",".join(row), "extra_columns")
+            continue
         field = _KEY_ALIASES.get(_key(row[0]))
         value = row[1] or None
         if field is None:
@@ -199,6 +224,11 @@ def _key_value(rows: list[list[str]], max_lines: int) -> InvoiceDraft:
 def _tabular(rows: list[list[str]], max_lines: int) -> InvoiceDraft:
     reader = Reader()
     header = [_KEY_ALIASES.get(_key(cell)) for cell in rows[0]]
+    known = [name for name in header if name is not None]
+    if len(known) != len(set(known)):
+        raise SourceError(
+            "ambiguous_columns", "CSV repeats a column or its alias. Use one column per field."
+        )
     item_col = header.index("item")
     scalars: dict[str, list[str | None]] = {}
     lines: list[LineItemDraft] = []
@@ -206,6 +236,8 @@ def _tabular(rows: list[list[str]], max_lines: int) -> InvoiceDraft:
     tax_rate: Decimal | None = None
 
     for row in rows[1:]:
+        if len(row) > len(header) and any(row[len(header) :]):
+            reader.invalid("row", ",".join(row), "extra_columns")
         cells = row + [""] * (len(header) - len(row))
         if cells[item_col]:
             if len(lines) >= max_lines:

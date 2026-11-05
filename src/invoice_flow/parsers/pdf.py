@@ -54,6 +54,7 @@ def extract_pdf_text(data: bytes, policy: Policy) -> tuple[str, list[PageText]]:
     success. There is no OCR in this prototype.
     """
     pages: list[PageText] = []
+    text_chars = 0
     try:
         with pdfplumber.open(io.BytesIO(data)) as pdf:
             if len(pdf.pages) > policy.limits.max_pdf_pages:
@@ -62,7 +63,17 @@ def extract_pdf_text(data: bytes, policy: Policy) -> tuple[str, list[PageText]]:
                     f"PDF has {len(pdf.pages)} pages; the limit is {policy.limits.max_pdf_pages}.",
                 )
             for number, page in enumerate(pdf.pages, start=1):
-                pages.append(PageText(page=number, text=(page.extract_text() or "").strip()))
+                page_text = (page.extract_text() or "").strip()
+                if not page_text and page.images:
+                    raise SourceError(
+                        "no_text_layer" if len(pdf.pages) == 1 else "partial_text_layer",
+                        f"Page {number} contains an image but no extractable text. "
+                        "Upload a text-based PDF; this page needs OCR before processing.",
+                    )
+                text_chars += len(page_text) + (2 if pages else 0)
+                if text_chars > policy.limits.max_text_chars:
+                    raise SourceError("too_large", "PDF text exceeds the configured limit.")
+                pages.append(PageText(page=number, text=page_text))
     except SourceError:
         raise
     except PDFPasswordIncorrect as exc:
