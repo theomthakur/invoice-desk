@@ -6,7 +6,7 @@ Local verification on 4 November 2026 uses the current working tree. These resul
 
 | Check | Result | Scope |
 | --- | --- | --- |
-| Python tests | 774 passed, 4 live tests deselected | Rules, simulated/controlled providers, API, CLI, review, identity/version checks, source evidence, payment safety, restart/session behavior and workspace isolation. |
+| Python tests | 779 passed, 4 live tests deselected | Rules, simulated/controlled providers, API, CLI, review, identity/version checks, source evidence, payment safety, restart/session behavior and workspace isolation. |
 | Frontend tests | 81 passed | Interactions, four-panel records, developer-only exports, CSV safety, review, history, theme and progress semantics. |
 | Browser tests | 21 passed | Real local mock backend; includes collapsed developer-toggle, Handoffs breadcrumb, four-panel layout, review, PDF inspection, isolation, responsive UI and exports. |
 | Frontend lint, TypeScript and build | Passed | Production frontend served by the local backend. |
@@ -26,8 +26,8 @@ The four live Grok checks previously reported USD 0.065166 total provider cost. 
 
 - [Independent sample outcomes](../evidence/offline/sample-regression.json): source and policy fingerprints recorded in the artifact. Separate ledgers intentionally include alternate files and revisions, so do not sum their payments.
 - [Shared-ledger batch](../evidence/offline/batch-regression.json): historical recorded fingerprint; files and explicit revisions grouped before decisions.
-- [Container smoke](../evidence/offline/render-container.json): historical Linux amd64, 512 MB / 0.1 CPU, sequential operator workload. Peak memory 213,676,032 bytes, no OOM. This predates later UI and handoff work; it is not production-load evidence.
-- Live trace files are local and git-ignored; no keys or private runtime records are included in the public repository.
+- [Container smoke](../evidence/offline/render-container.json): historical Linux amd64, 512 MB / 0.1 CPU, sequential operator workload, committed in `b61dbf3` on 3 November 2026. Peak memory 213,676,032 bytes, no OOM. This predates later UI, recovery and correction-identity work. It has not been repeated for the current release and is not production-load evidence.
+- The original acceptance traces under `evidence/live/` are local and git-ignored. The later synthetic inputs and run results under `evidence/fresh-grok-2026-11-04/` are tracked for review. No API keys or private runtime records are included.
 
 ```bash
 uv run pytest
@@ -114,3 +114,10 @@ Analytics filters can now select failed/interrupted and queued/running attempts 
 Batch recovery tests use fresh temporary databases. Queued work survives restart and runs once. A subsequent explicit rerun does not create a second payment. In-flight work becomes interrupted instead of being automatically replayed. Concurrent same-token submissions create one batch, full queues do not consume new request tokens, a failed batch does not kill the worker, and cooperative cancellation records an interrupted result. Workspace reset refuses queued and running batches even before the first child run exists. The UI test checks the reason is shown and rerunning requires an explicit action with a new request token.
 
 These are concrete local correctness improvements. They do not establish distributed recovery, hosted persistence, OCR, or better Qwen extraction accuracy. No additional paid model calls were made for this follow-up, so the previously recorded Grok and Qwen outcomes are unchanged.
+
+
+## Correction identity hold regression
+
+A new API regression reproduces rejecting INV-1007, submitting unrelated INV-1012 as its correction, and attempting approval after resolving the vendor-name warning. Before the fix the request returned a USD 9,975 simulated receipt. After the fix it returns `not_approvable`, retains `needs_review` with no receipt, and the database contains no payment. Review options also disable approval. All checks use isolated temporary data and simulated inference, not provider credit.
+
+A correction identity hold is now stored independently of another review outcome. It takes precedence over reviewable identity flags, so clearing a vendor warning or selecting a revision cannot clear an unrelated-correction restriction. Existing rejection, duplicate and superseded outcomes retain their disposition. Unit tests check identity-flag precedence and preserve the rule that paid versions are not retroactively flagged. This is a code regression check; the prior Grok results are recorded checks and were not rerun for this fix.

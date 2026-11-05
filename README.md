@@ -108,7 +108,7 @@ Configuration is listed in [.env.example](.env.example); the app reads environme
 
 | Check | Recorded result |
 | --- | --- |
-| Backend tests | **774 passed**; four paid tests excluded from the default run |
+| Backend tests | **779 passed**; four paid tests excluded from the default run |
 | Frontend tests | **81 passed** |
 | Browser tests | **21 passed** |
 | Supplied sample files | **20/20 expected outcomes** using simulated responses |

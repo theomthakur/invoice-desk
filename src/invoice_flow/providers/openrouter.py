@@ -8,8 +8,9 @@ Verified against the official docs on 3 Nov 2026:
   schema;
 * an error can arrive inside an HTTP 200 body, so the body is always checked.
 
-Not verified (no key or spending cap was supplied): that the configured model slug exists and
-supports tools and strict schemas on this account. That needs a live smoke test.
+Recorded Grok 4.7 live checks exercised this adapter, inventory tools and structured responses.
+See docs/evaluation.md for those results and their scope. Availability on other accounts,
+future provider behavior and reliability on arbitrary invoices are not established by them.
 
 The API key is read from the server environment only. It is never logged, never put in an
 exception message, and never returned to a client.

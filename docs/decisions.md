@@ -28,11 +28,11 @@ The test and evidence details are in [evaluation.md](evaluation.md). A check mar
 | --- | --- | --- |
 | Read PDF/TXT, CSV, JSON and XML | `parsers/`, ingestion agent | All 20 supplied files run in mock mode; image-only PDFs need OCR and are rejected. |
 | SQLite inventory and stock checks | `storage.py`, `rules/inventory.py`, catalog tool | Unit tests and mock regression run. Stock is a fixed snapshot. |
-| Simulated VP decision and critique | `agents/review.py`, LangGraph in `workflow.py` | Controlled provider, mock workflow and browser tests. Live model behavior unverified. |
+| Simulated VP decision and critique | `agents/review.py`, LangGraph in `workflow.py` | Controlled-provider, mock and browser tests, plus recorded live Grok approval/critique checks. Broader reliability is not established; see evaluation. |
 | Mock payment or rejection with reasons | `ledger.py`, `tools/payment.py`, event log | Payment gate and duplicate/revision tests. No real bank. |
-| LLM / Grok | `providers/openrouter.py` | Adapter implemented, live requests unverified. Mock reader is deterministic and is not an LLM. |
+| LLM / Grok | `providers/openrouter.py` | Four known live Grok acceptance checks passed, followed by 16 fresh runs with 15 expected matches. Default mock mode is a simulation; see evaluation for the retained mismatch. |
 | Local operation without external APIs | mock provider, SQLite, CLI, API | Default simulation runs offline. Optional local Ollama inference is implemented but produced unnecessary holds; OpenRouter requires internet. |
-| Multiple agents, tool calls, structured outputs and correction | `agents/`, `workflow.py`, `llm.py` | Controlled tests and simulated tool calls; real-provider tool and schema behavior unverified. |
+| Multiple agents, tool calls, structured outputs and correction | `agents/`, `workflow.py`, `llm.py` | Controlled tests plus recorded real Grok tool calls and structured responses. Limited live coverage does not establish reliability on arbitrary invoices. |
 | CLI, structured logs and result | `main.py`, `cli.py`, `storage.py` | CLI and event tests; commands in the root README. |
 | UI and human review | `frontend/`, workspace API | Browser tests cover actual mock workflows, including review and blocked currency. |
 | Public repository | [Invoice Desk](https://github.com/theomthakur/invoice-desk) | The repository is public; verification of unpushed changes is local. |
