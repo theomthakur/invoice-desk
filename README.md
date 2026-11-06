@@ -1,20 +1,23 @@
 # Invoice Desk
 
-Invoice Desk helps an accounts-payable team answer three questions: **What does this invoice say? Is it valid? What should happen next?**
+**[Open the live demo](https://invoice-desk-823q.onrender.com/) · [Watch the YouTube walkthrough](https://youtu.be/3wwiXjCHQoQ)**
 
-It reads invoices, checks them against a sample inventory, runs an approval and a separate review of that approval, and records a simulated payment when the checks pass. Invoices with problems show a reason and a next step.
+Read an invoice, check it against inventory, review exceptions and record a simulated payment. Separate reader, validator, approver and critic agents work through LangGraph; Python enforces the payment rules.
 
 ![Invoice Desk workspace](frontend/docs/screenshots/dark-workspace.png)
 
-**Start here:** [Run locally](#run-locally) · [Try the demo](#try-the-demo) · [Features](#what-it-does) · [Test results](#tests-and-results)
+## Review it in three minutes
 
-**[Live demo](https://invoice-desk-823q.onrender.com/)** · **[Watch the walkthrough](https://youtu.be/3wwiXjCHQoQ)**
+1. Open the live demo. Allow about a minute if the service is waking up.
+2. Select **New invoice → Sample invoices**. Check the **AI model** selection; OpenRouter calls use the server's API credit.
+3. Process `invoice_1001.txt`, inspect the source, decision and activity, then save a decision or activity PDF.
+4. Try `invoice_1003.txt` for rejection and `invoice_1012.txt` for human review. Existing records can change the outcome to duplicate.
 
-The hosted demo may take a minute to wake after inactivity. Payments and inventory are simulated, and hosted records may be lost when the service restarts.
+Use **Guided walkthrough** for help, **System design** for the architecture, and **Presentation** for the full-screen explanation. Payments and inventory are simulated. Hosted records use temporary storage.
 
 ## Run locally
 
-Install **[uv](https://docs.astral.sh/uv/getting-started/installation/), Node 22 or newer, and npm**. From a fresh clone on macOS or Linux, run:
+Prerequisites: [uv](https://docs.astral.sh/uv/getting-started/installation/), Node 22+ and npm. On macOS or Linux:
 
 ```bash
 git clone https://github.com/theomthakur/invoice-desk.git
@@ -22,9 +25,9 @@ cd invoice-desk
 ./scripts/run_local.sh
 ```
 
-Open **http://127.0.0.1:8000**. The script installs locked dependencies, builds the interface and starts the app. It uses Python 3.12, which uv can download if needed. First-time setup needs internet; invoice processing in the default simulated mode does not. No model key, database setup or paid service is required. Press **Ctrl+C** to stop.
+Open **http://127.0.0.1:8000**. First setup needs internet. The script installs locked dependencies, builds the UI and starts offline test mode: no model key or API charge. Press **Ctrl+C** to stop. Local history stays in `data/runtime`.
 
-For manual setup or Windows, run these commands from the repository root:
+Manual setup, including Windows:
 
 ```bash
 uv sync --locked --python 3.12
@@ -33,135 +36,53 @@ npm --prefix frontend run build
 uv run python main.py --serve
 ```
 
-The app defaults to simulated mode when `MODEL_MODE` is unset. If your shell already has live-model settings, use the startup script or clear them first. Local records persist under `data/runtime`; use a fresh browser session for a separate workspace.
-
-Prefer the terminal? The same processing logic is available through the CLI:
+CLI, from the repository root:
 
 ```bash
 uv run python main.py --invoice_path=data/invoices/invoice_1001.txt
 uv run python main.py --mode mock --batch=data/invoices
 ```
 
-A rejected invoice is a valid business result, not a program crash. Running an invoice again may show it as a duplicate; it does not create another payment.
+The CLI defaults to offline testing unless `MODEL_MODE` is set. A rejection is a successful business result; processing the same invoice again does not create another payment.
 
-## Try the demo
+## Use real AI
 
-1. Open **New invoice** and choose **Sample invoices**.
-2. Select one of the files below and process it.
-3. Open the source, check the findings, then inspect the decision and activity.
+Follow [model setup](docs/model-setup.md) to configure a server-side key and spending limit. A configured browser defaults to live inference. **New invoice → AI model** offers Grok 4.7, Claude Haiku 4.5 and GPT-4o mini through OpenRouter. Offline testing is available in Developer mode, or when live AI is unconfigured. A live error stays visible; it does not switch to mock responses.
 
-| File | What to look for in simulated mode |
+Grok has the recorded live evaluation below. The alternative models have not passed an equivalent evaluation. Payments remain simulated with every model.
+
+## Requirements and implementation
+
+| Requirement | Implementation |
 | --- | --- |
-| `invoice_1001.txt` | A valid invoice reaches approval and receives a simulated receipt. |
-| `invoice_1003.txt` | An invalid invoice is rejected with reasons. |
-| `invoice_1012.txt` | A vendor-name change needs a person to review it. |
+| Ingest invoices | PDF/TXT extraction; CSV, JSON and XML parsers. |
+| Check inventory | SQLite stock lookup plus independent field, quantity and arithmetic checks. |
+| Multi-agent reasoning | Reader extracts; validator requests inventory; approver proposes; critic challenges. One revision, then human review if unresolved. |
+| Tool use and structured outputs | Typed responses and strict tool arguments; invalid data cannot authorize payment. |
+| Approval or rejection | Findings explain each result. Eligible invoices reach a transaction that rechecks identity, version, policy and approvals before a mock receipt. |
+| Local execution | Shared Python service for the CLI and browser; no key needed for offline testing. |
 
-The **Guided walkthrough** in the sidebar points out the actual controls. It waits for your actions and does not approve invoices for you. **System design** explains the flow, and **Presentation** provides a short, full-screen walkthrough.
+Roles may share a model. Structured inputs can skip model extraction; blocked invoices can stop early. Activity shows which stages actually ran.
 
-## What it does
+Additional features: department handoffs, linked corrections/retries, duplicate protection, analytics charts, source inspection, PDF/CSV reports, multi-select, dark mode and a collapsible sidebar. Handoffs record an assignment; they do not notify a department or authorize payment.
 
-The required path is **ingest -> validate against SQLite inventory -> approval and critique -> mock payment or a logged rejection**. The CLI works without a mode flag. The SQLite database and starter inventory are created automatically.
+**Stack:** Python, FastAPI, LangGraph, SQLite, React, TypeScript and Docker. [Architecture and code map](docs/architecture.md) · [Policy decisions](docs/decisions.md)
 
-| Feature | What is implemented |
-| --- | --- |
-| Read invoices in different formats | PDF, TXT, CSV, JSON and XML. CSV supports comma, semicolon and tab separators. |
-| Extract and validate data | Required fields, totals, quantities, inventory, dates and currency checks. The original source remains available. |
-| Use multiple agents | Separate reader, validator, approver and critic roles, coordinated with LangGraph. |
-| Simulate approval and review | The approver proposes a decision; the critic checks it. One revision is allowed before unresolved disagreements go to a person. |
-| Process payments or reject invoices | Code rechecks the rules before recording a simulated receipt. Rejections and holds retain their reasons. |
-| Run locally | Both the browser interface and CLI use the same Python service and SQLite database. |
-
-### What makes it multi-agent?
-
-Each role has a different job and exchanges results in a checked format:
-
-- **Reader:** extracts invoice fields from PDF or text. Structured files are read directly by code.
-- **Validator:** requests an inventory lookup. Python also checks the arithmetic and other rules independently.
-- **Approver:** proposes whether to approve, reject or request review.
-- **Critic:** challenges that proposal and can request a revision.
-
-These roles can share one model. They are separate steps, not four parallel services. Invalid invoices can stop early. A model’s approval alone cannot authorize payment.
-
-## Workspace features
-
-- **Review and handoffs:** choose a reason, add an optional note, or assign an invoice to a department. Assignment does not authorize payment or send a notification.
-- **Corrections and retries:** submit a corrected file or retry failed work while keeping the original record.
-- **Analytics:** charts show outcomes, activity, review backlog and blocking reasons. Open matching records and filter by date, vendor or processing result.
-- **Reports:** save branded decision and activity PDFs through the browser print dialog, or export CSV. Technical JSON is available in Developer mode.
-- **Usability:** light/dark themes, a collapsible sidebar, invoice search, multi-select and four review panels that scroll independently.
-
-## How the system fits together
-
-```mermaid
-flowchart LR
-    Input[Browser or CLI] --> API[FastAPI and local workers]
-    API --> Read[Read and check invoice]
-    Read --> Review[Approve and critique]
-    Review --> Gate[Code checks payment rules]
-    Gate --> Result[Receipt, rejection or review hold]
-    API <--> DB[(SQLite)]
-    Read -.-> Model[Simulation, OpenRouter, xAI or local Ollama]
-    Review -.-> Model
-```
-
-**Stack:** React and TypeScript for the interface; FastAPI and Python for the API and checks; LangGraph for the agent flow; SQLite for inventory, invoices, jobs and history. Docker packages the app into one service.
-
-Duplicate files and revisions are checked before payment. Queued batches resume after restart; work interrupted mid-processing requires an explicit rerun. Existing receipts remain protected from a second payment. Workspace reset is blocked while work is active.
-
-[Detailed architecture](docs/architecture.md) · [Rules and design decisions](docs/decisions.md)
-
-## Model options
-
-| Option | When to use it |
-| --- | --- |
-| **Offline test, local default** | Run the app offline without a key or provider charges. This does not test real model reasoning. |
-| **OpenRouter with Grok 4.7** | Use real model responses. Set `OPENROUTER_API_KEY` and a positive `MODEL_BUDGET_USD`, then use `--mode live` in the CLI. Internet and provider credit are required. |
-| **Direct xAI with Grok 4.7** | Set `LLM_PROVIDER=xai`, `XAI_API_KEY` and a positive `MODEL_BUDGET_USD`, then choose live mode. Uses xAI directly. Offline adapter tests pass; a live direct-xAI run has not been recorded. |
-| **Local Ollama, experimental** | Run an installed tool-capable model with `LLM_PROVIDER=ollama`. Start the daemon with `OLLAMA_NO_CLOUD=1`. Tested Qwen models held clean invoices unnecessarily, so this is not the recommended demo option. |
-
-The hosted browser prefers live AI when configured. In **New invoice → AI model**, choose **Grok 4.7**, **Claude Haiku 4.5** or **GPT-4o mini** through OpenRouter. Grok is the default unless the operator sets another model. The offline test option appears in Developer mode, or when live AI is unavailable. Only Grok has recorded live evaluation results; the other choices are alternatives, not equally validated models.
-
-For step-by-step setup with either cloud provider, see [model setup](docs/model-setup.md). Payments stay simulated with every model option.
-
-Configuration is listed in [.env.example](.env.example); the app reads environment variables and does not load that file automatically. Live errors remain visible rather than silently switching to simulation. Set a provider-side spending limit too: the application cannot count costs the provider does not report.
-
-## Tests and results
+## Verification
 
 | Check | Recorded result |
 | --- | --- |
-| Backend tests | **798 passed**; four paid tests excluded from the default run |
-| Frontend tests | **83 passed** |
-| Browser tests | **21 passed** |
-| Supplied sample files | **20/20 expected outcomes** using simulated responses |
-| Grok rerun with corrected policy label | **16/16 expected matches** across ten known scenarios; three scenarios were each run three times |
+| Backend | 798 tests passed; four paid tests excluded. |
+| Frontend / browser | 83 frontend tests and 21 browser tests passed. |
+| Supplied samples | 20/20 expected outcomes with offline test responses. |
+| Live Grok rerun | 16/16 expected matches across ten known scenarios; $0.198862 provider-reported cost. |
 
-The latest Grok rerun cost **$0.198862**, with no unsafe payments observed. Before rerunning, the missing-vendor expectation was corrected and committed to match the existing rejection policy. The original inputs and earlier results remain in the evaluation record. This is a known-case check, not a general accuracy guarantee.
+The Grok rerun used a corrected missing-vendor expectation frozen before inference. The original 15/16 result is retained. These are known-case checks, not general accuracy claims. See [evaluation and reproduction commands](docs/evaluation.md).
 
-```bash
-uv run pytest
-uv run ruff check .
-uv run ruff format --check .
-uv run python scripts/export_openapi.py --check
-npm --prefix frontend test
-npm --prefix frontend run lint
-npm --prefix frontend run build
-# Install Chromium once before the browser tests:
-cd frontend
-npx playwright install chromium
-npm run test:e2e
-```
+## Limits and deployment
 
-[Evaluation details and evidence](docs/evaluation.md)
+No real bank, ERP, vendor master, notification service or enterprise sign-in is connected. OCR is excluded. Run one server process; distributed recovery and production load are unverified. Render records may reset after restart or redeployment. [Render instructions](docs/deployment.md) · [Model configuration](docs/model-setup.md)
 
-## Deployment and limits
+`main` is the product branch; `deployment` is the hosting release branch. Both carry the same reviewed application code.
 
-- **`main`** is the reviewed product. **`deployment`** is the hosting release branch. Shared fixes go into main first, then are merged into deployment.
-- The [hosted Render demo](https://invoice-desk-823q.onrender.com/) uses temporary storage, so records can be lost when the service restarts.
-- The application also runs locally; hosting is an optional demo.
-- Payments, approvals and inventory are simulated. No bank, ERP, email or vendor-master service is connected.
-- Scanned pages need OCR, which is not included. A scan inside a text PDF is reported rather than silently skipped.
-- Run one server process. Distributed recovery, production load and accessibility conformance have not been verified.
-
-[Deployment instructions](docs/deployment.md) · [Full limitations](docs/decisions.md)
-
-Sample invoices come from the [Galatiq case repository](https://github.com/galatiq-ai/galatiq-case-invoices), as recorded in [SOURCE.md](data/invoices/SOURCE.md). Built with AI coding assistance.
+Sample inputs originate from the [Galatiq case repository](https://github.com/galatiq-ai/galatiq-case-invoices); see [provenance](data/invoices/SOURCE.md). Built with AI coding assistance.

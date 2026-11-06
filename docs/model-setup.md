@@ -1,17 +1,24 @@
-# Choose a model provider
+# Configure AI models
 
-The local CLI defaults to offline test responses: no model key or API charge. A configured browser session prefers live AI. For real model responses,
-choose **OpenRouter** or **direct xAI** on the server. Reviewers can use their own key.
-Never put a key in the browser, source code, screenshots or a committed file.
+**[Live demo](https://invoice-desk-823q.onrender.com/) · [YouTube walkthrough](https://youtu.be/3wwiXjCHQoQ)**
 
-## Local setup
+Use OpenRouter for the hosted demo. Keys stay on the server. Inventory, VP authority and payments remain simulated even with real AI responses.
 
-Complete the [local quick start](../README.md#run-locally) once to install dependencies and build the interface, then stop the server before configuring live mode.
+## OpenRouter locally
 
-1. Copy `.env.example` to `.env` and edit it locally. `.env` is git-ignored.
-2. Set one of the configurations below. Enter the matching key in that private file.
-3. Set a positive `MODEL_BUDGET_USD` and a provider-side spending limit.
-4. Load the file into the shell before starting the app:
+Complete the [local setup](../README.md#run-locally), then stop the app. Copy `.env.example` to ignored `.env` and set:
+
+```dotenv
+LLM_PROVIDER=openrouter
+LLM_MODEL=x-ai/grok-4.7
+LLM_BASE_URL=
+MODEL_MODE=live
+ALLOW_LIVE_IN_SESSIONS=1
+OPENROUTER_API_KEY=your-private-key
+MODEL_BUDGET_USD=your-positive-budget
+```
+
+Replace both placeholders. Set a provider-side spending limit, then start from the repository root (macOS/Linux):
 
 ```bash
 set -a
@@ -20,60 +27,24 @@ set +a
 uv run python main.py --serve
 ```
 
-For the browser, set `ALLOW_LIVE_IN_SESSIONS=1` before starting and choose a model under **New invoice → AI model**.
-OpenRouter offers Grok 4.7, Claude Haiku 4.5 and GPT-4o mini; the operator-configured model is selected first. Model choice is saved with each queued run and batch, including across server restarts. Only these approved choices and the operator-configured model can be requested.
-The offline test option is available in Developer mode. For the CLI, pass `--mode live` or set `MODEL_MODE=live`. The CLI does not switch modes merely because a key is present. Restart the server after changing configuration.
+On Windows, set the same environment variables in PowerShell before running the Python command. The app does not automatically load `.env`.
 
-### OpenRouter
+Open **New invoice → AI model**. Choices are **Grok 4.7**, **Claude Haiku 4.5** and **GPT-4o mini** through OpenRouter; the configured model is selected first. Each job retains its selection across queue recovery. Only approved IDs can be requested. Grok has recorded live evaluation; alternatives have not passed equivalent checks.
 
-```dotenv
-LLM_PROVIDER=openrouter
-LLM_MODEL=x-ai/grok-4.7
-LLM_BASE_URL=
-MODEL_MODE=live
-```
+For CLI inference, run `uv run python main.py --mode live --invoice_path=data/invoices/invoice_1001.txt`. `./scripts/run_local.sh` deliberately starts offline testing; use the command above for live mode.
 
-Set `OPENROUTER_API_KEY` privately. OpenRouter uses its own model identifier and endpoint.
-The recorded Grok evaluation used this path.
+## Other options
 
-### Direct xAI
+| Option | Configuration |
+| --- | --- |
+| Direct xAI | `LLM_PROVIDER=xai`, `LLM_MODEL=grok-4.7`, private `XAI_API_KEY`, positive budget; clear `LLM_BASE_URL`. Offline contract tests only; no recorded funded direct-xAI run. |
+| Offline test | `MODEL_MODE=mock`; no model calls. Browser option appears in Developer mode, or when live AI is unconfigured. |
+| Local Ollama | `LLM_PROVIDER=ollama`; installed local tool-capable model and daemon with `OLLAMA_NO_CLOUD=1`. Experimental: tested Qwen models did not pass clean-invoice acceptance. |
 
-```dotenv
-LLM_PROVIDER=xai
-LLM_MODEL=grok-4.7
-LLM_BASE_URL=
-MODEL_MODE=live
-```
+Changing a provider requires its matching model ID and key. Restart after environment changes. Live failures remain errors; there is no automatic provider or offline fallback.
 
-Set `XAI_API_KEY` privately. This calls `https://api.x.ai/v1` directly, without OpenRouter.
-Leave `LLM_MODEL` and `LLM_BASE_URL` blank to use defaults for the selected provider.
-When switching providers, clear old overrides or replace them with the matching values.
-The app does not try another provider or simulation if the selected provider fails.
+## Render and spending
 
-Direct xAI request, tool, schema, credential and cost handling have offline contract tests.
-A funded direct xAI run has not been recorded. The existing OpenRouter results are not
-claimed as validation of the direct path.
+The [Blueprint](../render.yaml) enables OpenRouter/browser live mode. Enter keys and the budget privately in Render, keep the generated session secret, then deploy. Optional access code: `DEMO_ACCESS_CODE`. [Deployment steps](deployment.md)
 
-## Payments and costs
-
-Both providers use real model inference in live mode. **Payments, approvals and inventory
-remain simulated**, as requested by the case. Eligible invoices receive a stored simulated
-receipt after the code-controlled gate checks the current invoice, approvals and holds.
-No real money moves. Missing keys do not change how payment safety is checked.
-
-OpenRouter reports cost in USD. Direct xAI reports integer USD ticks, converted at
-10,000,000,000 ticks per dollar. Missing or invalid cost remains unknown, never zero.
-The application cap uses recorded known costs between runs; it is not a hard reservation
-for every request or a substitute for a provider-side limit.
-
-## Render
-
-The committed Blueprint stays in simulation. To deliberately enable live inference,
-configure the selected provider, its private key, model and budget in Render, with an
-access code and `ALLOW_LIVE_IN_SESSIONS=1`. Update the corresponding Blueprint values
-on the deployment branch too, so a later sync does not restore the mock settings.
-The key must stay a private environment secret. No hosting or paid inference is enabled
-by this document.
-
-Protocol references: [xAI structured outputs](https://docs.x.ai/developers/model-capabilities/text/structured-outputs),
-[xAI cost reporting](https://docs.x.ai/developers/cost-tracking).
+The application cap checks recorded known costs between runs; it does not reserve all in-flight spending. Unknown costs are not counted. Use a provider-side key limit. OpenRouter reports USD cost; direct xAI's integer USD ticks are converted at 10,000,000,000 ticks per dollar.

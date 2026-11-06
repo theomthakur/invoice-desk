@@ -1,114 +1,57 @@
-# Decisions and discovery record
+# Rules and design decisions
 
-Status: current prototype policy. Updated 3 November 2026.
-Sample invoice provenance is recorded in [SOURCE.md](../data/invoices/SOURCE.md).
-This file records our assumptions. None of it comes from client interviews, and no business
-figure here is measured.
+The user is a fictional accounts-payable operator. The goal is to turn mixed-format invoices into a receipt, rejection or review hold with a visible reason. Scenario business figures are supplied context, not measured savings. Policy lives in `config/policy.yaml`; implementation and tests are mapped in [architecture](architecture.md).
 
-## 1. The problem, in operator terms
+## Main choices
 
-| Question | Answer used for this build |
+| Choice | Reason |
 | --- | --- |
-| Who is the user? | A fictional accounts-payable operator at Acme Corp. |
-| What happens today? | Invoices arrive by email in mixed formats. Staff retype them, check them against a legacy inventory database, chase a VP by email, then pay through a bank API. The original scenario describes a 30% error rate and 5-day delays. Those are scenario context. This prototype does not measure them. |
-| Minimum useful outcome | Every invoice ends as exactly one of: paid, rejected with reasons, held for a person, duplicate, or superseded. The reason is always visible. |
-| Who reviews exceptions? | A simulated human reviewer (labelled as such). Real authentication is out of scope. |
-| Which inputs are trusted? | Only the inventory database and `config/policy.yaml`. Invoice text is untrusted data. Wording inside an invoice can never approve, pay, or change a rule. |
-| What is mocked? | The bank (`mock_payment`), the VP, and the inventory database. |
-| What stops payment when a fact is uncertain? | Unknown stays unknown. A missing or unreadable value is a finding, never a guess. Uncertain identity or currency holds the invoice for review. |
-| Which policy choices are ours? | Listed in section 3. The sample scenario supplies the stock numbers and gives the USD 10,000 threshold as an example. |
-| Revisions and duplicates | One payment per payable, ever. Revisions are stored as separate versions under that payable (section 3, rows 9-11). |
-| Local vs hosted | The CLI and SQLite support local operation. A hosted demo is optional. |
+| One Python service and SQLite | Simple local setup; shared rules for CLI and UI. Requires one process. |
+| Separate reader, validator, approver and critic | Distinct responsibilities, checked exchanges and a bounded correction loop. |
+| Code controls payment | Model approval cannot bypass arithmetic, identity, version or policy checks. |
+| Real OpenRouter; offline test option | Demonstrate real reasoning while preserving the brief's local/offline execution path. |
+| React operator workspace | Source inspection, review and reports in one interface. |
 
-## 2. Features and evidence
+## Payment policy
 
-The test and evidence details are in [evaluation.md](evaluation.md). A check marked implemented still has the limitations listed below.
+| Rule | Behavior |
+| --- | --- |
+| Inventory | Read-only sample snapshot. Sum repeated item quantities before comparing stock. No authoritative price list was supplied. |
+| Threshold | Strictly above USD 10,000 requires additional scrutiny; exactly 10,000 does not. |
+| Currency | Automatic payment is USD-only. Missing currency defaults to USD with an INFO finding; other currencies remain blocked. No invented exchange rates. |
+| Totals | Preserve stated amounts. Derive absent values only. Rounding tolerance is one minor currency unit. |
+| Identity | Normalize vendor and invoice number conservatively; keep leading zeros and distinct legal suffixes. One payment per payable across revisions. |
+| Revisions | Source-supported newer unpaid revisions supersede older ones. Revisions after payment require reconciliation. Unordered conflicts need explicit content-bound review. Never pay a difference automatically. |
+| Corrections | An unrelated document cannot become payable by attaching it as a correction or clearing another vendor warning. |
+| Dates | Overdue is informational. Unresolved dates remain unknown; ambiguous numeric dates are flagged. |
+| Source evidence | Extracted values and repairs need support. Look-alike character repairs are distinguished from changes in amount or meaning. |
+| Document instructions | Treat invoice text as untrusted data. Embedded instructions cannot change policy or authorize payment. |
+| Vendor name change | Hold for review. Urgency wording alone is a warning, not a fraud conclusion. |
+| Approval binding | Invoice content or policy changes invalidate approval. The gate reloads both before payment. |
 
-| Feature | Implementation | Verification or limitation |
-| --- | --- | --- |
-| Read PDF/TXT, CSV, JSON and XML | `parsers/`, ingestion agent | All 20 supplied files run in mock mode; image-only PDFs need OCR and are rejected. |
-| SQLite inventory and stock checks | `storage.py`, `rules/inventory.py`, catalog tool | Unit tests and mock regression run. Stock is a fixed snapshot. |
-| Simulated VP decision and critique | `agents/review.py`, LangGraph in `workflow.py` | Controlled-provider, mock and browser tests, plus recorded live Grok approval/critique checks. Broader reliability is not established; see evaluation. |
-| Mock payment or rejection with reasons | `ledger.py`, `tools/payment.py`, event log | Payment gate and duplicate/revision tests. No real bank. |
-| LLM / Grok | `providers/openrouter.py` | Four known acceptance checks passed. The latest policy-corrected Grok rerun matched 16/16 outcomes after an approved label correction was frozen. The original 15/16 run is retained in evaluation. Default mock mode is a simulation. |
-| Local operation without external APIs | mock provider, SQLite, CLI, API | Default simulation runs offline. Optional local Ollama inference is implemented but produced unnecessary holds; OpenRouter requires internet. |
-| Multiple agents, tool calls, structured outputs and correction | `agents/`, `workflow.py`, `llm.py` | Controlled tests plus recorded real Grok tool calls and structured responses. Limited live coverage does not establish reliability on arbitrary invoices. |
-| CLI, structured logs and result | `main.py`, `cli.py`, `storage.py` | CLI and event tests; commands in the root README. |
-| UI and human review | `frontend/`, workspace API | Browser tests cover actual mock workflows, including review and blocked currency. |
-| Public repository | [Invoice Desk](https://github.com/theomthakur/invoice-desk) | The repository is public; verification of unpushed changes is local. |
+Default input limits: 2 MB/file, 200,000 text characters, 20 PDF pages, 1,000 CSV rows and 200 line items. These are implementation choices, not externally mandated limits.
 
-## 3. Policy decisions
+## Findings and review
 
-| # | Decision | Reason |
-| --- | --- | --- |
-| 1 | **Stock is a read-only snapshot.** Paying an invoice does not reduce it. | Keeps each run reproducible. A real system would reserve stock against receiving. |
-| 2 | **Quantities are summed per item** before comparing with stock. Each priced line is kept. | Splitting an order across lines must not hide an over-order. Sample 1013 relies on this. |
-| 3 | **Approval threshold: strictly above USD 10,000** needs completed extra scrutiny. Exactly 10,000 does not. | The sample scenario specifies "over $10K". The boundary is tested. |
-| 4 | **USD only for automatic payment.** Other currencies are held as `UNSUPPORTED_CURRENCY`. A reviewer cannot clear it. | No exchange rate was supplied. Converting with an invented rate would be fabricating a payment amount. |
-| 5 | **A missing currency defaults to USD, with an INFO finding.** The three supplied CSV files state no currency. | Otherwise three valid samples could never be paid. This is configurable (`assume_currency_when_missing`). |
-| 6 | **A former vendor name ("formerly X") holds the invoice for review.** | This is a common payment-redirection pattern. It is a signal, not proof. Switch: `review_on_vendor_identity_change`. |
-| 7 | **Urgency wording is a WARNING only.** It never blocks and is never called fraud. | Urgent wording appears on legitimate invoices too. |
-| 8 | **Document text is data.** Text that tries to instruct the system is a REVIEW finding. | Prompt-injection defense. The rules run in code, so the text cannot switch them off. |
-| 9 | **Payable identity = normalized vendor + normalized invoice number**, stable across revisions. | One payment per payable, enforced by a database UNIQUE constraint. |
-| 10 | **Identity normalization is conservative.** Case, spacing and punctuation are ignored. `Widgets Inc.` and `Widgets LLC` stay different. `INV-1002` and `1002` stay different. Leading zeros are kept. | Wrongly merging two vendors is worse than holding a duplicate. |
-| 11 | **Revisions.** An explicit source-supported newer revision of an unpaid invoice supersedes the older one. A revision after payment is held for reconciliation. Versions with no usable order remain held across resubmission until a reviewer explicitly selects an eligible unpaid version using its content hash. We never pay a difference automatically. | Credits and partial payments are not specified by the sample scenario. Other errors and identity holds still block selection. |
-| 12 | **Batch preflight decides versions before any payment.** Filename order alone never selects what is paid. | Sorting by name could pay the wrong version. |
-| 13 | **Overdue is INFO.** The clock is injected. | Every sample due date is in the past today. Rejecting them all would hide real problems. |
-| 14 | **Unresolved dates stay unknown.** Evidence-backed extraction corrections are recorded; unsupported guesses such as `yesterday` are not accepted. Numeric `NN/NN/YYYY` dates get a WARNING when the order is ambiguous. | Wrong dates are worse than missing dates. |
-| 15 | **Stated totals are never rewritten.** A wrong total is a finding. Only absent values are derived. | We report what the invoice says, not what we wish it said. |
-| 16 | **Tolerance: 1 minor unit** (one cent for USD). | Absorbs rounding only. Tested at the boundary. |
-| 17 | **Model repairs need evidence.** A correction must quote the source. It is accepted as a plain repair only if it differs by look-alike characters (`O`/`0`). A change of magnitude (`3,500.O0` to `350,000`) is held. Extracted numbers and field-specific dates/revisions need source support; supported date normalization and grounded payment-term derivation are allowed. | A model repeating itself is not proof. |
-| 18 | **Approvals bind to invoice content and policy.** Changing either voids the approval. | Prevents approving one thing and paying another. |
-| 19 | **The payment gate reloads and re-validates everything inside one transaction.** The caller passes identifiers only. | A UI boolean or a model's say-so is never authorization. |
-| 20 | **Demo limits are ours:** 2 MB per file, 200,000 characters of text, 20 PDF pages, 1,000 CSV rows, 200 lines. | These policy values can be changed. |
+- **ERROR:** reject; a reviewer cannot clear it.
+- **REVIEW:** hold. Only server-designated findings can be resolved.
+- **WARNING:** may proceed, with the concern addressed in the rationale.
+- **INFO:** display without blocking.
 
-## 4. Findings, severity and route
+The authoritative list is [`FINDING_SPECS`](../src/invoice_flow/findings.py). Currency, unrelated-correction and paid-revision restrictions cannot be cleared by resolving an ordinary vendor warning. Review requests bind to the stored version and content hash. Department assignment alone grants no approval.
 
-`ERROR` rejects. `REVIEW` holds for a person. `WARNING` allows payment but the rationale must address it. `INFO` is shown only.
-A reviewer can clear a REVIEW finding only when the code is marked *reviewer-resolvable* (`findings.py`). ERRORs are never clearable.
+## What the supplied data revealed
 
-| Code | Severity | Reviewer can clear | Needs evidence |
-| --- | --- | --- | --- |
-| MISSING_FIELD (identity, due date, items, total) | ERROR | no | no |
-| MISSING_FIELD (invoice date only) | WARNING | no | no |
-| SOURCE_FIELD_INVALID, INVALID_QUANTITY, INVALID_AMOUNT, NEGATIVE_AMOUNT | ERROR | no | some |
-| UNKNOWN_ITEM, AMBIGUOUS_ITEM, ZERO_STOCK_ITEM, INSUFFICIENT_STOCK | ERROR | no | no |
-| LINE_TOTAL_MISMATCH, SUBTOTAL_MISMATCH, TOTAL_MISMATCH | ERROR | no | no |
-| UNRESOLVED_DATE, DUE_BEFORE_INVOICE | ERROR | no | UNRESOLVED_DATE |
-| TAX_MISMATCH, TERMS_DATE_INCONSISTENT, AMBIGUOUS_DATE | WARNING | no | AMBIGUOUS_DATE |
-| PAYMENT_PRESSURE_LANGUAGE | WARNING | no | yes |
-| OVERDUE, CURRENCY_ASSUMED, EXTRACTION_CORRECTION, DUPLICATE_SUBMISSION, SUPERSEDED_VERSION | INFO | n/a | EXTRACTION_CORRECTION |
-| UNSUPPORTED_CURRENCY | REVIEW | **no** | no |
-| REVISION_AFTER_PAYMENT, REVISION_CONFLICT | REVIEW | no | no |
-| VENDOR_IDENTITY_CHANGE | REVIEW | yes | yes |
-| PAYMENT_INSTRUCTION_IN_DOCUMENT | REVIEW | yes | yes |
-| EMBEDDED_INSTRUCTIONS | REVIEW | yes | yes |
-| CORRECTION_NOT_IN_SOURCE, SUBSTANTIVE_CORRECTION, VALUE_NOT_IN_SOURCE | REVIEW | yes | yes |
+- 20 files represent 16 invoice numbers: revision 1004 R1 and alternate-format pairs for 1011, 1012 and 1013.
+- 1007's stated total disagrees with subtotal plus tax. 1013 is overstated by $50 and exceeds stock when repeated items are combined.
+- 1011.pdf omits subtotal/tax lines; 1012 includes look-alike character errors. Preserve uncertainty and source evidence.
+- Three CSV samples omit currency; 1014 uses EUR. 1002's dates conflict with Net 30 terms.
+- 1010 has different prices across lines, but no supplied catalog establishes that either price is invalid.
 
-The authoritative table is `FINDING_SPECS` in `src/invoice_flow/findings.py`, and a test checks it is complete.
+File names and expected labels are evaluation inputs; runtime rules do not branch on them. [Sample provenance](../data/invoices/SOURCE.md) · [Evaluation](evaluation.md)
 
-## 5. Observations about the supplied data
+## Boundaries
 
-Verified by running the code, not only by reading:
+Payments, inventory, VP authority and review identities are simulated. No real bank, vendor master, notification or ERP is connected. Source matching and instruction detection are safeguards, not complete semantic/security proofs. No OCR, distributed recovery, production load guarantee, enterprise authorization or verified backup/restore. Hosted storage is temporary. Spending controls use known provider-reported costs; enforce a provider-side key limit too.
 
-- **20 files, 16 invoice numbers.** One explicit revision (1004 R1) and three alternate-format pairs (1011, 1012, 1013).
-- **1007** states a total of 15,525, but 14,750 plus 885 tax is 15,635.
-- **1013** states a total of 22,562.80, but 21,040 plus 1,472.80 tax is 22,512.80 (a USD 50 difference). Each line fits stock alone, but summed per item the quantities are 22, 18 and 9 against stock of 15, 10 and 5.
-- **1011.pdf** has no subtotal or tax lines, and **1012.pdf** has the same `2O26` and `3,500.O0` typos as its text twin. So duplicate detection cannot depend on those lines, and OCR repair cannot be assumed already done in the PDF.
-- **1006, 1007, 1015** state no currency. **1014** is in EUR.
-- **1002** has a due date equal to its invoice date but "Net 30" terms. We report a WARNING and do not invent a rule that this is illegal.
-- **1010** charges 300 for one rush WidgetA line against 250 elsewhere. We have no authoritative price list, so this is not a finding.
-
-## 6. Current limitations
-
-- Default mock mode uses a deterministic simulated reader. Optional real local Ollama inference is available, with metadata checks that reject remote aliases and a requirement to disable cloud routing on the daemon. Local Qwen checks did not pass clean-invoice acceptance, so it remains experimental. Grok has four known acceptance checks plus 16 fresh runs; see evaluation for outcomes, latency, cost and the retained expected-label mismatch.
-- Tests that use hand-written TXT/PDF drafts prove deterministic checks, not real model extraction accuracy. The 20 supplied examples are a known regression set, not a blind test.
-- Older held batch records with no version are reconciled when their original sources are submitted again. Until unknown legacy identities are accounted for, the workspace remains blocked from new payment; an explicit content-bound review is then required. Reconciliation records no invented historical approval.
-- Default local sessions created before persistent signing keys cannot regain access if their old process-only key has already been lost. The database is retained; new sessions persist their signing key alongside it.
-- The evidence checks look for source quotes and values, but do not prove every field's semantic meaning. Prompt-injection detection uses patterns and is not a complete security boundary.
-- No OCR. A scanned PDF without a text layer is refused. New PDF records retain original bytes plus text; historical text-only records need the source loaded again to recover the original.
-- No vendor master, authoritative price list or FX source was supplied, so none is checked. A reviewer can only clear a finding if its policy marks it resolvable.
-- Payments, inventory and review identities are simulated. A mock receipt is not proof of bank settlement. Workspaces are sandboxed by a signed session cookie, not enterprise authentication.
-- Run exactly one server process. A running job is marked interrupted after a restart. Queued batches resume; running batches become interrupted with a visible rerun option. Free hosted storage is ephemeral.
-- The application spending cap counts only costs reported by the provider; an unknown provider cost is not counted. Public live mode is disabled by default and needs a provider-side cap before enabling.
-- Coverage is risk-based, not exhaustive. No cross-process load, production backup/restore or accessibility conformance audit has been performed.
+Unknown legacy identities can hold new payment until sources are resubmitted and reconciled. Old browser sessions whose process-only signing key was lost cannot be recovered; current local signing keys persist beside the database. Local Ollama is experimental because tested Qwen models held clean invoices unnecessarily.
