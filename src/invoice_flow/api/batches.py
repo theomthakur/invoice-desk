@@ -53,7 +53,13 @@ class BatchRunner:
             self._thread.join(timeout=5)
 
     def submit(
-        self, ws: str, names: list[str], mode: str, token: str, payload: str
+        self,
+        ws: str,
+        names: list[str],
+        mode: str,
+        token: str,
+        payload: str,
+        model: str | None = None,
     ) -> tuple[str, bool]:
         """Claim the request token and queue row in the same write transaction."""
         with self.app.db.transaction() as conn:
@@ -81,9 +87,9 @@ class BatchRunner:
             )
             conn.execute(
                 "INSERT INTO batches "
-                "(batch_id,workspace_id,lifecycle,mode,document_ids_json,created_at) "
-                "VALUES (?,?,'queued',?,?,?)",
-                (batch_id, ws, mode, json.dumps(names), self.app.db.now()),
+                "(batch_id,workspace_id,lifecycle,mode,document_ids_json,created_at,model) "
+                "VALUES (?,?,'queued',?,?,?,?)",
+                (batch_id, ws, mode, json.dumps(names), self.app.db.now(), model),
             )
         self._queue.put(batch_id)
         return batch_id, False
@@ -104,6 +110,7 @@ class BatchRunner:
                     json.loads(row["document_ids_json"]),
                     row["mode"],
                     self._cancel,
+                    **({"model": row["model"]} if row["model"] else {}),
                 )
                 lifecycle = "interrupted" if self._cancel.is_set() else "completed"
             except (

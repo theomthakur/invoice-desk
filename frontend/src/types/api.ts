@@ -10,6 +10,9 @@ export interface SessionInfo {
 }
 export interface ConfigInfo {
   model_provider?: 'openrouter' | 'xai' | 'ollama';
+  model_options?: { id: string; label: string }[];
+  default_model?: string;
+  default_mode?: Mode;
   schema_version: string;
   policy_version: string;
   limits: { max_file_bytes: number; max_pdf_pages: number; max_line_items: number };

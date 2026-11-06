@@ -70,6 +70,7 @@ from ..money import format_amount, format_minor
 from ..parsers import SourceError, parse_bytes
 from ..parsers.common import safe_filename
 from ..parsers.pdf import pdf_page_count, render_pdf_page
+from ..providers import ProviderError
 from ..review_routing import RoutingError, record_handoff, routing_info
 from ..runtime import App, AppConfig
 from ..schemas import RunEvent, RunLifecycle, RunResult, SourceFormat
@@ -177,10 +178,14 @@ def create_app(
     limiter = RateLimiter(config.rate_limit_per_minute)
     runner = JobRunner(ctx)
 
-    def process_queued_batch(ws, names, mode, cancel):
+    def process_queued_batch(ws, names, mode, cancel, model=None):
         files = _sample_files()
         return process_batch(
-            [files[name] for name in names], app=ctx, mode=mode, workspace_id=ws, cancel=cancel
+            [files[name] for name in names],
+            app=ctx.for_model(model),
+            mode=mode,
+            workspace_id=ws,
+            cancel=cancel,
         )
 
     batch_runner = BatchRunner(ctx, process_queued_batch)
@@ -334,6 +339,9 @@ def create_app(
         p = ctx.policy
         return ConfigInfo(
             model_provider=config.llm_provider,
+            model_options=config.model_options(),
+            default_model=config.llm_model,
+            default_mode="live" if "live" in config.modes_enabled(for_session=True) else "mock",
             policy_version=p.policy_version,
             limits=LimitsInfo(
                 max_file_bytes=p.limits.max_file_bytes,
@@ -448,9 +456,23 @@ def create_app(
             store_document(conn, ws, parsed.source, ctx.db.now())
         return parsed.source.document_id
 
+    def _selected_model(mode: str, model: str | None) -> str | None:
+        if mode != "live":
+            if model is not None:
+                raise ApiError(422, "model_unavailable", "Select live mode to use a model.")
+            return None
+        try:
+            ctx.for_model(model)
+        except ProviderError as exc:
+            raise ApiError(
+                422, "model_unavailable", "That model is not enabled on this server."
+            ) from exc
+        return model or config.llm_model
+
     @api.post(f"{API}/runs", response_model=RunAccepted, status_code=202)
     async def create_run(body: CreateRunRequest, response: Response, ws: str = Depends(mutation)):
-        payload = _payload_hash("run", body.document_id, body.sample_id, body.mode)
+        model = _selected_model(body.mode, body.model)
+        payload = _payload_hash("run", body.document_id, body.sample_id, body.mode, model)
         existing = _dedupe(ws, body.request_token, payload)
         if existing is not None:
             response.status_code = 200
@@ -475,7 +497,9 @@ def create_app(
             if load_document(conn, ws, document_id) is None:
                 raise ApiError(404, "not_found", "No such document.")
         try:
-            run_id = runner.submit(workspace_id=ws, document_id=document_id, mode=body.mode)
+            run_id = runner.submit(
+                workspace_id=ws, document_id=document_id, mode=body.mode, model=model
+            )
         except QueueFull as exc:
             raise ApiError(429, "queue_full", str(exc), retryable=True) from exc
         owner = _remember(ws, body.request_token, run_id, payload)
@@ -490,6 +514,7 @@ def create_app(
         run_id: str, body: RetryRequest, response: Response, ws: str = Depends(mutation)
     ):
         _check_mode(body.mode)
+        model = _selected_model(body.mode, body.model)
         if body.mode == "live":
             try:
                 ctx.check_live_allowed()
@@ -504,8 +529,9 @@ def create_app(
                 workspace_id=ws,
                 parent_run_id=run_id,
                 mode=body.mode,
+                model=model,
                 token=body.request_token,
-                payload_hash=_payload_hash("retry", run_id, body.mode),
+                payload_hash=_payload_hash("retry", run_id, body.mode, model),
             )
         except QueueFull as exc:
             raise ApiError(429, "queue_full", str(exc), retryable=True) from exc
@@ -525,6 +551,7 @@ def create_app(
         run_id: str, body: CorrectionRequest, response: Response, ws: str = Depends(mutation)
     ):
         _check_mode(body.mode)
+        model = _selected_model(body.mode, body.model)
         if body.mode == "live":
             try:
                 ctx.check_live_allowed()
@@ -539,8 +566,11 @@ def create_app(
                 workspace_id=ws,
                 parent_run_id=run_id,
                 mode=body.mode,
+                model=model,
                 token=body.request_token,
-                payload_hash=_payload_hash("correction", run_id, body.mode, body.document_id),
+                payload_hash=_payload_hash(
+                    "correction", run_id, body.mode, body.document_id, model
+                ),
                 correction_document_id=body.document_id,
             )
         except QueueFull as exc:
@@ -820,15 +850,16 @@ def create_app(
         body: CreateBatchRequest, response: Response, ws: str = Depends(mutation)
     ):
         _check_mode(body.mode)
+        model = _selected_model(body.mode, body.model)
         samples_map = _sample_files()
         names = body.sample_ids if body.sample_ids is not None else list(samples_map)
         unknown = [n for n in names if n not in samples_map]
         if unknown:
             raise ApiError(404, "not_found", "Unknown sample in the request.")
-        payload = _payload_hash("batch", sorted(names), body.mode)
+        payload = _payload_hash("batch", sorted(names), body.mode, model)
         try:
             batch_id, existed = batch_runner.submit(
-                ws, names, body.mode, body.request_token, payload
+                ws, names, body.mode, body.request_token, payload, model=model
             )
         except QueueFull as exc:
             raise ApiError(429, "queue_full", str(exc), retryable=True) from exc

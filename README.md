@@ -114,10 +114,12 @@ Duplicate files and revisions are checked before payment. Queued batches resume 
 
 | Option | When to use it |
 | --- | --- |
-| **Simulated, default** | Run the app offline without a key or provider charges. This does not test real model reasoning. |
+| **Offline test, local default** | Run the app offline without a key or provider charges. This does not test real model reasoning. |
 | **OpenRouter with Grok 4.7** | Use real model responses. Set `OPENROUTER_API_KEY` and a positive `MODEL_BUDGET_USD`, then use `--mode live` in the CLI. Internet and provider credit are required. |
 | **Direct xAI with Grok 4.7** | Set `LLM_PROVIDER=xai`, `XAI_API_KEY` and a positive `MODEL_BUDGET_USD`, then choose live mode. Uses xAI directly. Offline adapter tests pass; a live direct-xAI run has not been recorded. |
 | **Local Ollama, experimental** | Run an installed tool-capable model with `LLM_PROVIDER=ollama`. Start the daemon with `OLLAMA_NO_CLOUD=1`. Tested Qwen models held clean invoices unnecessarily, so this is not the recommended demo option. |
+
+The hosted browser prefers live AI when configured. In **New invoice → AI model**, choose **Grok 4.7**, **Claude Haiku 4.5** or **GPT-4o mini** through OpenRouter. Grok is the default unless the operator sets another model. The offline test option appears in Developer mode, or when live AI is unavailable. Only Grok has recorded live evaluation results; the other choices are alternatives, not equally validated models.
 
 For step-by-step setup with either cloud provider, see [model setup](docs/model-setup.md). Payments stay simulated with every model option.
 
@@ -127,8 +129,8 @@ Configuration is listed in [.env.example](.env.example); the app reads environme
 
 | Check | Recorded result |
 | --- | --- |
-| Backend tests | **791 passed**; four paid tests excluded from the default run |
-| Frontend tests | **81 passed** |
+| Backend tests | **798 passed**; four paid tests excluded from the default run |
+| Frontend tests | **83 passed** |
 | Browser tests | **21 passed** |
 | Supplied sample files | **20/20 expected outcomes** using simulated responses |
 | Grok rerun with corrected policy label | **16/16 expected matches** across ten known scenarios; three scenarios were each run three times |

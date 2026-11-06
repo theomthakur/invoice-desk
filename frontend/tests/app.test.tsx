@@ -120,3 +120,46 @@ it('shows an interrupted batch reason and requires an explicit new request to ru
   const posts=calls.filter(c=>c.path.endsWith('/batches') && c.method==='POST');
   expect(JSON.parse(posts[0].body!).request_token).not.toBe(JSON.parse(posts[1].body!).request_token);
 });
+
+
+describe('OpenRouter model selection', () => {
+  const enableModels = () => {
+    const original = vi.mocked(fetch).getMockImplementation()!;
+    vi.mocked(fetch).mockImplementation(async (input, init) => {
+      if (String(input).endsWith('/config')) return json({
+        schema_version: '1', policy_version: '1', limits: {max_file_bytes: 2000000, max_pdf_pages: 20, max_line_items: 200},
+        supported_extensions: ['txt'], enabled_modes: ['mock', 'live'], model_provider: 'openrouter',
+        default_mode: 'live', default_model: 'x-ai/grok-4.7',
+        model_options: [{id: 'x-ai/grok-4.7', label: 'Grok 4.7'}, {id: 'openai/gpt-4o-mini', label: 'GPT-4o mini'}],
+        approval_threshold: '10000.00', approval_currency: 'USD', payment_currencies: ['USD'],
+      });
+      return original(input, init);
+    });
+  };
+  it('defaults to Grok through OpenRouter and submits the chosen real model', async () => {
+    enableModels(); const user = userEvent.setup(); render(<App />);
+    await waitFor(() => expect(screen.getByRole('button', {name: 'Start a new invoice'})).toBeEnabled());
+    await user.click(screen.getByRole('button', {name: /try a sample/i}));
+    expect(screen.getByLabelText('AI model')).toHaveValue('x-ai/grok-4.7');
+    expect(screen.queryByRole('option', {name: 'Offline test (no AI)'})).not.toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText('AI model'), 'openai/gpt-4o-mini');
+    await user.selectOptions(screen.getByLabelText('Use a sample invoice'), 'sample_1');
+    await user.click(screen.getByRole('button', {name: /process invoice/i}));
+    await screen.findByText('Missing total');
+    expect(JSON.parse(calls.find(c => c.path.endsWith('/runs') && c.method === 'POST')!.body!)).toMatchObject({mode: 'live', model: 'openai/gpt-4o-mini'});
+  });
+  it('offers offline testing explicitly in Developer mode and omits the model from that request', async () => {
+    enableModels(); const user = userEvent.setup(); render(<App />);
+    await waitFor(() => expect(screen.getByRole('button', {name: 'Start a new invoice'})).toBeEnabled());
+    await user.click(screen.getByRole('button', {name: 'Developer mode'}));
+    await user.click(screen.getByRole('button', {name: /try a sample/i}));
+    await user.selectOptions(screen.getByLabelText('AI model'), '__offline__');
+    await user.selectOptions(screen.getByLabelText('Use a sample invoice'), 'sample_1');
+    await user.click(screen.getByRole('button', {name: /process invoice/i}));
+    await screen.findByText('Missing total');
+    const body = JSON.parse(calls.find(c => c.path.endsWith('/runs') && c.method === 'POST')!.body!);
+    expect(body.mode).toBe('mock');
+    expect(body).not.toHaveProperty('model');
+  });
+
+});

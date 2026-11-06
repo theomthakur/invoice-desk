@@ -4,14 +4,14 @@ Provider selection rules (these are safety rules, not conveniences):
 * ``mock`` always means the labeled simulated reader. It is only used when asked for.
 * ``live`` needs a server-side API key AND a numeric spending cap. Without both, a live run is
   refused with a clear error. It never falls back to mock or to another model.
-* the model name and base URL come from the operator's environment only, never from a request.
+* requests may choose only an approved OpenRouter model; base URLs and keys stay server-side.
 """
 
 from __future__ import annotations
 
 import os
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Literal
 
@@ -27,6 +27,11 @@ from .storage import Database, append_event, utc_now
 ProviderFactory = Callable[[str], Provider]
 
 DEFAULT_MODEL = "x-ai/grok-4.7"
+OPENROUTER_MODELS = {
+    DEFAULT_MODEL: "Grok 4.7",
+    "anthropic/claude-haiku-4.5": "Claude Haiku 4.5",
+    "openai/gpt-4o-mini": "GPT-4o mini",
+}
 
 
 def _float(name: str, default: float | None) -> float | None:
@@ -156,6 +161,12 @@ class AppConfig:
             modes.append("live")
         return modes
 
+    def model_options(self) -> list[dict[str, str]]:
+        models = {self.llm_model: OPENROUTER_MODELS.get(self.llm_model, self.llm_model)}
+        if self.llm_provider == "openrouter":
+            models.update(OPENROUTER_MODELS)
+        return [{"id": key, "label": value} for key, value in models.items()]
+
     def new_budget(self) -> RunBudget:
         return RunBudget(
             max_requests=self.model_call_limit,
@@ -231,6 +242,17 @@ class App:
             provider_factory=provider_factory or default_provider_factory(cfg),
             samples_dir=samples_dir,
         )
+
+    def for_model(self, model: str | None) -> App:
+        """Make per-job configuration without mutating another caller's model."""
+        if model is None:
+            return self
+        if model not in {option["id"] for option in self.config.model_options()}:
+            raise ProviderError("model_unavailable", "That model is not enabled on this server.")
+        if model == self.config.llm_model:
+            return self
+        config = replace(self.config, llm_model=model)
+        return replace(self, config=config, provider_factory=default_provider_factory(config))
 
     def live_spend_usd(self) -> float:
         """Known cost of completed live runs. Runs whose cost was unknown add nothing here;

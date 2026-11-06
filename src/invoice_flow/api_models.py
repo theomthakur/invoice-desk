@@ -68,8 +68,16 @@ class LimitsInfo(StrictModel):
     max_line_items: int
 
 
+class ModelOption(StrictModel):
+    id: str
+    label: str
+
+
 class ConfigInfo(StrictModel):
     model_provider: Literal["openrouter", "xai", "ollama"] = "openrouter"
+    model_options: list[ModelOption] = Field(default_factory=list)
+    default_model: str = ""
+    default_mode: Literal["mock", "live"] = "mock"
     schema_version: str = SCHEMA_VERSION
     policy_version: str
     limits: LimitsInfo
@@ -107,6 +115,7 @@ class CreateRunRequest(StrictModel):
     document_id: SafeId | None = None
     sample_id: SafeId | None = None
     mode: Literal["mock", "live"] = "mock"
+    model: Annotated[str, StringConstraints(min_length=1, max_length=200)] | None = None
     request_token: Token  # a double click returns the same run
 
     @model_validator(mode="after")
@@ -127,6 +136,7 @@ class CreateBatchRequest(StrictModel):
 
     sample_ids: list[SafeId] | None = Field(default=None, max_length=100)
     mode: Literal["mock", "live"] = "mock"
+    model: Annotated[str, StringConstraints(min_length=1, max_length=200)] | None = None
     request_token: Token
 
 
@@ -257,6 +267,7 @@ class DepartmentHandoffRequest(StrictModel):
 
 
 class RetryRequest(StrictModel):
+    model: Annotated[str, StringConstraints(min_length=1, max_length=200)] | None = None
     mode: Literal["mock", "live"]
     request_token: Token
 

@@ -214,7 +214,8 @@ CREATE TABLE IF NOT EXISTS batches (
     document_ids_json TEXT NOT NULL,
     created_at        TEXT NOT NULL,
     finished_at       TEXT,
-    result_json       TEXT
+    result_json       TEXT,
+    model             TEXT
 );
 CREATE TABLE IF NOT EXISTS request_tokens (
     workspace_id TEXT NOT NULL REFERENCES workspaces(workspace_id) ON DELETE CASCADE,
@@ -291,6 +292,8 @@ def init_database(db: Database, inventory: dict[str, int] | None = None) -> None
     with db.transaction() as conn:
         for statement in _statements(SCHEMA):
             conn.execute(statement)
+        if "model" not in {row[1] for row in conn.execute("PRAGMA table_info(batches)")}:
+            conn.execute("ALTER TABLE batches ADD COLUMN model TEXT")
         for item, stock in seed.items():
             conn.execute(
                 "INSERT OR IGNORE INTO inventory (item, stock) VALUES (?, ?)", (item, stock)

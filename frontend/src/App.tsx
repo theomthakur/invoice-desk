@@ -55,6 +55,7 @@ function App() {
   const [selectedSample, setSelectedSample] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [mode, setMode] = useState<Mode>('mock');
+  const [selectedModel, setSelectedModel] = useState('');
   const [run, setRun] = useState<RunResult | null>(null);
   const [runId, setRunId] = useState<string | null>(null);
   const currentRun = useRef<string | null>(null);
@@ -91,7 +92,8 @@ function App() {
     api.setCsrf(info.csrf_token);
     const [cfg, sampleList] = await Promise.all([api.config(), api.samples()]);
     setSession(info); setConfig(cfg); setSamples(sampleList);
-    if (!cfg.enabled_modes.includes('mock') && cfg.enabled_modes.includes('live')) setMode('live');
+    setMode(cfg.enabled_modes.includes('live') ? 'live' : 'mock');
+    setSelectedModel(cfg.default_model ?? cfg.model_options?.[0]?.id ?? '');
     setConnectionError(null); setAccessRequired(false);
     try { await refreshHistory(); } catch (err) { setError(`History could not be loaded: ${messageOf(err)}`); }
   }, [refreshHistory]);
@@ -198,7 +200,7 @@ function App() {
       if (selectedFile) { setPendingText('Uploading file…'); uploadRef.current ??= (await api.upload(selectedFile)).document_id; selected = { document_id: uploadRef.current }; }
       else selected = { sample_id: selectedSample };
       setPendingText('Starting processing…');
-      const result = await api.run(selected, mode, requestRef.current.token);
+      const result = await api.run(selected, mode, requestRef.current.token, selectedModel);
       requestRef.current = null; setIntakeOpen(false); openRun(result.run_id);
       void refreshHistory().catch(() => {});
     } catch (err) { setError(messageOf(err)); }
@@ -209,7 +211,7 @@ function App() {
     pendingRef.current = true; setPending(true); setPendingText('Starting sample batch…'); setError(null);
     try {
       if (requestRef.current?.kind !== 'batch') requestRef.current = { kind: 'batch', token: token() };
-      const result = await api.batch(mode, requestRef.current.token);
+      const result = await api.batch(mode, requestRef.current.token, selectedModel);
       requestRef.current = null; setIntakeOpen(false); setRunId(null); setRun(null); setBatch(null); setBatchId(result.batch_id); setScreen('workspace');
     } catch (err) { setError(messageOf(err)); }
     finally { pendingRef.current = false; setPending(false); setPendingText(''); }
@@ -220,7 +222,7 @@ function App() {
     if (retryRequest.current?.runId !== original.run_id || retryRequest.current.mode !== retryMode) retryRequest.current = {runId:original.run_id, mode:retryMode, token:token()};
     pendingRef.current = true; setPending(true); setError(null);
     try {
-      const result=await api.retry(original.run_id, retryMode, retryRequest.current.token);
+      const result=await api.retry(original.run_id, retryMode, retryRequest.current.token, original.model ?? undefined);
       retryRequest.current=null; openRun(result.run_id); void refreshHistory().catch(()=>{});
     } catch (err) {setError(messageOf(err));}
     finally {pendingRef.current=false; setPending(false);}
@@ -232,7 +234,7 @@ function App() {
     pendingRef.current=true; setPending(true); setError(null);
     try {
       correctionRequest.current.documentId ??= (await api.upload(file)).document_id;
-      const result=await api.correction(original.run_id,correctionRequest.current.documentId,correctionMode,correctionRequest.current.token);
+      const result=await api.correction(original.run_id,correctionRequest.current.documentId,correctionMode,correctionRequest.current.token, original.model ?? undefined);
       correctionRequest.current=null; openRun(result.run_id); void refreshHistory().catch(()=>{});
     } catch(err) {setError(messageOf(err));} finally {pendingRef.current=false;setPending(false);}
   }
@@ -286,7 +288,7 @@ function App() {
         <div className="sidebar-resources" data-tour="resources"><button className={`nav-item ${screen === 'architecture' ? 'active' : ''}`} aria-label="System design" title="System design" aria-current={screen === 'architecture' ? 'page' : undefined} onClick={() => openResource('architecture')}><GitBranch size={18}/><span>System design</span></button><button className={`nav-item ${screen === 'presentation' ? 'active' : ''}`} aria-label="Presentation" title="Presentation" aria-current={screen === 'presentation' ? 'page' : undefined} onClick={() => openResource('presentation')}><PresentationIcon size={18}/><span>Presentation</span></button></div>
       </nav>
       <div className="sidebar-tools"><button className="nav-item" aria-label="Guided walkthrough" title="Guided walkthrough" disabled={!session || pending} onClick={() => {showInbox(); setIntakeOpen(false); setTourIndex(0); setTourOpen(true);}}><Compass size={18}/><span>Guided walkthrough</span></button><button className="nav-item" aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'} title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'} onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}><span className="sr-only">Appearance</span>{theme === 'dark' ? <Sun size={18}/> : <Moon size={18}/>}<span>{theme === 'dark' ? 'Light mode' : 'Dark mode'}</span></button></div>
-      <button className={`nav-item developer-toggle ${developerMode ? 'enabled' : ''}`} aria-label="Developer mode" aria-pressed={developerMode} title={`Developer mode is ${developerMode ? 'on' : 'off'}. Click to ${developerMode ? 'hide' : 'show'} technical details and JSON export.`} onClick={() => setDeveloperMode(value => !value)}><Code2 size={18}/><span>Developer mode</span><span className="developer-state" aria-hidden="true">{developerMode ? 'On' : 'Off'}</span></button><div className="sidebar-bottom"><div className="workspace-caption"><span className={`connection-dot ${session ? 'online' : ''}`} />{session ? 'Workspace connected' : 'Workspace offline'}</div><p>{session?.persistence === 'ephemeral' ? 'Temporary storage. Records may reset when the server restarts.' : session ? 'History is stored in this workspace.' : 'Connect to the server to load your records.'}</p></div><div className="sidebar-account" role="region" aria-label="Workspace account" title="This is a browser workspace session. Personal sign-in is not configured."><span className="account-avatar"><UserRound size={19}/></span><div className="account-copy"><strong>Acme workspace</strong><small>{session ? 'Demo session' : 'Not connected'}</small></div></div>
+      <button className={`nav-item developer-toggle ${developerMode ? 'enabled' : ''}`} aria-label="Developer mode" aria-pressed={developerMode} title={`Developer mode is ${developerMode ? 'on' : 'off'}. Click to ${developerMode ? 'hide' : 'show'} technical details and JSON export.`} onClick={() => { setDeveloperMode(value => !value); if (developerMode && mode === 'mock' && config?.enabled_modes.includes('live')) setMode('live'); }}><Code2 size={18}/><span>Developer mode</span><span className="developer-state" aria-hidden="true">{developerMode ? 'On' : 'Off'}</span></button><div className="sidebar-bottom"><div className="workspace-caption"><span className={`connection-dot ${session ? 'online' : ''}`} />{session ? 'Workspace connected' : 'Workspace offline'}</div><p>{session?.persistence === 'ephemeral' ? 'Temporary storage. Records may reset when the server restarts.' : session ? 'History is stored in this workspace.' : 'Connect to the server to load your records.'}</p></div><div className="sidebar-account" role="region" aria-label="Workspace account" title="This is a browser workspace session. Personal sign-in is not configured."><span className="account-avatar"><UserRound size={19}/></span><div className="account-copy"><strong>Acme workspace</strong><small>{session ? 'Demo session' : 'Not connected'}</small></div></div>
     </aside>
     <main className="main-area" id="main-content"><header className="topbar"><div className="topbar-location"><button className="icon-button sidebar-toggle" aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-expanded={!sidebarCollapsed} aria-controls="workspace-navigation" onClick={() => setSidebarCollapsed((value) => !value)}>{sidebarCollapsed ? <PanelLeftOpen size={19} /> : <PanelLeftClose size={19} />}</button><div className="breadcrumb"><span>Workspace</span><span>/</span><strong>{currentTitle}</strong></div></div><div className="top-right">{developerMode && <span className="developer-banner">Developer mode on</span>}<span className="demo-badge"><span />Demo workspace</span></div></header>
       <div className="page-content">
@@ -310,7 +312,7 @@ function App() {
         <footer className="footer"><span>Invoice Desk <span className="footer-dot">·</span> Demo workspace</span><span><ShieldCheck size={13} />No real money moves</span></footer>
       </div>
     </main>
-    <IntakePanel guideActive={tourOpen} open={intakeOpen} close={() => { if (!pending) { setIntakeOpen(false); setError(null); } }} tab={intakeTab} setTab={(value) => { setIntakeTab(value); resetSelection(); setError(null); }} samples={samples} config={config} selectedSample={selectedSample} selectSample={(value) => { setSelectedSample(value); setSelectedFile(null); uploadRef.current = null; requestRef.current = null; }} selectedFile={selectedFile} chooseFile={chooseFile} mode={mode} setMode={(value) => { setMode(value); requestRef.current = null; }} pending={pending} pendingText={pendingText} process={() => void startRun()} batch={() => void startBatch()} connected={Boolean(session)} error={error} />
+    <IntakePanel developerMode={developerMode} selectedModel={selectedModel} setSelectedModel={(value) => { setSelectedModel(value); requestRef.current = null; }} guideActive={tourOpen} open={intakeOpen} close={() => { if (!pending) { setIntakeOpen(false); setError(null); } }} tab={intakeTab} setTab={(value) => { setIntakeTab(value); resetSelection(); setError(null); }} samples={samples} config={config} selectedSample={selectedSample} selectSample={(value) => { setSelectedSample(value); setSelectedFile(null); uploadRef.current = null; requestRef.current = null; }} selectedFile={selectedFile} chooseFile={chooseFile} mode={mode} setMode={(value) => { setMode(value); requestRef.current = null; }} pending={pending} pendingText={pendingText} process={() => void startRun()} batch={() => void startBatch()} connected={Boolean(session)} error={error} />
     {tourOpen && <Walkthrough index={tourIndex} setIndex={setTourIndex} close={() => setTourOpen(false)} intakeOpen={intakeOpen} selected={intakeTab === 'sample' ? Boolean(selectedSample) : Boolean(selectedFile)} run={run} runId={runId} reopen={newInvoice} openOverview={() => document.querySelector<HTMLButtonElement>('[data-tour="overview"]')?.click()} />}
   </div>;
 }

@@ -83,16 +83,16 @@ export class ApiClient {
     const form = new FormData(); form.append('file', file);
     return this.json<DocumentInfo>('/documents', { method: 'POST', body: form });
   }
-  run(source: { document_id: string } | { sample_id: string }, mode: Mode, request_token: string) {
-    return this.json<RunAccepted>('/runs', { method: 'POST', body: JSON.stringify({ ...source, mode, request_token }) });
+  run(source: { document_id: string } | { sample_id: string }, mode: Mode, request_token: string, model?: string) {
+    return this.json<RunAccepted>('/runs', { method: 'POST', body: JSON.stringify({ ...source, mode, request_token, ...(mode === 'live' && model ? {model} : {}) }) });
   }
-  batch(mode: Mode, request_token: string) {
+  batch(mode: Mode, request_token: string, model?: string) {
     return this.json<{ batch_id: string; lifecycle: Lifecycle }>('/batches', {
-      method: 'POST', body: JSON.stringify({ sample_ids: null, mode, request_token }),
+      method: 'POST', body: JSON.stringify({ sample_ids: null, mode, request_token, ...(mode === 'live' && model ? {model} : {}) }),
     });
   }
-  retry(id: string, mode: Mode, requestToken: string) { return this.json<RunAccepted>(`/runs/${encodeURIComponent(id)}/retry`, { method:'POST', body:JSON.stringify({mode, request_token:requestToken}) }); }
-  correction(id:string, documentId:string, mode:Mode, requestToken:string) { return this.json<RunAccepted>(`/runs/${encodeURIComponent(id)}/correction`, { method:'POST', body:JSON.stringify({document_id:documentId, mode, request_token:requestToken}) }); }
+  retry(id: string, mode: Mode, requestToken: string, model?: string) { return this.json<RunAccepted>(`/runs/${encodeURIComponent(id)}/retry`, { method:'POST', body:JSON.stringify({mode, request_token:requestToken, ...(mode === 'live' && model ? {model} : {})}) }); }
+  correction(id:string, documentId:string, mode:Mode, requestToken:string, model?:string) { return this.json<RunAccepted>(`/runs/${encodeURIComponent(id)}/correction`, { method:'POST', body:JSON.stringify({document_id:documentId, mode, request_token:requestToken, ...(mode === 'live' && model ? {model} : {})}) }); }
   getBatch(id: string, signal?: AbortSignal) { return this.json<BatchResult>(`/batches/${encodeURIComponent(id)}`, { signal }); }
   getRun(id: string, signal?: AbortSignal) { return this.json<RunResult>(`/runs/${encodeURIComponent(id)}`, { signal }); }
   events(id: string, after: number, signal?: AbortSignal) {

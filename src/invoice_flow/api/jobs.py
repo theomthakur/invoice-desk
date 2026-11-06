@@ -42,6 +42,7 @@ class Job:
     mode: str
     attempt_of: str | None = None
     relation_kind: str | None = None
+    model: str | None = None
 
 
 class JobRunner:
@@ -81,7 +82,7 @@ class JobRunner:
                 "SELECT run_id, workspace_id FROM runs WHERE lifecycle = 'running'"
             ).fetchall()
             queued = conn.execute(
-                "SELECT r.run_id, r.workspace_id, r.document_id, r.mode,"
+                "SELECT r.run_id, r.workspace_id, r.document_id, r.mode, r.model,"
                 " l.parent_run_id, l.kind AS relation_kind"
                 " FROM runs r LEFT JOIN run_links l ON l.child_run_id = r.run_id"
                 " WHERE r.lifecycle = 'queued' ORDER BY r.started_at"
@@ -109,6 +110,7 @@ class JobRunner:
                         row["mode"] or "mock",
                         row["parent_run_id"],
                         row["relation_kind"],
+                        row["model"],
                     )
                 )
 
@@ -120,7 +122,9 @@ class JobRunner:
                 "SELECT COUNT(*) FROM runs WHERE lifecycle IN ('queued','running')"
             ).fetchone()[0]
 
-    def submit(self, *, workspace_id: str, document_id: str, mode: str) -> str:
+    def submit(
+        self, *, workspace_id: str, document_id: str, mode: str, model: str | None = None
+    ) -> str:
         """Create a durable queued run and wake a worker. Raises :class:`QueueFull` at capacity."""
         if self.pending() >= self.app.config.queue_capacity:
             raise QueueFull(f"The queue is full ({self.app.config.queue_capacity} runs).")
@@ -137,11 +141,12 @@ class JobRunner:
                 now=self.app.db.now(),
                 document_id=document_id,
                 mode=mode,
+                model=model,
                 policy_version=self.app.policy.policy_version,
                 lifecycle="queued",
             )
         EventRecorder(self.app.db, run_id)("intake", "run_queued", {"mode": mode})
-        self._queue.put(Job(run_id, workspace_id, document_id, mode))
+        self._queue.put(Job(run_id, workspace_id, document_id, mode, model=model))
         return run_id
 
     def submit_retry(
@@ -153,6 +158,7 @@ class JobRunner:
         token: str,
         payload_hash: str,
         correction_document_id: str | None = None,
+        model: str | None = None,
     ) -> tuple[str, bool]:
         """Record an idempotent retry and its parent atomically before waking the worker."""
         with self.app.db.transaction() as conn:
@@ -213,6 +219,7 @@ class JobRunner:
                 now=now,
                 document_id=document_id,
                 mode=mode,
+                model=model,
                 policy_version=self.app.policy.policy_version,
                 lifecycle="queued",
             )
@@ -238,7 +245,7 @@ class JobRunner:
                 {"mode": mode, "attempt_of": parent_run_id, "relation_kind": kind},
                 now,
             )
-        self._queue.put(Job(run_id, workspace_id, document_id, mode, parent_run_id, kind))
+        self._queue.put(Job(run_id, workspace_id, document_id, mode, parent_run_id, kind, model))
         return run_id, False
 
     def cancel(self, run_id: str) -> None:
@@ -289,7 +296,7 @@ class JobRunner:
             )
             return
         execute_run(
-            self.app,
+            self.app.for_model(job.model),
             workspace_id=job.workspace_id,
             source=source,
             mode=job.mode,

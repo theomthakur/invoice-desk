@@ -14,10 +14,16 @@ services:
         value: /tmp/invoice-flow
       - key: STORAGE_PERSISTENCE
         value: ephemeral
+      - key: LLM_PROVIDER
+        value: openrouter
       - key: MODEL_MODE
-        value: mock
+        value: live
       - key: ALLOW_LIVE_IN_SESSIONS
-        value: "0"
+        value: "1"
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: MODEL_BUDGET_USD
+        sync: false
       - key: SESSION_SECRET
         generateValue: true
       - key: DEMO_ACCESS_CODE

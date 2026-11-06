@@ -56,7 +56,9 @@ def test_running_batch_is_interrupted_after_restart_and_not_replayed(tmp_path):
         cookies = browser.client.cookies
         with ctx.db.transaction() as conn:
             conn.execute(
-                "INSERT INTO batches VALUES (?,?, 'running','mock',?,?,NULL,NULL)",
+                "INSERT INTO batches (batch_id,workspace_id,lifecycle,mode,"
+                "document_ids_json,created_at,finished_at,result_json) "
+                "VALUES (?,?, 'running','mock',?,?,NULL,NULL)",
                 ("bat_stale", browser.workspace, json.dumps(["invoice_1006.csv"]), ctx.db.now()),
             )
     with TestClient(create_app(make_ctx(tmp_path))) as client:
@@ -161,7 +163,9 @@ def test_workspace_reset_cannot_delete_a_batch_before_it_creates_individual_runs
         browser = Browser(app)
         with ctx.db.transaction() as conn:
             conn.execute(
-                "INSERT INTO batches VALUES (?, ?, ?, 'mock', ?, ?, NULL, NULL)",
+                "INSERT INTO batches (batch_id,workspace_id,lifecycle,mode,"
+                "document_ids_json,created_at,finished_at,result_json) "
+                "VALUES (?, ?, ?, 'mock', ?, ?, NULL, NULL)",
                 (
                     "bat_reset_guard",
                     browser.workspace,

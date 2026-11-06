@@ -602,6 +602,20 @@
             "title": "Approval Threshold",
             "type": "string"
           },
+          "default_mode": {
+            "default": "mock",
+            "enum": [
+              "mock",
+              "live"
+            ],
+            "title": "Default Mode",
+            "type": "string"
+          },
+          "default_model": {
+            "default": "",
+            "title": "Default Model",
+            "type": "string"
+          },
           "enabled_modes": {
             "items": {
               "type": "string"
@@ -611,6 +625,13 @@
           },
           "limits": {
             "$ref": "#/components/schemas/LimitsInfo"
+          },
+          "model_options": {
+            "items": {
+              "$ref": "#/components/schemas/ModelOption"
+            },
+            "title": "Model Options",
+            "type": "array"
           },
           "model_provider": {
             "default": "openrouter",
@@ -717,6 +738,19 @@
             "title": "Mode",
             "type": "string"
           },
+          "model": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
           "request_token": {
             "maxLength": 80,
             "minLength": 8,
@@ -745,6 +779,19 @@
             ],
             "title": "Mode",
             "type": "string"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
           },
           "request_token": {
             "maxLength": 80,
@@ -804,6 +851,19 @@
             ],
             "title": "Mode",
             "type": "string"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
           },
           "request_token": {
             "maxLength": 80,
@@ -1842,6 +1902,25 @@
         "title": "LineItemDraft",
         "type": "object"
       },
+      "ModelOption": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "ModelOption",
+        "type": "object"
+      },
       "NormalizedInvoice": {
         "additionalProperties": false,
         "properties": {
@@ -2086,6 +2165,19 @@
             ],
             "title": "Mode",
             "type": "string"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
           },
           "request_token": {
             "maxLength": 80,

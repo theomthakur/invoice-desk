@@ -1,6 +1,6 @@
 # Choose a model provider
 
-The default is simulation: no model key or API charge. For real model responses,
+The local CLI defaults to offline test responses: no model key or API charge. A configured browser session prefers live AI. For real model responses,
 choose **OpenRouter** or **direct xAI** on the server. Reviewers can use their own key.
 Never put a key in the browser, source code, screenshots or a committed file.
 
@@ -20,9 +20,9 @@ set +a
 uv run python main.py --serve
 ```
 
-For the browser, set `ALLOW_LIVE_IN_SESSIONS=1` before starting and select **Live model**
-under Processing mode. For the CLI, pass `--mode live`. Setting a key alone does not
-switch simulation to live mode. Restart the server after changing configuration.
+For the browser, set `ALLOW_LIVE_IN_SESSIONS=1` before starting and choose a model under **New invoice → AI model**.
+OpenRouter offers Grok 4.7, Claude Haiku 4.5 and GPT-4o mini; the operator-configured model is selected first. Model choice is saved with each queued run and batch, including across server restarts. Only these approved choices and the operator-configured model can be requested.
+The offline test option is available in Developer mode. For the CLI, pass `--mode live` or set `MODEL_MODE=live`. The CLI does not switch modes merely because a key is present. Restart the server after changing configuration.
 
 ### OpenRouter
 
